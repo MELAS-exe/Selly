@@ -95,7 +95,7 @@ export function Landing() {
           </a>
         </div>
       </header>
-      <section className="relative pt-24 pb-20 md:pt-32 md:pb-24 px-6 md:px-12 max-w-7xl mx-auto w-full min-h-[85vh] flex flex-col items-center justify-center border-x border-[#1111111f]">
+      <section className="relative pt-64 pb-56 md:pt-32 md:pb-24 px-6 md:px-12 max-w-7xl mx-auto w-full min-h-[85vh] flex flex-col items-center justify-center border-x border-[#1111111f]">
         <div className="absolute inset-0 z-30 pointer-events-none overflow-hidden">
           <div
             className="absolute inset-0 mix-blend-multiply opacity-[0.06]"
@@ -111,31 +111,31 @@ export function Landing() {
                 "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='washi2'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23washi2)'/%3E%3C/svg%3E\")",
             }}
           ></div>
-          <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-[#F6F4F0] to-transparent"></div>
+          <div className="absolute bottom-0 left-0 right-0 h-12 md:h-48 bg-gradient-to-t from-[#F6F4F0] to-transparent"></div>
         </div>
         <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden md:overflow-visible">
-          <div className="absolute top-[6%] left-[-5%] md:left-[10%] w-48 h-48 md:w-64 md:h-64 opacity-0 animate-pv-fade-up delay-75 z-0 pointer-events-auto">
+          <div className="absolute top-24 md:top-[6%] left-2 md:left-[10%] w-36 h-36 md:w-64 md:h-64 opacity-0 animate-pv-fade-up delay-75 z-0 pointer-events-auto">
             <img
               alt="Leather handbag"
               className="w-full h-full object-contain drop-shadow-[0_20px_25px_rgba(0,0,0,0.15)] -rotate-12 hover:-rotate-[6deg] hover:scale-[1.03] transition-transform duration-300 ease-out"
               src="/landing/products/handbag.webp"
             />
           </div>
-          <div className="absolute top-[12%] right-[-5%] md:right-[15%] w-40 h-40 md:w-56 md:h-56 opacity-0 animate-pv-fade-up delay-150 z-20 pointer-events-auto">
+          <div className="absolute top-24 md:top-[12%] right-4 md:right-[15%] w-36 h-36 md:w-56 md:h-56 opacity-0 animate-pv-fade-up delay-150 z-20 pointer-events-auto">
             <img
               alt="Smartphone"
               className="w-full h-full object-contain drop-shadow-[0_25px_35px_rgba(0,0,0,0.2)] rotate-15 hover:rotate-[21deg] hover:scale-[1.03] transition-transform duration-300 ease-out"
               src="/landing/products/smartphone.webp"
             />
           </div>
-          <div className="absolute bottom-[20%] left-0 md:left-[15%] w-56 h-56 md:w-72 md:h-72 opacity-0 animate-pv-fade-up delay-200 z-20 pointer-events-auto">
+          <div className="absolute bottom-6 md:bottom-[20%] left-3 md:left-[15%] w-52 h-40 md:w-72 md:h-72 opacity-0 animate-pv-fade-up delay-200 z-20 pointer-events-auto">
             <img
               alt="Sneaker"
               className="w-full h-full object-contain drop-shadow-[0_30px_40px_rgba(0,0,0,0.25)] -rotate-[25deg] hover:-rotate-[19deg] hover:scale-[1.03] transition-transform duration-300 ease-out"
               src="/landing/products/sneaker.webp"
             />
           </div>
-          <div className="absolute top-[45%] right-[-10%] md:right-[5%] w-32 h-32 md:w-40 md:h-40 opacity-0 animate-pv-fade-up delay-500 z-0 pointer-events-auto">
+          <div className="absolute top-auto bottom-8 md:bottom-auto md:top-[45%] right-4 md:right-[5%] w-24 h-24 md:w-40 md:h-40 opacity-0 animate-pv-fade-up delay-500 z-0 pointer-events-auto">
             <img
               alt="Perfume bottle"
               className="w-full h-full object-contain drop-shadow-[0_10px_15px_rgba(0,0,0,0.05)] rotate-[35deg] hover:rotate-[41deg] hover:scale-[1.03] transition-transform duration-300 ease-out"
@@ -215,7 +215,7 @@ export function Landing() {
       <div className="w-full max-w-7xl mx-auto h-px bg-[#1111111f] relative">
         <div className="absolute top-0 left-0 w-full h-full bg-[#E3342F] origin-left scale-x-0 animate-pv-line"></div>
       </div>
-      <section className="py-32 px-6 md:px-12 max-w-7xl mx-auto w-full border-x border-[#1111111f]">
+      <section className="py-20 md:py-32 px-6 md:px-12 max-w-7xl mx-auto w-full border-x border-[#1111111f]">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-12">
           <div className="md:col-span-4 reveal-on-scroll transition-all duration-500 ease-out opacity-100">
             <h2 className="pv-sans text-xs uppercase tracking-[0.3em] font-medium text-[#E3342F] mb-4 flex items-center gap-4">
@@ -242,7 +242,7 @@ export function Landing() {
       </section>
       <section
         data-dark-section
-        className="py-24 px-6 md:px-12 max-w-7xl mx-auto w-full border-x border-y border-[#1111111f] bg-[#111]"
+        className="py-16 md:py-24 px-6 md:px-12 max-w-7xl mx-auto w-full border-x border-y border-[#1111111f] bg-[#111]"
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
           <div className="order-2 md:order-1 reveal-on-scroll transition-all duration-500 ease-out opacity-100">
@@ -256,7 +256,10 @@ export function Landing() {
               Selly helps customers discover your products, check what is in stock, and place an
               order. You stay focused on your business while every conversation makes buying easier.
             </p>
-            <div className="inline-flex items-center gap-4 text-white hover:text-[#E3342F] transition-colors cursor-pointer group">
+            <a
+              href="#how-it-works"
+              className="inline-flex items-center gap-4 text-white hover:text-[#E3342F] transition-colors group"
+            >
               <span className="pv-sans text-xs uppercase tracking-widest">See how it works</span>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -274,7 +277,7 @@ export function Landing() {
                 <path d="M5 12h14"></path>
                 <path d="m12 5 7 7-7 7"></path>
               </svg>
-            </div>
+            </a>
           </div>
           <div className="order-1 md:order-2 h-[50vh] md:h-[80vh] relative bg-[#F6F4F0] reveal-on-scroll transition-all duration-500 ease-out delay-75 opacity-100">
             <img
@@ -282,34 +285,20 @@ export function Landing() {
               className="w-full h-full object-contain p-8 md:p-12"
               src="/brand/selly-mascot.png"
             />
-            <div className="absolute top-0 right-0 w-32 h-32 md:w-48 md:h-48 translate-x-1/2 -translate-y-1/2 hidden md:block">
-              <svg
-                viewBox="0 0 120 120"
-                className="w-full h-full animate-[spin_20s_linear_infinite]"
-              >
-                <path
-                  id="circlePath"
-                  d="M 60, 60 m -45, 0 a 45,45 0 1,1 90,0 a 45,45 0 1,1 -90,0"
-                  fill="none"
-                ></path>
-                <text className="pv-sans text-[10px] uppercase tracking-[0.3em] pv-ink fill-current">
-                  <textPath href="#circlePath" startOffset="0%">
-                    YOUR SALES ASSISTANT • READY TO HELP •{' '}
-                  </textPath>
-                </text>
-              </svg>
-            </div>
           </div>
         </div>
       </section>
-      <section className="py-40 px-6 md:px-12 max-w-7xl mx-auto w-full border-x border-[#1111111f] relative overflow-hidden">
+      <section
+        id="how-it-works"
+        className="py-20 md:py-40 px-6 md:px-12 max-w-7xl mx-auto w-full border-x border-[#1111111f] relative overflow-hidden"
+      >
         <img
           src="/brand/selly-s.png"
           alt=""
           className="absolute -left-24 top-1/2 -translate-y-1/2 w-[34rem] h-auto opacity-[0.04] pointer-events-none select-none"
         />
         <div className="max-w-6xl mx-auto relative z-10">
-          <div className="text-center mb-32 reveal-on-scroll transition-all duration-500 ease-out opacity-100">
+          <div className="text-center mb-16 md:mb-32 reveal-on-scroll transition-all duration-500 ease-out opacity-100">
             <div className="pv-sans text-xs uppercase tracking-[0.3em] font-medium text-[#E3342F] mb-6 flex items-center justify-center gap-4">
               <span className="w-8 h-px bg-[#E3342F]"></span>The Selly toolkit
               <span className="w-8 h-px bg-[#E3342F]"></span>
@@ -319,9 +308,9 @@ export function Landing() {
               One link. A smoother way to shop.
             </p>
           </div>
-          <div className="flex flex-col relative min-h-[50vh] max-w-4xl mx-auto">
-            <div className="group flex flex-col md:flex-row gap-6 md:gap-10 items-start reveal-on-scroll transition-all duration-500 ease-out border-b border-[#1111111f] py-8 first:pt-0 last:border-0 last:pb-0 opacity-100">
-              <div className="flex items-start gap-6 md:gap-8 shrink-0 w-full md:w-auto">
+          <div className="flex flex-col relative md:min-h-[50vh] max-w-4xl mx-auto">
+            <div className="group flex flex-row gap-4 md:gap-10 items-start reveal-on-scroll transition-all duration-500 ease-out border-b border-[#1111111f] py-8 first:pt-0 last:border-0 last:pb-0 opacity-100">
+              <div className="flex items-start gap-3 md:gap-8 shrink-0 w-auto">
                 <div className="pt-2">
                   <span className="pv-sans text-[10px] uppercase tracking-[0.2em] text-[#E3342F] font-medium opacity-40 group-hover:opacity-100 transition-opacity duration-500">
                     01
@@ -336,9 +325,9 @@ export function Landing() {
                   <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
                 </div>
               </div>
-              <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:gap-12 pt-1 lg:pt-2 w-full">
+              <div className="flex-1 min-w-0 flex flex-col lg:flex-row gap-4 lg:gap-12 pt-1 lg:pt-2 w-full">
                 <div className="lg:w-[40%]">
-                  <h4 className="pv-serif text-2xl lg:text-3xl mb-1.5 group-hover:text-[#E3342F] transition-colors duration-300">
+                  <h4 className="pv-serif text-xl md:text-2xl lg:text-3xl mb-1.5 group-hover:text-[#E3342F] transition-colors duration-300">
                     Your storefront
                   </h4>
                   <div className="pv-sans text-[10px] font-medium tracking-[0.15em] uppercase text-black/80">
@@ -353,8 +342,8 @@ export function Landing() {
                 </div>
               </div>
             </div>
-            <div className="group flex flex-col md:flex-row gap-6 md:gap-10 items-start reveal-on-scroll transition-all duration-500 ease-out border-b border-[#1111111f] py-8 first:pt-0 last:border-0 last:pb-0 opacity-100">
-              <div className="flex items-start gap-6 md:gap-8 shrink-0 w-full md:w-auto">
+            <div className="group flex flex-row gap-4 md:gap-10 items-start reveal-on-scroll transition-all duration-500 ease-out border-b border-[#1111111f] py-8 first:pt-0 last:border-0 last:pb-0 opacity-100">
+              <div className="flex items-start gap-3 md:gap-8 shrink-0 w-auto">
                 <div className="pt-2">
                   <span className="pv-sans text-[10px] uppercase tracking-[0.2em] text-[#E3342F] font-medium opacity-40 group-hover:opacity-100 transition-opacity duration-500">
                     02
@@ -369,9 +358,9 @@ export function Landing() {
                   <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
                 </div>
               </div>
-              <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:gap-12 pt-1 lg:pt-2 w-full">
+              <div className="flex-1 min-w-0 flex flex-col lg:flex-row gap-4 lg:gap-12 pt-1 lg:pt-2 w-full">
                 <div className="lg:w-[40%]">
-                  <h4 className="pv-serif text-2xl lg:text-3xl mb-1.5 group-hover:text-[#E3342F] transition-colors duration-300">
+                  <h4 className="pv-serif text-xl md:text-2xl lg:text-3xl mb-1.5 group-hover:text-[#E3342F] transition-colors duration-300">
                     Live catalog
                   </h4>
                   <div className="pv-sans text-[10px] font-medium tracking-[0.15em] uppercase text-black/80">
@@ -385,8 +374,8 @@ export function Landing() {
                 </div>
               </div>
             </div>
-            <div className="group flex flex-col md:flex-row gap-6 md:gap-10 items-start reveal-on-scroll transition-all duration-500 ease-out border-b border-[#1111111f] py-8 first:pt-0 last:border-0 last:pb-0 opacity-100">
-              <div className="flex items-start gap-6 md:gap-8 shrink-0 w-full md:w-auto">
+            <div className="group flex flex-row gap-4 md:gap-10 items-start reveal-on-scroll transition-all duration-500 ease-out border-b border-[#1111111f] py-8 first:pt-0 last:border-0 last:pb-0 opacity-100">
+              <div className="flex items-start gap-3 md:gap-8 shrink-0 w-auto">
                 <div className="pt-2">
                   <span className="pv-sans text-[10px] uppercase tracking-[0.2em] text-[#E3342F] font-medium opacity-40 group-hover:opacity-100 transition-opacity duration-500">
                     03
@@ -401,9 +390,9 @@ export function Landing() {
                   <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
                 </div>
               </div>
-              <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:gap-12 pt-1 lg:pt-2 w-full">
+              <div className="flex-1 min-w-0 flex flex-col lg:flex-row gap-4 lg:gap-12 pt-1 lg:pt-2 w-full">
                 <div className="lg:w-[40%]">
-                  <h4 className="pv-serif text-2xl lg:text-3xl mb-1.5 group-hover:text-[#E3342F] transition-colors duration-300">
+                  <h4 className="pv-serif text-xl md:text-2xl lg:text-3xl mb-1.5 group-hover:text-[#E3342F] transition-colors duration-300">
                     Sales assistant
                   </h4>
                   <div className="pv-sans text-[10px] font-medium tracking-[0.15em] uppercase text-black/80">
@@ -417,8 +406,8 @@ export function Landing() {
                 </div>
               </div>
             </div>
-            <div className="group flex flex-col md:flex-row gap-6 md:gap-10 items-start reveal-on-scroll transition-all duration-500 ease-out border-b border-[#1111111f] py-8 first:pt-0 last:border-0 last:pb-0 opacity-100">
-              <div className="flex items-start gap-6 md:gap-8 shrink-0 w-full md:w-auto">
+            <div className="group flex flex-row gap-4 md:gap-10 items-start reveal-on-scroll transition-all duration-500 ease-out border-b border-[#1111111f] py-8 first:pt-0 last:border-0 last:pb-0 opacity-100">
+              <div className="flex items-start gap-3 md:gap-8 shrink-0 w-auto">
                 <div className="pt-2">
                   <span className="pv-sans text-[10px] uppercase tracking-[0.2em] text-[#E3342F] font-medium opacity-40 group-hover:opacity-100 transition-opacity duration-500">
                     04
@@ -433,9 +422,9 @@ export function Landing() {
                   <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
                 </div>
               </div>
-              <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:gap-12 pt-1 lg:pt-2 w-full">
+              <div className="flex-1 min-w-0 flex flex-col lg:flex-row gap-4 lg:gap-12 pt-1 lg:pt-2 w-full">
                 <div className="lg:w-[40%]">
-                  <h4 className="pv-serif text-2xl lg:text-3xl mb-1.5 group-hover:text-[#E3342F] transition-colors duration-300">
+                  <h4 className="pv-serif text-xl md:text-2xl lg:text-3xl mb-1.5 group-hover:text-[#E3342F] transition-colors duration-300">
                     Easy ordering
                   </h4>
                   <div className="pv-sans text-[10px] font-medium tracking-[0.15em] uppercase text-black/80">
@@ -449,8 +438,8 @@ export function Landing() {
                 </div>
               </div>
             </div>
-            <div className="group flex flex-col md:flex-row gap-6 md:gap-10 items-start reveal-on-scroll transition-all duration-500 ease-out border-b border-[#1111111f] py-8 first:pt-0 last:border-0 last:pb-0 opacity-100">
-              <div className="flex items-start gap-6 md:gap-8 shrink-0 w-full md:w-auto">
+            <div className="group flex flex-row gap-4 md:gap-10 items-start reveal-on-scroll transition-all duration-500 ease-out border-b border-[#1111111f] py-8 first:pt-0 last:border-0 last:pb-0 opacity-100">
+              <div className="flex items-start gap-3 md:gap-8 shrink-0 w-auto">
                 <div className="pt-2">
                   <span className="pv-sans text-[10px] uppercase tracking-[0.2em] text-[#E3342F] font-medium opacity-40 group-hover:opacity-100 transition-opacity duration-500">
                     05
@@ -465,9 +454,9 @@ export function Landing() {
                   <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
                 </div>
               </div>
-              <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:gap-12 pt-1 lg:pt-2 w-full">
+              <div className="flex-1 min-w-0 flex flex-col lg:flex-row gap-4 lg:gap-12 pt-1 lg:pt-2 w-full">
                 <div className="lg:w-[40%]">
-                  <h4 className="pv-serif text-2xl lg:text-3xl mb-1.5 group-hover:text-[#E3342F] transition-colors duration-300">
+                  <h4 className="pv-serif text-xl md:text-2xl lg:text-3xl mb-1.5 group-hover:text-[#E3342F] transition-colors duration-300">
                     Stock-aware
                   </h4>
                   <div className="pv-sans text-[10px] font-medium tracking-[0.15em] uppercase text-black/80">
@@ -482,8 +471,8 @@ export function Landing() {
                 </div>
               </div>
             </div>
-            <div className="group flex flex-col md:flex-row gap-6 md:gap-10 items-start reveal-on-scroll transition-all duration-500 ease-out border-b border-[#1111111f] py-8 first:pt-0 last:border-0 last:pb-0 opacity-100">
-              <div className="flex items-start gap-6 md:gap-8 shrink-0 w-full md:w-auto">
+            <div className="group flex flex-row gap-4 md:gap-10 items-start reveal-on-scroll transition-all duration-500 ease-out border-b border-[#1111111f] py-8 first:pt-0 last:border-0 last:pb-0 opacity-100">
+              <div className="flex items-start gap-3 md:gap-8 shrink-0 w-auto">
                 <div className="pt-2">
                   <span className="pv-sans text-[10px] uppercase tracking-[0.2em] text-[#E3342F] font-medium opacity-40 group-hover:opacity-100 transition-opacity duration-500">
                     06
@@ -498,9 +487,9 @@ export function Landing() {
                   <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
                 </div>
               </div>
-              <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:gap-12 pt-1 lg:pt-2 w-full">
+              <div className="flex-1 min-w-0 flex flex-col lg:flex-row gap-4 lg:gap-12 pt-1 lg:pt-2 w-full">
                 <div className="lg:w-[40%]">
-                  <h4 className="pv-serif text-2xl lg:text-3xl mb-1.5 group-hover:text-[#E3342F] transition-colors duration-300">
+                  <h4 className="pv-serif text-xl md:text-2xl lg:text-3xl mb-1.5 group-hover:text-[#E3342F] transition-colors duration-300">
                     Direct payments
                   </h4>
                   <div className="pv-sans text-[10px] font-medium tracking-[0.15em] uppercase text-black/80">
@@ -516,7 +505,7 @@ export function Landing() {
               </div>
             </div>
           </div>
-          <div className="mt-24 pt-12 border-t border-[#1111111f] flex flex-col md:flex-row justify-between items-center gap-8 reveal-on-scroll transition-all duration-500 ease-out delay-150 opacity-100">
+          <div className="mt-12 md:mt-24 pt-10 md:pt-12 border-t border-[#1111111f] flex flex-col md:flex-row justify-between items-center gap-8 reveal-on-scroll transition-all duration-500 ease-out delay-150 opacity-100">
             <div className="flex items-center gap-4">
               <span className="w-1.5 h-1.5 rounded-full bg-[#E3342F] animate-pulse"></span>
               <span className="pv-sans text-[9px] uppercase tracking-[0.2em] font-medium">
@@ -531,7 +520,7 @@ export function Landing() {
           </div>
         </div>
       </section>
-      <section className="pb-32 pt-24 px-6 md:px-12 max-w-7xl mx-auto w-full border-x border-t border-[#1111111f]">
+      <section className="pb-20 pt-16 md:pb-32 md:pt-24 px-6 md:px-12 max-w-7xl mx-auto w-full border-x border-t border-[#1111111f]">
         <div className="mb-16 reveal-on-scroll transition-all duration-500 ease-out opacity-100">
           <div className="pv-sans text-xs uppercase tracking-[0.3em] font-medium text-[#E3342F] mb-4 flex items-center gap-4">
             <span className="w-8 h-px bg-[#E3342F]"></span>A shop that is yours
@@ -540,9 +529,9 @@ export function Landing() {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
           <div className="md:col-span-12 h-[50vh] md:h-[70vh] relative overflow-hidden group reveal-on-scroll transition-all duration-500 ease-out opacity-100">
             <img
-              alt="Boutique interior"
+              alt="Art gallery hall"
               className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
-              src="/landing/gallery/boutique.jpg"
+              src="/landing/gallery/gallery.jpg"
             />
             <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
             <div className="absolute bottom-6 left-6 bg-[#F6F4F0] p-5 pr-12 border border-[#1111111f] transition-transform duration-300 ease-out group-hover:translate-x-2">
@@ -558,15 +547,15 @@ export function Landing() {
             <img
               alt="Seller packing an order"
               className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
-              src="/landing/gallery/packing.jpg"
+              src="/landing/gallery/packaging.jpg"
             />
             <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
           </div>
           <div className="md:col-span-4 h-[350px] md:h-[450px] relative overflow-hidden group reveal-on-scroll transition-all duration-500 ease-out delay-75 opacity-100">
             <img
-              alt="Market stall"
+              alt="Boutique interior"
               className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
-              src="/landing/gallery/market.jpg"
+              src="/landing/gallery/boutique.jpg"
             />
             <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
           </div>
@@ -579,23 +568,23 @@ export function Landing() {
             <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
           </div>
           <div className="md:col-span-4 h-[350px] md:h-[450px] relative overflow-hidden group reveal-on-scroll transition-all duration-500 ease-out delay-75 opacity-100">
-            <div className="w-full h-full bg-[#EAE7E0] flex flex-col items-center justify-center p-8 text-center border border-[#1111111f] relative group-hover:bg-[#EAE7E0]/80 transition-colors duration-500 ease-out">
+            <div className="w-full h-full bg-[#EAE7E0] flex flex-col items-center justify-center p-6 md:p-8 text-center border border-[#1111111f] relative group-hover:bg-[#EAE7E0]/80 transition-colors duration-500 ease-out">
               <div className="absolute top-0 left-0 w-full h-1 bg-[#E3342F] scale-x-0 group-hover:scale-x-100 origin-left transition-transform duration-300 ease-out ease-out"></div>
               <img
                 src="/brand/selly-mascot.png"
                 alt=""
-                className="w-28 h-28 object-contain mb-8 opacity-90 group-hover:scale-105 transition-transform duration-300 ease-out"
+                className="w-20 h-20 md:w-28 md:h-28 object-contain mb-4 md:mb-8 opacity-90 group-hover:scale-105 transition-transform duration-300 ease-out"
               />
-              <p className="pv-serif text-3xl italic leading-snug">
+              <p className="pv-serif text-2xl md:text-3xl italic leading-snug">
                 "Simple to share. Easy to order."
               </p>
             </div>
           </div>
           <div className="md:col-span-4 h-[350px] md:h-[450px] relative overflow-hidden group reveal-on-scroll transition-all duration-500 ease-out delay-100 opacity-100">
             <img
-              alt="Art gallery"
+              alt="Wax-print fabric market"
               className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
-              src="/landing/gallery/gallery.jpg"
+              src="/landing/gallery/market.jpg"
             />
             <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
           </div>
@@ -603,7 +592,7 @@ export function Landing() {
       </section>
       <section
         id="signup"
-        className="py-32 px-6 md:px-12 max-w-7xl mx-auto w-full border-x border-t border-[#1111111f] relative overflow-hidden bg-[#F6F4F0]"
+        className="py-20 md:py-32 px-6 md:px-12 max-w-7xl mx-auto w-full border-x border-t border-[#1111111f] relative overflow-hidden bg-[#F6F4F0]"
       >
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 lg:gap-8 items-start relative z-10">
           <div className="lg:col-span-5 flex flex-col justify-between h-full reveal-on-scroll transition-all duration-500 ease-out opacity-100">
@@ -772,7 +761,7 @@ export function Landing() {
           <a href="#signup" className="hover:text-[#173B32] transition-colors">
             Get started
           </a>
-          <a href="#signup" className="hover:text-[#173B32] transition-colors">
+          <a href="#how-it-works" className="hover:text-[#173B32] transition-colors">
             How it works
           </a>
           <a href="mailto:hello@selly.app" className="hover:text-[#173B32] transition-colors">

@@ -1,19 +1,19 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap");
 
 .theme-paper-vermilion {
-  --bg-paper: #F6F4F0;
+  --bg-paper: #f6f4f0;
   --text-ink: #111111;
-  --accent-vermilion: #E3342F;
+  --accent-vermilion: #e3342f;
   --line-faint: rgba(17, 17, 17, 0.12);
   --line-strong: rgba(17, 17, 17, 0.8);
-  
-  --font-serif: 'Cormorant Garamond', serif;
-  --font-sans: 'DM Sans', sans-serif;
-  
+
+  --font-serif: "Cormorant Garamond", serif;
+  --font-sans: "DM Sans", sans-serif;
+
   background-color: var(--bg-paper);
   color: var(--text-ink);
   font-family: var(--font-sans);
-  
+
   /* Add paper texture via noise */
   position: relative;
 }
@@ -21,7 +21,10 @@
 .theme-paper-vermilion::before {
   content: "";
   position: fixed;
-  top: 0; left: 0; width: 100vw; height: 100vh;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E");
   pointer-events: none;
   z-index: 50;
@@ -77,26 +80,53 @@
   transform: rotate(-12deg);
 }
 
-.pv-hairline-t { border-top: 1px solid var(--line-faint); }
-.pv-hairline-b { border-bottom: 1px solid var(--line-faint); }
-.pv-hairline-l { border-left: 1px solid var(--line-faint); }
-.pv-hairline-r { border-right: 1px solid var(--line-faint); }
+.pv-hairline-t {
+  border-top: 1px solid var(--line-faint);
+}
+.pv-hairline-b {
+  border-bottom: 1px solid var(--line-faint);
+}
+.pv-hairline-l {
+  border-left: 1px solid var(--line-faint);
+}
+.pv-hairline-r {
+  border-right: 1px solid var(--line-faint);
+}
 
 /* Animation utilities */
 @keyframes pv-fade-up {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes pv-reveal-line {
-  from { transform: scaleX(0); }
-  to { transform: scaleX(1); }
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
 }
 
 @keyframes pv-stamp-press {
-  0% { opacity: 0; transform: scale(1.5) rotate(0deg); }
-  50% { opacity: 1; transform: scale(0.9) rotate(-15deg); }
-  100% { opacity: 1; transform: scale(1) rotate(-12deg); }
+  0% {
+    opacity: 0;
+    transform: scale(1.5) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(0.9) rotate(-15deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(-12deg);
+  }
 }
 
 .animate-pv-fade-up {
@@ -112,27 +142,68 @@
   animation: pv-stamp-press 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
-.delay-100 { animation-delay: 100ms; }
-.delay-200 { animation-delay: 200ms; }
-.delay-300 { animation-delay: 300ms; }
-.delay-400 { animation-delay: 400ms; }
-.delay-500 { animation-delay: 500ms; }
-.delay-600 { animation-delay: 600ms; }
-.delay-700 { animation-delay: 700ms; }
-.delay-1000 { animation-delay: 1000ms; }
+.delay-100 {
+  animation-delay: 100ms;
+}
+.delay-200 {
+  animation-delay: 200ms;
+}
+.delay-300 {
+  animation-delay: 300ms;
+}
+.delay-400 {
+  animation-delay: 400ms;
+}
+.delay-500 {
+  animation-delay: 500ms;
+}
+.delay-600 {
+  animation-delay: 600ms;
+}
+.delay-700 {
+  animation-delay: 700ms;
+}
+.delay-1000 {
+  animation-delay: 1000ms;
+}
 
 .pv-circle-text {
   /* We will implement circular text using SVG in the component */
 }
 
-      .theme-paper-vermilion { --text-ink: #173B32; --accent-vermilion: #8AAE4A; --line-faint: rgba(23,59,50,.16); --line-strong: rgba(23,59,50,.8); }
-      .theme-paper-vermilion [class*="text-black"], .theme-paper-vermilion [class*="text-[#111"], .theme-paper-vermilion [class*="text-[#111111"] { color: #173B32 !important; }
-      .theme-paper-vermilion [class*="text-[#E3342F]"] { color: #719541 !important; }
-      .theme-paper-vermilion [class*="bg-[#E3342F]"] { background-color: #8AAE4A !important; }
-      .theme-paper-vermilion [class*="hover:text-[#E3342F]"]:hover { color: #719541 !important; }
-      .theme-paper-vermilion header { color: #173B32; }
+.theme-paper-vermilion {
+  --text-ink: #173b32;
+  --accent-vermilion: #8aae4a;
+  --line-faint: rgba(23, 59, 50, 0.16);
+  --line-strong: rgba(23, 59, 50, 0.8);
+}
+.theme-paper-vermilion [class*="text-black"],
+.theme-paper-vermilion [class*="text-[#111"],
+.theme-paper-vermilion [class*="text-[#111111"] {
+  color: #173b32 !important;
+}
+.theme-paper-vermilion [class*="text-[#E3342F]"] {
+  color: #719541 !important;
+}
+.theme-paper-vermilion [class*="bg-[#E3342F]"] {
+  background-color: #8aae4a !important;
+}
+.theme-paper-vermilion [class*="hover:text-[#E3342F]"]:hover {
+  color: #719541 !important;
+}
+.theme-paper-vermilion header {
+  color: #173b32;
+}
 
 /* Header over a dark section (toggled from Landing.tsx) */
-.theme-paper-vermilion header[data-dark='true'] { color: #F6F4F0; }
-.theme-paper-vermilion header[data-dark='true'] a:hover { color: #A3C651 !important; }
+.theme-paper-vermilion header[data-dark="true"] {
+  color: #f6f4f0;
+}
+.theme-paper-vermilion header[data-dark="true"] a:hover {
+  color: #a3c651 !important;
+}
+
+/* In-page links */
+html { scroll-behavior: smooth; }
+.theme-paper-vermilion [id] { scroll-margin-top: 5rem; }
 
