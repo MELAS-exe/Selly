@@ -133,7 +133,8 @@ export class AgentEngine {
           latencyMs: Date.now() - callStarted,
           inputTokens: res.usage.inputTokens,
           outputTokens: res.usage.outputTokens,
-          toolCalls: uses.map((u) => ({ name: u.name, input: u.input })),
+          // Logs keep no customer phone number (section 9.1).
+          toolCalls: uses.map((u) => ({ name: u.name, input: maskPhones(u.input) })),
           error: res.stopReason === 'refusal' ? 'refusal' : null,
         });
 
@@ -223,11 +224,11 @@ export class AgentEngine {
       clearTimeout(timer);
     }
 
-    const { text: withoutButtons, quickReplies } = extractQuickReplies(finalText);
-    const text = filterReply(withoutButtons, {
-      appBaseUrl: this.deps.appBaseUrl,
-      whatsappLink: profile.whatsapp_link,
-    });
+    const { text: withoutButtons, quickReplies: proposed } = extractQuickReplies(finalText);
+    const filterOpts = { appBaseUrl: this.deps.appBaseUrl, whatsappLink: profile.whatsapp_link };
+    const text = filterReply(withoutButtons, filterOpts);
+    // Button labels are seen by the customer too: a label the filter would change is dropped.
+    const quickReplies = proposed.filter((q) => filterReply(q.label, filterOpts) === q.label);
     state.misunderstandings = ctx.out.handoff ? 0 : state.misunderstandings;
     state.turnsSinceSummary = (state.turnsSinceSummary ?? 0) + 1;
     return {
@@ -345,4 +346,14 @@ export function toLlmMessages(
   }
   while (out[0]?.role === 'assistant') out.shift();
   return out;
+}
+
+/** « +221 77 *** ** 67 »: keeps the country code and the last two digits of any phone-like value. */
+export function maskPhones<T>(value: T): T {
+  const json = JSON.stringify(value).replace(/\+?\d[\d .-]{6,}\d/g, (m) => {
+    const d = m.replace(/\D/g, '');
+    if (d.length < 8) return m;
+    return `${m.startsWith('+') ? `+${d.slice(0, 3)} ` : ''}*** ** ${d.slice(-2)}`;
+  });
+  return JSON.parse(json) as T;
 }

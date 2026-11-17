@@ -4,6 +4,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { CoreError } from '../errors';
+import { UUID_RE } from '../ids';
 import type {
   Adjustment,
   AdjustmentRequest,
@@ -85,6 +86,20 @@ export interface CoreClient {
   introspectSession(sessionCookie: string): Promise<IntrospectResponse>;
 }
 
+// Every path segment is validated before it is put in a URL. Ids and refs can come from the model
+// (tool arguments), so a value such as "../vendors/OTHER/orders/A7K2" must never reach a path.
+// encodeURIComponent alone is not enough: it leaves ".." unchanged.
+const SAFE_REF = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
+function idSeg(v: string): string {
+  if (!UUID_RE.test(v)) throw new CoreError(404, 'NOT_FOUND', { detail: 'invalid id' });
+  return v.toLowerCase();
+}
+function refSeg(v: string): string {
+  if (!SAFE_REF.test(v)) throw new CoreError(404, 'NOT_FOUND', { detail: 'invalid reference' });
+  return v;
+}
+const slugSeg = refSeg;
+
 const READ_MS = 3_000;
 const WRITE_MS = 8_000;
 const ORDER_MS = 15_000;
@@ -109,6 +124,9 @@ export class HttpCoreClient implements CoreClient {
 
   private async request<T>(opts: RequestOptions): Promise<T> {
     const url = new URL(this.baseUrl + opts.path);
+    // The path must survive URL parsing unchanged: no "..", no encoded separators.
+    if (!url.pathname.endsWith(opts.path) || opts.path.includes('%'))
+      throw new CoreError(404, 'NOT_FOUND', { detail: 'invalid path' });
     for (const [k, v] of Object.entries(opts.query ?? {})) {
       if (v !== undefined && v !== '') url.searchParams.set(k, String(v));
     }
@@ -164,66 +182,66 @@ export class HttpCoreClient implements CoreClient {
     }
   }
 
-  getVendorBySlug(slug: string, ctx?: CallContext) {
+  async getVendorBySlug(slug: string, ctx?: CallContext) {
     return this.request<VendorLookup>({
       method: 'GET',
-      path: `/internal/v1/stores/${encodeURIComponent(slug)}/vendor`,
+      path: `/internal/v1/stores/${slugSeg(slug)}/vendor`,
       timeoutMs: READ_MS,
       ctx,
     });
   }
-  getAgentProfile(vendorId: string, ctx?: CallContext) {
+  async getAgentProfile(vendorId: string, ctx?: CallContext) {
     return this.request<AgentProfile>({
       method: 'GET',
-      path: `/internal/v1/vendors/${vendorId}/agent-profile`,
+      path: `/internal/v1/vendors/${idSeg(vendorId)}/agent-profile`,
       timeoutMs: READ_MS,
       ctx,
     });
   }
-  getEntitlements(vendorId: string, ctx?: CallContext) {
+  async getEntitlements(vendorId: string, ctx?: CallContext) {
     return this.request<Entitlements>({
       method: 'GET',
-      path: `/internal/v1/vendors/${vendorId}/entitlements`,
+      path: `/internal/v1/vendors/${idSeg(vendorId)}/entitlements`,
       timeoutMs: READ_MS,
       ctx,
     });
   }
-  reportUsage(vendorId: string, body: UsageRequest, ctx?: CallContext) {
+  async reportUsage(vendorId: string, body: UsageRequest, ctx?: CallContext) {
     return this.request<UsageResponse>({
       method: 'POST',
-      path: `/internal/v1/vendors/${vendorId}/usage`,
+      path: `/internal/v1/vendors/${idSeg(vendorId)}/usage`,
       body,
       timeoutMs: WRITE_MS,
       ctx,
     });
   }
-  searchProducts(vendorId: string, q: SearchQuery, ctx?: CallContext) {
+  async searchProducts(vendorId: string, q: SearchQuery, ctx?: CallContext) {
     return this.request<SearchResult>({
       method: 'GET',
-      path: `/internal/v1/vendors/${vendorId}/products/search`,
+      path: `/internal/v1/vendors/${idSeg(vendorId)}/products/search`,
       query: { ...q },
       timeoutMs: READ_MS,
       ctx,
     });
   }
-  getProduct(productId: string, ctx?: CallContext) {
+  async getProduct(productId: string, ctx?: CallContext) {
     return this.request<ProductDetail>({
       method: 'GET',
-      path: `/internal/v1/products/${productId}`,
+      path: `/internal/v1/products/${idSeg(productId)}`,
       timeoutMs: READ_MS,
       ctx,
     });
   }
-  createCartQuote(vendorId: string, body: CartQuoteRequest, ctx?: CallContext) {
+  async createCartQuote(vendorId: string, body: CartQuoteRequest, ctx?: CallContext) {
     return this.request<CartQuote>({
       method: 'POST',
-      path: `/internal/v1/vendors/${vendorId}/cart-quotes`,
+      path: `/internal/v1/vendors/${idSeg(vendorId)}/cart-quotes`,
       body,
       timeoutMs: WRITE_MS,
       ctx,
     });
   }
-  createOrder(
+  async createOrder(
     vendorId: string,
     body: OrderCreateRequest,
     idempotencyKey: string,
@@ -231,71 +249,71 @@ export class HttpCoreClient implements CoreClient {
   ) {
     return this.request<OrderCreated>({
       method: 'POST',
-      path: `/internal/v1/vendors/${vendorId}/orders`,
+      path: `/internal/v1/vendors/${idSeg(vendorId)}/orders`,
       body,
       idempotencyKey,
       timeoutMs: ORDER_MS,
       ctx,
     });
   }
-  getOrder(vendorId: string, orderRef: string, ctx?: CallContext) {
+  async getOrder(vendorId: string, orderRef: string, ctx?: CallContext) {
     return this.request<OrderStatusView>({
       method: 'GET',
-      path: `/internal/v1/vendors/${vendorId}/orders/${encodeURIComponent(orderRef)}`,
+      path: `/internal/v1/vendors/${idSeg(vendorId)}/orders/${refSeg(orderRef)}`,
       timeoutMs: READ_MS,
       ctx,
     });
   }
-  listOrders(
+  async listOrders(
     vendorId: string,
     q: { status?: OrderStatus; period?: 'today' | '7d' },
     ctx?: CallContext,
   ) {
     return this.request<OrderList>({
       method: 'GET',
-      path: `/internal/v1/vendors/${vendorId}/orders`,
+      path: `/internal/v1/vendors/${idSeg(vendorId)}/orders`,
       query: q,
       timeoutMs: READ_MS,
       ctx,
     });
   }
-  fulfillOrder(vendorId: string, orderRef: string, ctx?: CallContext) {
+  async fulfillOrder(vendorId: string, orderRef: string, ctx?: CallContext) {
     return this.request<OrderStatusView>({
       method: 'POST',
-      path: `/internal/v1/vendors/${vendorId}/orders/${encodeURIComponent(orderRef)}/fulfill`,
+      path: `/internal/v1/vendors/${idSeg(vendorId)}/orders/${refSeg(orderRef)}/fulfill`,
       body: {},
       timeoutMs: WRITE_MS,
       ctx,
     });
   }
-  getMetrics(vendorId: string, period: 'today' | '7d' | '30d', ctx?: CallContext) {
+  async getMetrics(vendorId: string, period: 'today' | '7d' | '30d', ctx?: CallContext) {
     return this.request<Metrics>({
       method: 'GET',
-      path: `/internal/v1/vendors/${vendorId}/metrics`,
+      path: `/internal/v1/vendors/${idSeg(vendorId)}/metrics`,
       query: { period },
       timeoutMs: READ_MS,
       ctx,
     });
   }
-  upsertDraft(vendorId: string, body: DraftUpsertRequest, ctx?: CallContext) {
+  async upsertDraft(vendorId: string, body: DraftUpsertRequest, ctx?: CallContext) {
     return this.request<Draft>({
       method: 'POST',
-      path: `/internal/v1/vendors/${vendorId}/product-drafts`,
+      path: `/internal/v1/vendors/${idSeg(vendorId)}/product-drafts`,
       body,
       timeoutMs: WRITE_MS,
       ctx,
     });
   }
-  confirmDraft(draftId: string, body: DraftConfirmRequest, ctx?: CallContext) {
+  async confirmDraft(draftId: string, body: DraftConfirmRequest, ctx?: CallContext) {
     return this.request<VendorProduct>({
       method: 'POST',
-      path: `/internal/v1/product-drafts/${draftId}/confirm`,
+      path: `/internal/v1/product-drafts/${idSeg(draftId)}/confirm`,
       body,
       timeoutMs: WRITE_MS,
       ctx,
     });
   }
-  adjustStock(
+  async adjustStock(
     vendorId: string,
     variantId: string,
     body: AdjustmentRequest,
@@ -304,23 +322,28 @@ export class HttpCoreClient implements CoreClient {
   ) {
     return this.request<Adjustment>({
       method: 'POST',
-      path: `/internal/v1/vendors/${vendorId}/variants/${variantId}/adjustments`,
+      path: `/internal/v1/vendors/${idSeg(vendorId)}/variants/${idSeg(variantId)}/adjustments`,
       body,
       idempotencyKey,
       timeoutMs: WRITE_MS,
       ctx,
     });
   }
-  updateProduct(vendorId: string, productId: string, body: ProductPatchRequest, ctx?: CallContext) {
+  async updateProduct(
+    vendorId: string,
+    productId: string,
+    body: ProductPatchRequest,
+    ctx?: CallContext,
+  ) {
     return this.request<VendorProduct>({
       method: 'PATCH',
-      path: `/internal/v1/vendors/${vendorId}/products/${productId}`,
+      path: `/internal/v1/vendors/${idSeg(vendorId)}/products/${idSeg(productId)}`,
       body,
       timeoutMs: WRITE_MS,
       ctx,
     });
   }
-  uploadMedia(bytes: Buffer, contentType: string, ctx?: CallContext) {
+  async uploadMedia(bytes: Buffer, contentType: string, ctx?: CallContext) {
     return this.request<MediaUploadResult>({
       method: 'POST',
       path: '/internal/v1/media',
@@ -332,13 +355,13 @@ export class HttpCoreClient implements CoreClient {
   async notifyVendor(vendorId: string, body: NotificationRequest, ctx?: CallContext) {
     await this.request<unknown>({
       method: 'POST',
-      path: `/internal/v1/vendors/${vendorId}/notifications`,
+      path: `/internal/v1/vendors/${idSeg(vendorId)}/notifications`,
       body,
       timeoutMs: WRITE_MS,
       ctx,
     });
   }
-  introspectSession(sessionCookie: string) {
+  async introspectSession(sessionCookie: string) {
     return this.request<IntrospectResponse>({
       method: 'POST',
       path: '/internal/v1/sessions/introspect',

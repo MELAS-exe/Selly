@@ -313,19 +313,14 @@ export class FakeCore implements CoreClient {
     const existing = this.orders.find((o) => o.idempotencyKey === idempotencyKey);
     if (existing) return this.orderCreated(existing);
     if (this.storeStatus === 'paused') throw new CoreError(403, 'STORE_PAUSED', null);
-    // The discount was agreed in the quote; recompute the best quote the vendor allows for the check.
-    const plain = await this.createCartQuote(vendorId, {
+    // Like core: re-quote with the (capped) discount, and the expected total must match exactly.
+    const quote = await this.createCartQuote(vendorId, {
       items: body.items,
       delivery: body.delivery,
+      discount_pct: body.discount_pct,
     });
-    const discounted = await this.createCartQuote(vendorId, {
-      items: body.items,
-      delivery: body.delivery,
-      discount_pct: 100,
-    });
-    const expected = body.expected_total.amount;
-    if (expected > plain.total.amount || expected < discounted.total.amount) {
-      throw new CoreError(409, 'PRICE_CHANGED', { code: 'PRICE_CHANGED', quote: plain });
+    if (body.expected_total.amount !== quote.total.amount) {
+      throw new CoreError(409, 'PRICE_CHANGED', { code: 'PRICE_CHANGED', quote });
     }
     for (const it of body.items) {
       const { variant } = this.findVariant(it.variant_id);

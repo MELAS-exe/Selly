@@ -12,9 +12,20 @@ export type ImageResolver = (
   storageKey: string,
 ) => Promise<Extract<LlmBlock, { type: 'image' }> | null>;
 
+/** Storage keys look like `vendors/<vendor id>/...`: no "..", no query or fragment, no backslash. */
+const KEY_RE = /^vendors\/[0-9a-f-]{36}\/[A-Za-z0-9][A-Za-z0-9._/-]{0,250}$/;
+export function isVendorImageKey(key: string, vendorId: string): boolean {
+  return (
+    KEY_RE.test(key) &&
+    key.startsWith(`vendors/${vendorId.toLowerCase()}/`) &&
+    !key.split('/').some((part) => part === '..' || part === '.' || part === '')
+  );
+}
+
 export function urlImageResolver(baseUrl: string): ImageResolver {
   return async (key) => {
     if (!baseUrl) return null;
+    if (!KEY_RE.test(key) || key.includes('..')) return null;
     const lower = key.toLowerCase();
     const mediaType = lower.endsWith('.png')
       ? 'image/png'

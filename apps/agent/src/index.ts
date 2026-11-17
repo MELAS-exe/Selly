@@ -1,5 +1,12 @@
 import { buildApp } from './app';
+import { checkSecrets } from './config';
 import { PostgresStore } from './store/postgres';
+
+const secretProblems = checkSecrets();
+if (secretProblems.length > 0) {
+  console.error(`agent: refusing to start in production: ${secretProblems.join('; ')}`);
+  process.exit(1);
+}
 
 const app = buildApp();
 const { config, store, llm } = app.services;

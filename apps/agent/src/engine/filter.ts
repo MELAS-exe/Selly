@@ -6,6 +6,10 @@ import type { QuickReply } from '../core/types';
 export const MAX_REPLY_CHARS = 1000;
 
 const URL_RE = /\bhttps?:\/\/[^\s<>()"']+/gi;
+// A host name with a common top-level domain and no scheme. Not preceded by "/" or "@", so the
+// hosts of full URLs (kept or removed above) and e-mail addresses are not matched here.
+const BARE_LINK_RE =
+  /(?<![\w/@.-])(?:www\.)?(?:[a-z0-9-]+\.)+(?:com|net|org|sn|me|io|app|co|fr|info|biz|link|ly|gl|xyz|site|online|shop|store)(?::\d+)?(?:\/[^\s<>()"']*)?(?![\w-])/gi;
 // Phone-like runs of 8+ digits, with spaces, dots or dashes, optionally starting with +.
 const PHONE_RE = /(?<![\w/])\+?\d[\d .-]{6,}\d(?![\w/])/g;
 
@@ -23,6 +27,18 @@ export function filterReply(text: string, opts: FilterOptions): string {
     const host = safeHost(url);
     if (host && host === allowedHost) return url;
     if (opts.whatsappLink && url.startsWith(opts.whatsappLink)) return url;
+    return '';
+  });
+  // Links without a scheme: tel:, www.example.com, wa.me/221..., example.sn/page.
+  out = out.replace(/\btel:\S+/gi, '');
+  out = out.replace(BARE_LINK_RE, (m) => {
+    const host =
+      m
+        .split('/')[0]
+        ?.toLowerCase()
+        .replace(/^www\./, '') ?? '';
+    if (allowedHost && host === allowedHost.replace(/^www\./, '')) return m;
+    if (opts.whatsappLink && `https://${m}`.startsWith(opts.whatsappLink)) return m;
     return '';
   });
   out = out.replace(PHONE_RE, (m) => {

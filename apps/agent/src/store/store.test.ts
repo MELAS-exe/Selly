@@ -200,6 +200,46 @@ describe.each(stores)('%s store', (_name, make) => {
     expect((await store.listInbox({ vendorId: v, limit: 1 })).rows[0]?.unreadCount).toBe(0);
   });
 
+  it('merges state keys without erasing the others, and purges expired sessions', async () => {
+    const store = make();
+    const v = vendorId();
+    const c = await store.upsertConversation({
+      vendorId: v,
+      channel: 'web',
+      role: 'customer',
+      externalUserId: 'u',
+    });
+    await store.patchState(
+      c.id,
+      { lastOrderNumber: 'A7K2', orders: { A7K2: 'https://x/c/1' } },
+      [],
+    );
+    await store.patchState(c.id, { productInView: 'p' }, ['lastOrderNumber']);
+    expect((await store.getConversation(c.id))?.state).toEqual({
+      orders: { A7K2: 'https://x/c/1' },
+      productInView: 'p',
+    });
+
+    const old = await store.createChatSession({
+      vendorId: v,
+      conversationId: c.id,
+      tokenHash: sha256(`old-${v}`),
+      ipHash: null,
+      expiresAt: new Date(Date.now() - 1000),
+    });
+    await store.createChatSession({
+      vendorId: v,
+      conversationId: c.id,
+      tokenHash: sha256(`new-${v}`),
+      ipHash: null,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    expect(await store.purgeExpiredSessions(new Date())).toBeGreaterThanOrEqual(1);
+    expect(await store.findChatSessionByTokenHash(sha256(`old-${v}`))).toBeNull();
+    expect(await store.findChatSessionByTokenHash(sha256(`new-${v}`))).not.toBeNull();
+    void old;
+  });
+
   it('remembers processed core events', async () => {
     const store = make();
     const id = randomUUID();

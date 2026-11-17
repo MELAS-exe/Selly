@@ -73,17 +73,16 @@ export function registerChatRoutes(app: FastifyInstance, s: AgentServices) {
       customerLabel: visitorLabel(visitorId),
     });
     if (body.product_id || body.locale) {
-      await s.store.updateConversation(conv.id, {
-        state: body.product_id ? { productInView: body.product_id } : {},
-        language: body.locale?.slice(0, 2) ?? null,
-      });
+      if (body.product_id)
+        await s.store.patchState(conv.id, { productInView: body.product_id }, []);
+      await s.store.updateConversation(conv.id, { language: body.locale?.slice(0, 2) ?? null });
     }
     const expiresAt = new Date(Date.now() + CHAT_SESSION_DAYS * 86_400_000);
     await s.store.createChatSession({
       vendorId: vendor.vendor_id,
       conversationId: conv.id,
       tokenHash: sha256(token),
-      ipHash: sha256(`${req.ip}:${s.config.eventsHmacSecret}`),
+      ipHash: sha256(`${req.ip}:${s.config.ipHashSalt}`),
       expiresAt,
     });
 
@@ -168,12 +167,11 @@ export function registerChatRoutes(app: FastifyInstance, s: AgentServices) {
     if (created) {
       s.hub.publish(session.conversationId, 'message', toChatMessage(message), 'vendor');
       if (body.context?.product_id) {
-        const conv = await s.store.getConversation(session.conversationId);
-        if (conv)
-          await s.store.updateConversation(conv.id, {
-            state: { ...conv.state, productInView: body.context.product_id },
-            lastInboundAt: message.createdAt,
-          });
+        await s.store.patchState(
+          session.conversationId,
+          { productInView: body.context.product_id },
+          [],
+        );
       }
       s.turns.schedule(session.conversationId);
     }

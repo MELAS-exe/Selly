@@ -64,12 +64,16 @@ const money = z.strictObject({ amount: z.number().int().min(0), currency: z.enum
 const items = z
   .array(
     z.strictObject({
-      variant_id: z.string().describe('variant_id from search_products or get_product'),
+      variant_id: z.uuid().describe('variant_id from search_products or get_product'),
       quantity: z.number().int().min(1).max(5),
     }),
   )
   .min(1)
   .max(10);
+const orderNumber = z
+  .string()
+  .regex(/^[A-Za-z0-9]{3,12}$/)
+  .describe('numéro court, par exemple A7K2');
 const delivery = z.strictObject({
   method: z.enum(['delivery', 'pickup']),
   zone_id: z
@@ -139,7 +143,7 @@ const searchProducts = tool({
 const getProduct = tool({
   name: 'get_product',
   description: 'Détail d’un produit : description, options, variantes et stock disponible.',
-  input: z.strictObject({ product_id: z.string() }),
+  input: z.strictObject({ product_id: z.uuid() }),
   async run(p, ctx) {
     const d = await ctx.core.getProduct(p.product_id, ctx.call);
     rememberAmounts(ctx, d.price, ...d.variants.map((v) => v.price));
@@ -190,7 +194,12 @@ function rememberQuote(
     ...quote.lines.flatMap((l) => [l.unit_price, l.line_total]),
   );
   ctx.state.cart = req.items;
-  ctx.state.lastQuote = { items: req.items, delivery: req.delivery, total: quote.total };
+  ctx.state.lastQuote = {
+    items: req.items,
+    delivery: req.delivery,
+    total: quote.total,
+    ...(req.discount_pct ? { discountPct: req.discount_pct } : {}),
+  };
   ctx.state.lastQuoteTotal = quote.total;
 }
 
@@ -229,6 +238,8 @@ const createOrder = tool({
         customer: p.customer,
         items: p.items,
         delivery: p.delivery,
+        // Core caps the discount again and requires expected_total to equal its own total.
+        ...(q.discountPct ? { discount_pct: q.discountPct } : {}),
         expected_total: q.total,
       },
       idempotencyKey,
@@ -258,9 +269,13 @@ const createOrder = tool({
 const getOrderStatus = tool({
   name: 'get_order_status',
   description: 'Statut d’une commande par son numéro court (par exemple A7K2).',
-  input: z.strictObject({ number: z.string().min(3).max(12) }),
+  input: z.strictObject({ number: orderNumber }),
   async run(p, ctx) {
-    const o = await ctx.core.getOrder(ctx.conversation.vendorId, p.number.toUpperCase(), ctx.call);
+    // A customer only sees the orders created in this conversation, never the shop's other orders.
+    const number = p.number.toUpperCase();
+    if (!ctx.state.orders?.[number])
+      return { error: 'NOT_FOUND', hint: 'Aucune commande de ce numéro dans cette discussion.' };
+    const o = await ctx.core.getOrder(ctx.conversation.vendorId, number, ctx.call);
     rememberAmounts(ctx, o.total);
     return o;
   },
@@ -377,7 +392,7 @@ const answerDraftQuestion = tool({
   name: 'answer_draft_question',
   description: 'Enregistre la réponse du vendeur à une question du brouillon.',
   input: z.strictObject({
-    draft_id: z.string(),
+    draft_id: z.uuid(),
     question_id: z.string(),
     answer: z.string().min(1).max(200),
   }),
@@ -397,9 +412,9 @@ const confirmProductDraft = tool({
   description:
     'Publie le brouillon dans le catalogue. Seulement après que le vendeur a validé le résumé. mode="restock" ajoute le stock à un produit existant (target_product_id).',
   input: z.strictObject({
-    draft_id: z.string(),
+    draft_id: z.uuid(),
     mode: z.enum(['new', 'restock']),
-    target_product_id: z.string().optional(),
+    target_product_id: z.uuid().optional(),
   }),
   async run(p, ctx) {
     const product = await ctx.core.confirmDraft(
@@ -497,7 +512,7 @@ const listOrders = tool({
 const markFulfilled = tool({
   name: 'mark_fulfilled',
   description: 'Marque une commande payée comme livrée ou expédiée (« A7K2 livrée »).',
-  input: z.strictObject({ number: z.string().min(3).max(12) }),
+  input: z.strictObject({ number: orderNumber }),
   async run(p, ctx) {
     const o = await ctx.core.fulfillOrder(
       ctx.conversation.vendorId,

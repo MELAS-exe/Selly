@@ -7,7 +7,7 @@ import type { AgentServices } from '../app';
 import { toChatMessage } from '../conversations';
 import type { CoreEvent, OrderCard, OrderStatus } from '../core/types';
 import { AppError } from '../errors';
-import { toDraftExtracted } from '../vision';
+import { isVendorImageKey, toDraftExtracted } from '../vision';
 import { checkServiceToken, verifyEventSignature } from './auth';
 import { parseBody } from './validate';
 
@@ -113,6 +113,17 @@ export function registerInternalRoutes(app: FastifyInstance, s: AgentServices) {
   });
 }
 
+function ownCheckoutUrl(value: unknown, appBaseUrl: string): string | null {
+  if (typeof value !== 'string') return null;
+  try {
+    const url = new URL(value);
+    const app = new URL(appBaseUrl);
+    return url.origin === app.origin && url.pathname.startsWith('/c/') ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 async function handleEvent(
   s: AgentServices,
   event: CoreEvent,
@@ -135,8 +146,9 @@ async function handleEvent(
       status: order.status,
       total,
       total_sat: Number(d.total_sat ?? 0),
+      // Links in cards bypass the text filter: only a checkout URL on our own domain is accepted.
       checkout_url:
-        (typeof d.checkout_url === 'string' ? d.checkout_url : undefined) ??
+        ownCheckoutUrl(d.checkout_url, s.config.appBaseUrl) ??
         conv.state.orders?.[number] ??
         `${s.config.appBaseUrl}/s`,
       expires_at: null,
@@ -162,7 +174,9 @@ async function handleEvent(
     case 'draft.requested': {
       // A dashboard upload (restock-ai): extract in the background, core gets the draft back (section 5.3.6).
       const draftId = String(d.draft_id ?? '');
-      const imageKeys = Array.isArray(d.image_keys) ? d.image_keys.map(String) : [];
+      const imageKeys = (Array.isArray(d.image_keys) ? d.image_keys.map(String) : []).filter((k) =>
+        isVendorImageKey(k, event.vendor_id),
+      );
       const text = typeof d.input_text === 'string' ? d.input_text : undefined;
       s.track(
         s.extractor

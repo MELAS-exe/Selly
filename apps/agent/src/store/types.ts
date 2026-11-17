@@ -23,6 +23,8 @@ export interface ConversationState {
     items: { variant_id: string; quantity: number }[];
     delivery: unknown;
     total: { amount: number; currency: 'XOF' | 'SAT' };
+    /** Discount asked in quote_cart; sent again to create_order, where core caps it again. */
+    discountPct?: number;
   };
   /** Last order number created in this chat. */
   lastOrderNumber?: string;
@@ -167,6 +169,15 @@ export interface AgentStore {
       >
     >,
   ): Promise<Conversation>;
+  /**
+   * Merges keys into conversations.state and removes others, without touching the rest, so two
+   * writers (a turn and an incoming message) never erase each other's keys.
+   */
+  patchState(
+    id: string,
+    set: Partial<ConversationState>,
+    unset: (keyof ConversationState)[],
+  ): Promise<void>;
   listInbox(q: InboxQuery): Promise<{ rows: InboxRow[]; nextCursor: string | null }>;
 
   createChatSession(
@@ -174,6 +185,8 @@ export interface AgentStore {
   ): Promise<ChatSessionRecord>;
   findChatSessionByTokenHash(hash: Buffer): Promise<ChatSessionRecord | null>;
   touchChatSession(id: string, expiresAt: Date): Promise<void>;
+  /** Deletes sessions expired before `now`; returns how many. */
+  purgeExpiredSessions(now: Date): Promise<number>;
 
   /** Inserts a message. A repeated (conversation, client_message_id) returns the stored one with created=false. */
   insertMessage(m: NewMessage): Promise<{ message: StoredMessage; created: boolean }>;

@@ -10,7 +10,7 @@ import { parseBody, parseQuery } from './validate';
 
 const InboxQuery = z.object({
   mode: z.enum(['bot', 'human', 'paused']).optional(),
-  cursor: z.string().max(64).optional(),
+  cursor: z.uuid().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 const MessagesQuery = z.object({

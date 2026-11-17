@@ -80,7 +80,12 @@ export function readCookie(header: string | undefined, name: string): string | n
   if (!header) return null;
   for (const part of header.split(';')) {
     const [k, ...v] = part.trim().split('=');
-    if (k === name) return decodeURIComponent(v.join('='));
+    if (k !== name) continue;
+    try {
+      return decodeURIComponent(v.join('='));
+    } catch {
+      return null; // malformed encoding: treated as no session, not as a server error
+    }
   }
   return null;
 }

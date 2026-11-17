@@ -117,6 +117,8 @@ services:
       DATABASE_URL: postgres://selly:selly@postgres:5432/selly
       SERVICE_TOKEN_AGENT: ${SERVICE_TOKEN_AGENT:-dev-agent-token}
       EVENTS_HMAC_SECRET: ${EVENTS_HMAC_SECRET:-dev-events-secret}
+      # Local stack only: lets production mode start with the development secrets above.
+      ALLOW_DEV_SECRETS: "true"
       APP_BASE_URL: http://localhost:3000
       LLM_PRIMARY: ${LLM_PRIMARY:-demo}
       LLM_FALLBACK: ${LLM_FALLBACK:-}

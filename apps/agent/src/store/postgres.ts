@@ -11,6 +11,7 @@ import {
   gt,
   inArray,
   isNull,
+  lt,
   or,
   type PgDatabase,
   sql,
@@ -116,15 +117,28 @@ export class PostgresStore implements AgentStore {
     return toConversation(row);
   }
 
-  async listInbox(q: InboxQuery) {
-    // Last message per conversation, then unread count; one query each, fine for a vendor's inbox.
-    const last = this.db
-      .selectDistinctOn([messages.conversationId], {
-        conversationId: messages.conversationId,
-        lastId: messages.id,
+  async patchState(id: string, set: Record<string, unknown>, unset: string[]) {
+    // jsonb || merges the top-level keys; "- text[]" removes keys. One statement, so it is atomic.
+    await this.db
+      .update(conversations)
+      .set({
+        // The key list goes in as one JSON parameter: a JS array would expand to "($1, $2)", and to an
+        // invalid "()" when empty.
+        state: sql`(${conversations.state} || ${JSON.stringify(set)}::jsonb) - array(select jsonb_array_elements_text(${JSON.stringify(unset)}::jsonb))`,
+        updatedAt: new Date(),
       })
+      .where(eq(conversations.id, id));
+  }
+
+  async listInbox(q: InboxQuery) {
+    // The vendor's conversations first, then only their last message each (index messages_by_conversation),
+    // instead of scanning every message of every shop.
+    const last = this.db
+      .select({ lastId: messages.id })
       .from(messages)
-      .orderBy(messages.conversationId, desc(messages.id))
+      .where(eq(messages.conversationId, conversations.id))
+      .orderBy(desc(messages.id))
+      .limit(1)
       .as('last');
     const filters = [eq(conversations.vendorId, q.vendorId), eq(conversations.role, 'customer')];
     if (q.mode) filters.push(eq(conversations.mode, q.mode));
@@ -132,7 +146,7 @@ export class PostgresStore implements AgentStore {
     const rows = await this.db
       .select({ conversation: conversations, lastId: last.lastId })
       .from(conversations)
-      .innerJoin(last, eq(last.conversationId, conversations.id))
+      .innerJoinLateral(last, sql`true`)
       .where(and(...filters))
       .orderBy(desc(last.lastId))
       .limit(q.limit + 1);
@@ -193,6 +207,14 @@ export class PostgresStore implements AgentStore {
   async findChatSessionByTokenHash(hash: Buffer) {
     const [row] = await this.db.select().from(chatSessions).where(eq(chatSessions.tokenHash, hash));
     return row ?? null;
+  }
+
+  async purgeExpiredSessions(now: Date) {
+    const rows = await this.db
+      .delete(chatSessions)
+      .where(lt(chatSessions.expiresAt, now))
+      .returning({ id: chatSessions.id });
+    return rows.length;
   }
 
   async touchChatSession(id: string, expiresAt: Date) {

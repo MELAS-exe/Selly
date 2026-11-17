@@ -64,6 +64,15 @@ export class MemoryStore implements AgentStore {
     return structuredClone(c);
   }
 
+  async patchState(id: string, set: Record<string, unknown>, unset: string[]) {
+    const c = this.conversations.get(id);
+    if (!c) return;
+    const state: Record<string, unknown> = { ...c.state, ...structuredClone(set) };
+    for (const k of unset) delete state[k];
+    c.state = state;
+    c.updatedAt = new Date();
+  }
+
   async listInbox(q: InboxQuery) {
     const rows: InboxRow[] = [];
     for (const c of this.conversations.values()) {
@@ -100,6 +109,16 @@ export class MemoryStore implements AgentStore {
   async findChatSessionByTokenHash(hash: Buffer) {
     for (const s of this.sessions.values()) if (s.tokenHash.equals(hash)) return { ...s };
     return null;
+  }
+
+  async purgeExpiredSessions(now: Date) {
+    let n = 0;
+    for (const [id, s] of this.sessions)
+      if (s.expiresAt < now) {
+        this.sessions.delete(id);
+        n++;
+      }
+    return n;
   }
 
   async touchChatSession(id: string, expiresAt: Date) {

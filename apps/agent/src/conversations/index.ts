@@ -13,6 +13,7 @@ import type {
   AgentStore,
   Conversation,
   ConversationMode,
+  ConversationState,
   NewMessage,
   StoredMessage,
 } from '../store/types';
@@ -31,6 +32,22 @@ export interface ChatMessageView {
   client_message_id: string | null;
   status: 'accepted' | 'processed' | 'failed';
   created_at: string;
+}
+
+/** The keys to set and to remove to go from one state to another. */
+export function diffState(before: ConversationState, after: ConversationState) {
+  const set: Record<string, unknown> = {};
+  const unset: (keyof ConversationState)[] = [];
+  const keys = new Set([...Object.keys(before), ...Object.keys(after)]) as Set<
+    keyof ConversationState
+  >;
+  for (const k of keys) {
+    const a = after[k];
+    if (a === undefined) {
+      if (before[k] !== undefined) unset.push(k);
+    } else if (JSON.stringify(a) !== JSON.stringify(before[k])) set[k] = a;
+  }
+  return { set: set as Partial<ConversationState>, unset };
 }
 
 export function toChatMessage(m: StoredMessage): ChatMessageView {
@@ -102,7 +119,11 @@ export class ConversationService {
     return res;
   }
 
-  async agentReply(conv: Conversation, reply: AgentReply, label: string) {
+  /**
+   * Stores and publishes the agent's reply. With `inReplyTo` (the last inbound message of the turn)
+   * the reply has a deterministic client id, so a turn replayed after a crash never answers twice.
+   */
+  async agentReply(conv: Conversation, reply: AgentReply, label: string, inReplyTo?: string) {
     const hasOrder = reply.cards.some((c) => c.type === 'order');
     return (
       await this.insertAndPublish({
@@ -114,6 +135,7 @@ export class ConversationService {
         text: reply.text,
         cards: reply.cards,
         quickReplies: reply.quickReplies,
+        clientMessageId: inReplyTo ? `reply:${inReplyTo}` : null,
         status: 'processed',
       })
     ).message;

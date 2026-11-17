@@ -26,7 +26,7 @@ import {
 } from '../quota';
 import type { AgentStore, Conversation, StoredMessage } from '../store/types';
 import type { HandoffRequest } from '../tools';
-import { assistantLabel, type ConversationService } from '.';
+import { assistantLabel, type ConversationService, diffState } from '.';
 
 export interface TurnDeps {
   store: AgentStore;
@@ -186,6 +186,7 @@ export class TurnService {
           conv,
           { text: voice.ask, cards: [], quickReplies: [] },
           label,
+          pending.at(-1)?.id,
         );
         await this.d.store.setMessageStatus(
           pending.map((m) => m.id),
@@ -272,6 +273,7 @@ export class TurnService {
             quickReplies: [],
           },
           label,
+          pending.at(-1)?.id,
         );
         await this.d.store.setMessageStatus(
           pending.map((m) => m.id),
@@ -289,11 +291,10 @@ export class TurnService {
     this.d.conversations.typing(conv.id, false);
 
     const last = pending.at(-1) as StoredMessage;
-    conv = await this.d.store.updateConversation(conv.id, {
-      state: result.state,
-      lastInboundAt: last.createdAt,
-    });
-    const reply = await this.d.conversations.agentReply(conv, result.reply, label);
+    const { set, unset } = diffState(conv.state, result.state);
+    await this.d.store.patchState(conv.id, set, unset);
+    conv = await this.d.store.updateConversation(conv.id, { lastInboundAt: last.createdAt });
+    const reply = await this.d.conversations.agentReply(conv, result.reply, label, last.id);
     await this.d.store.setMessageStatus(
       pending.map((m) => m.id),
       'processed',
@@ -319,12 +320,8 @@ export class TurnService {
     if ((result.state.turnsSinceSummary ?? 0) >= SUMMARY_EVERY_TURNS) {
       this.track(
         this.d.engine.summarise(conv).then(async (summary) => {
-          const fresh = await this.d.store.getConversation(conv.id);
-          if (!fresh) return;
-          await this.d.store.updateConversation(conv.id, {
-            ...(summary ? { summary } : {}),
-            state: { ...fresh.state, turnsSinceSummary: 0 },
-          });
+          if (summary) await this.d.store.updateConversation(conv.id, { summary });
+          await this.d.store.patchState(conv.id, { turnsSinceSummary: 0 }, []);
         }),
       );
     }
@@ -338,7 +335,7 @@ export class TurnService {
     handoff: HandoffRequest,
   ): Promise<TurnOutcome> {
     const fixed: AgentReply = { text: FIXED_HANDOFF_REPLY, cards: [], quickReplies: [] };
-    const reply = await this.d.conversations.agentReply(conv, fixed, label);
+    const reply = await this.d.conversations.agentReply(conv, fixed, label, pending.at(-1)?.id);
     await this.d.store.setMessageStatus(
       pending.map((m) => m.id),
       'processed',

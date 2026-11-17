@@ -18,10 +18,15 @@ type Listener = (e: HubEvent) => void;
 
 const BUFFER = 200;
 
+const IDLE_MS = 60 * 60_000;
+
 export class EventHub {
   private readonly seq = new Map<string, number>();
   private readonly buffers = new Map<string, HubEvent[]>();
   private readonly listeners = new Map<string, Set<Listener>>();
+  private readonly lastActivity = new Map<string, number>();
+
+  constructor(private readonly now: () => number = Date.now) {}
 
   publish(
     conversationId: string,
@@ -29,8 +34,12 @@ export class EventHub {
     data: unknown,
     audience: HubEvent['audience'] = 'all',
   ) {
-    const id = (this.seq.get(conversationId) ?? 0) + 1;
+    // Ids follow the clock (and stay strictly increasing), so they keep increasing after a sweep
+    // forgets a conversation: a client that resumes with an older Last-Event-ID misses nothing new.
+    const t = this.now();
+    const id = Math.max((this.seq.get(conversationId) ?? 0) + 1, t);
     this.seq.set(conversationId, id);
+    this.lastActivity.set(conversationId, t);
     const e: HubEvent = { id, event, data, audience };
     const buf = this.buffers.get(conversationId) ?? [];
     buf.push(e);
@@ -57,6 +66,24 @@ export class EventHub {
 
   listenerCount(conversationId: string) {
     return this.listeners.get(conversationId)?.size ?? 0;
+  }
+
+  /** Forgets conversations with no open stream and no event for an hour. Returns how many. */
+  sweep(): number {
+    const t = this.now();
+    let n = 0;
+    for (const [id, at] of this.lastActivity) {
+      if (t - at < IDLE_MS || this.listeners.has(id)) continue;
+      this.seq.delete(id);
+      this.buffers.delete(id);
+      this.lastActivity.delete(id);
+      n++;
+    }
+    return n;
+  }
+
+  size() {
+    return this.buffers.size;
   }
 }
 

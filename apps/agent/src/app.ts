@@ -45,7 +45,11 @@ export interface AgentServices {
   usage: UsageReporter;
   vendorAuth: VendorAuth;
   uploads: AudioUploads;
-  limits: { sessionsPerIp: RateLimiter; messagesPerToken: RateLimiter };
+  limits: {
+    sessionsPerIp: RateLimiter;
+    messagesPerToken: RateLimiter;
+    assistantPerVendor: RateLimiter;
+  };
   /** Keeps background work (draft extraction) visible to `turns.idle()` and shutdown. */
   track(p: Promise<unknown>): void;
 }
@@ -80,7 +84,11 @@ export function buildApp(opts: BuildOptions = {}): FastifyInstance & { services:
               'req.headers["x-selly-signature"]',
             ],
           },
-    trustProxy: true,
+    // Only the known number of proxies: otherwise X-Forwarded-For defeats the per-IP limits.
+    trustProxy:
+      config.trustProxyHops > 0
+        ? (_address: string, hop: number) => hop < config.trustProxyHops
+        : false,
     bodyLimit: 64 * 1024,
   });
 
@@ -169,6 +177,7 @@ export function buildApp(opts: BuildOptions = {}): FastifyInstance & { services:
     limits: {
       sessionsPerIp: new RateLimiter(30, 10 * 60_000),
       messagesPerToken: new RateLimiter(20, 60_000),
+      assistantPerVendor: new RateLimiter(30, 60_000),
     },
     track: (p) => turns.track(p),
   };
@@ -210,7 +219,17 @@ export function buildApp(opts: BuildOptions = {}): FastifyInstance & { services:
   registerAssistantRoutes(app, services);
   registerInternalRoutes(app, services);
 
+  // Housekeeping every 10 minutes: idle SSE buffers, expired chat sessions (30 days without activity).
+  const housekeeping = setInterval(() => {
+    hub.sweep();
+    store
+      .purgeExpiredSessions(new Date())
+      .catch((err) => app.log.warn({ err }, 'session purge failed'));
+  }, 10 * 60_000);
+  housekeeping.unref();
+
   app.addHook('onClose', async () => {
+    clearInterval(housekeeping);
     await turns.idle();
     if (store instanceof PostgresStore) await store.close();
   });

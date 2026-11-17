@@ -161,6 +161,7 @@ export interface OrderCreateRequest {
   customer: { display_name: string; phone_e164: string };
   items: CartItemInput[];
   delivery: DeliveryInput;
+  discount_pct?: number;
   expected_total: Money;
 }
 export interface OrderCreated {

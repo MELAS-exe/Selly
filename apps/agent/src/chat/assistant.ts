@@ -7,6 +7,7 @@ import type { AgentServices } from '../app';
 import { toChatMessage } from '../conversations';
 import { AppError } from '../errors';
 import type { StoredMessage } from '../store/types';
+import { isVendorImageKey } from '../vision';
 import { parseBody, parseQuery } from './validate';
 
 const AssistantBody = z
@@ -55,7 +56,16 @@ export function registerAssistantRoutes(app: FastifyInstance, s: AgentServices) 
 
   app.post('/api/v1/assistant/messages', async (req) => {
     const vendorId = await s.vendorAuth.authenticate(req);
+    const limit = s.limits.assistantPerVendor.take(vendorId);
+    if (!limit.allowed)
+      throw new AppError('RATE_LIMITED', undefined, undefined, limit.retryAfterSeconds);
     const body = parseBody(AssistantBody, req.body);
+    // A vendor may only point the assistant at their own uploads.
+    const badKey = (body.image_keys ?? []).find((k) => !isVendorImageKey(k, vendorId));
+    if (badKey)
+      throw new AppError('VALIDATION_FAILED', 'Unknown image key.', [
+        { field: 'image_keys', value: badKey },
+      ]);
     const conv = await conversationFor(vendorId);
     const { message, created } = await s.store.insertMessage({
       conversationId: conv.id,

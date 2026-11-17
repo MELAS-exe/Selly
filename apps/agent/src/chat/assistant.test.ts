@@ -47,7 +47,7 @@ describe('vendor assistant', () => {
         expect(req.jsonSchema).toBeDefined();
         expect(req.messages[0]?.content[0]).toMatchObject({
           type: 'image',
-          url: 'https://media.example/uploads/v1/a.jpg',
+          url: `https://media.example/vendors/${FAKE_VENDOR_ID}/a.jpg`,
         });
         return [say(JSON.stringify(extraction))];
       },
@@ -60,7 +60,7 @@ describe('vendor assistant', () => {
       payload: {
         client_message_id: 'assist-0001',
         text: 'Ajoute ces baskets à 20 000, 5 paires du 40 au 44',
-        image_keys: ['uploads/v1/a.jpg'],
+        image_keys: [`vendors/${FAKE_VENDOR_ID}/a.jpg`],
       },
     });
     expect(res.statusCode).toBe(200);
@@ -201,14 +201,20 @@ describe('internal API', () => {
 
   it('extracts a dashboard draft in the background on draft.requested', async () => {
     const s = setup();
-    const draft = await s.core.upsertDraft(FAKE_VENDOR_ID, { image_keys: ['uploads/x.jpg'] });
+    const draft = await s.core.upsertDraft(FAKE_VENDOR_ID, {
+      image_keys: [`vendors/${FAKE_VENDOR_ID}/x.jpg`],
+    });
     s.llm.push(() => [say(JSON.stringify(extraction))]);
     const res = await s.postEvent({
       event_id: uuidv7(),
       type: 'draft.requested',
       occurred_at: new Date().toISOString(),
       vendor_id: FAKE_VENDOR_ID,
-      data: { draft_id: draft.id, image_keys: ['uploads/x.jpg'], input_text: 'Baskets à 20 000' },
+      data: {
+        draft_id: draft.id,
+        image_keys: [`vendors/${FAKE_VENDOR_ID}/x.jpg`],
+        input_text: 'Baskets à 20 000',
+      },
     });
     expect(res.statusCode).toBe(200);
     await s.app.services.turns.idle();
