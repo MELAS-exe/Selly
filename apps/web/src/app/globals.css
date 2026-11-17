@@ -266,3 +266,127 @@ html[data-woven] .card-rise::after {
     animation-duration: 0s;
   }
 }
+
+/* ------------------------------------------------------------------------------------------ */
+/* Product page motion. Feedback stays within --dur-tap..--dur-ui; adding to cart is the one   */
+/* strong moment (the photo flies to the cart, see components/motion/fly-to-cart.ts).          */
+/* ------------------------------------------------------------------------------------------ */
+
+/* A chosen option settles with a small bounce. */
+.opt[aria-pressed="true"] {
+  animation: pop var(--dur-ui) var(--ease-snap);
+}
+@keyframes pop {
+  from {
+    transform: scale(0.94);
+  }
+}
+/* The bar under the chosen value: 1px wide, stretched with scaleX, moved with translate. */
+.opt-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 3px;
+  background: var(--color-indigo);
+  transform-origin: left;
+  opacity: 0;
+  pointer-events: none;
+  transition: transform var(--dur-ui) var(--ease-out-expo);
+}
+
+/* Rolling digits (quantity, cart badge). */
+.roll-up {
+  animation: roll-in var(--dur-ui) var(--ease-out-expo) both;
+  --from: 70%;
+}
+.roll-down {
+  animation: roll-in var(--dur-ui) var(--ease-out-expo) both;
+  --from: -70%;
+}
+.roll-out-up {
+  animation: roll-out var(--dur-ui) var(--ease-out-expo) both;
+  --to: -70%;
+}
+.roll-out-down {
+  animation: roll-out var(--dur-ui) var(--ease-out-expo) both;
+  --to: 70%;
+}
+@keyframes roll-in {
+  from {
+    transform: translateY(var(--from));
+    opacity: 0;
+  }
+}
+@keyframes roll-out {
+  to {
+    transform: translateY(var(--to));
+    opacity: 0;
+  }
+}
+
+/* Buttons give under the finger. */
+.press {
+  transition: transform var(--dur-tap) var(--ease-out-expo);
+}
+.press:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* A check mark that draws itself (path with pathLength=1). */
+.check-draw path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw var(--dur-ui) var(--ease-out-expo) calc(var(--dur-tap) / 2) forwards;
+}
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* A block that opens in height when it is inserted (grid rows 0fr to 1fr, @starting-style). */
+.open-rows {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition:
+    grid-template-rows var(--dur-ui) var(--ease-out-expo),
+    opacity var(--dur-ui) linear;
+}
+.open-rows > * {
+  min-height: 0;
+  overflow: hidden;
+}
+@starting-style {
+  .open-rows {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opt[aria-pressed="true"],
+  .roll-up,
+  .roll-down {
+    animation: none;
+  }
+  .roll-out-up,
+  .roll-out-down {
+    animation: none;
+    opacity: 0;
+  }
+  .opt-bar {
+    transition: none;
+  }
+  .press:active:not(:disabled) {
+    transform: none;
+  }
+  .check-draw path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .open-rows {
+    transition: opacity var(--dur-ui) linear;
+  }
+}

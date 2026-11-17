@@ -45,7 +45,7 @@ export default async function ProductPage({ params }: Params) {
       </nav>
 
       <div>
-        <div className="overflow-hidden rounded-[var(--radius-tile)]">
+        <div data-hero-visual className="overflow-hidden rounded-[var(--radius-tile)]">
           <ViewTransition name={`product-${product.slug}`} share="morph" default="none">
             <ProductVisual
               image={first ?? null}
