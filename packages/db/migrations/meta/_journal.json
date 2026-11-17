@@ -29,6 +29,13 @@
       "when": 1794914209056,
       "tag": "0003_product_slug",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794917272067,
+      "tag": "0004_agent_schema",
+      "breakpoints": true
     }
   ]
 }
