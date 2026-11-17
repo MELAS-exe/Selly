@@ -109,8 +109,14 @@ services:
       DATABASE_URL: postgres://selly:selly@postgres:5432/selly
       SERVICE_TOKEN_AGENT: ${SERVICE_TOKEN_AGENT:-dev-agent-token}
       EVENTS_HMAC_SECRET: ${EVENTS_HMAC_SECRET:-dev-events-secret}
-      LLM_PRIMARY: ${LLM_PRIMARY:-scripted}
+      APP_BASE_URL: http://localhost:3000
+      LLM_PRIMARY: ${LLM_PRIMARY:-demo}
       LLM_FALLBACK: ${LLM_FALLBACK:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # fake: in-memory core until core serves /internal/v1; memory: no migration needed
+      AGENT_CORE_MODE: ${AGENT_CORE_MODE:-fake}
+      AGENT_STORE: ${AGENT_STORE:-memory}
+      MEDIA_BASE_URL: ${MEDIA_BASE_URL:-}
     ports:
       - "4100:4100"
     depends_on:

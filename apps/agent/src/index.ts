@@ -1,9 +1,40 @@
 import { buildApp } from './app';
+import { PostgresStore } from './store/postgres';
 
-const port = Number(process.env.AGENT_PORT ?? 4100);
 const app = buildApp();
+const { config, store, llm } = app.services;
 
-app.listen({ port, host: '0.0.0.0' }).catch((err) => {
+async function main() {
+  if (store instanceof PostgresStore) {
+    try {
+      await store.pool.query('select 1 from agent.conversations limit 0');
+    } catch (err) {
+      app.log.error(
+        { err },
+        'Schema "agent" is missing. Run `pnpm --filter @selly/db db:migrate`, or set AGENT_STORE=memory.',
+      );
+      process.exit(1);
+    }
+  }
+  await app.listen({ port: config.port, host: '0.0.0.0' });
+  app.log.info(
+    {
+      store: store instanceof PostgresStore ? 'postgres' : 'memory',
+      core: config.coreUrl || 'fake (in memory)',
+      llm: llm.name,
+    },
+    'agent ready',
+  );
+}
+
+for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+  process.once(signal, () => {
+    app.log.info({ signal }, 'shutting down');
+    app.close().finally(() => process.exit(0));
+  });
+}
+
+main().catch((err) => {
   app.log.error(err);
   process.exit(1);
 });

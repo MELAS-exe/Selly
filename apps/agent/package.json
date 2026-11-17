@@ -11,15 +11,18 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.9.0",
     "@selly/contracts": "workspace:*",
     "@selly/db": "workspace:*",
     "@selly/money": "workspace:*",
     "fastify": "^5.0.0",
+    "pg": "^8.23.1",
     "zod": "^4.0.0"
   },
   "devDependencies": {
     "@selly/config": "workspace:*",
     "@types/node": "^24",
+    "@types/pg": "^8.23.1",
     "tsup": "^8.0.0",
     "tsx": "^4.0.0"
   }

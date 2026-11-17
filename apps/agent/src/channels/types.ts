@@ -1,5 +1,7 @@
 // The agent engine does not know its channel (architecture.md section 3.9). The web chat is the first adapter.
 
+import type { Card, QuickReply } from '../core/types';
+
 export type Channel = 'web' | 'whatsapp' | 'instagram';
 
 export interface ConversationRef {
@@ -22,8 +24,8 @@ export interface NormalisedMessage {
 
 export interface AgentReply {
   text: string;
-  cards: unknown[];
-  quickReplies: { id: string; label: string }[];
+  cards: Card[];
+  quickReplies: QuickReply[];
 }
 
 export interface ChannelAdapter {
