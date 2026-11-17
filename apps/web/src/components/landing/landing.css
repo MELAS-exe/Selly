@@ -1,0 +1,355 @@
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap");
+
+.theme-paper-vermilion {
+  --bg-paper: #f6f4f0;
+  --text-ink: #111111;
+  --accent-vermilion: #e3342f;
+  --line-faint: rgba(17, 17, 17, 0.12);
+  --line-strong: rgba(17, 17, 17, 0.8);
+
+  --font-serif: "Cormorant Garamond", serif;
+  --font-sans: "DM Sans", sans-serif;
+
+  background-color: var(--bg-paper);
+  color: var(--text-ink);
+  font-family: var(--font-sans);
+
+  /* Add paper texture via noise */
+  position: relative;
+}
+
+.theme-paper-vermilion::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.8;
+}
+
+.pv-serif {
+  font-family: var(--font-serif);
+}
+
+.pv-sans {
+  font-family: var(--font-sans);
+}
+
+.pv-bg {
+  background-color: var(--bg-paper);
+}
+
+.pv-ink {
+  color: var(--text-ink);
+}
+
+.pv-vermilion {
+  color: var(--accent-vermilion);
+}
+
+.pv-bg-vermilion {
+  background-color: var(--accent-vermilion);
+}
+
+.pv-border-faint {
+  border-color: var(--line-faint);
+}
+
+.pv-border-strong {
+  border-color: var(--line-strong);
+}
+
+.pv-stamp {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  background-color: var(--accent-vermilion);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: 1.5rem;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  transform: rotate(-12deg);
+}
+
+.pv-hairline-t {
+  border-top: 1px solid var(--line-faint);
+}
+.pv-hairline-b {
+  border-bottom: 1px solid var(--line-faint);
+}
+.pv-hairline-l {
+  border-left: 1px solid var(--line-faint);
+}
+.pv-hairline-r {
+  border-right: 1px solid var(--line-faint);
+}
+
+/*
+ * Animation utilities. Delays come from --d (set with the [--d:150ms] utility): Tailwind's
+ * delay-* classes only set transition-delay, so they never delayed these animations.
+ */
+@keyframes pv-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pv-reveal-line {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes pv-stamp-press {
+  0% {
+    opacity: 0;
+    transform: scale(1.5) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(0.9) rotate(-15deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(-12deg);
+  }
+}
+
+@keyframes pv-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pv-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pv-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pv-fade-up {
+  animation: pv-fade-up var(--dur-hero) var(--ease-out-expo) var(--d, 0ms) both;
+}
+
+.animate-pv-line {
+  transform-origin: left;
+  animation: pv-reveal-line var(--dur-hero) var(--ease-out-expo) var(--d, 0ms) both;
+}
+
+.animate-pv-stamp {
+  animation: pv-stamp-press var(--dur-hero) var(--ease-snap) var(--d, 0ms) both;
+}
+
+/* Continuous: always paired with .motion-loop, which stops them under reduced motion. */
+.pv-spin {
+  animation: pv-spin 20s linear infinite;
+}
+
+.pv-pulse {
+  animation: pv-pulse 2s ease-in-out infinite;
+}
+
+/* Scroll reveal, driven by the IntersectionObserver in Landing.tsx. */
+.reveal-on-scroll {
+  transition:
+    opacity var(--dur-hero) var(--ease-out-expo) var(--d, 0ms),
+    translate var(--dur-hero) var(--ease-out-expo) var(--d, 0ms);
+}
+
+/*
+ * Hero choreography, one sequence instead of scattered fades:
+ * the three h1 lines unmask one after the other (0 to ~800 ms), the products slide in
+ * from the sides (300 to ~1200 ms) and then float, each on its own period, and the stamp falls last.
+ */
+.hero-line {
+  display: block;
+  animation: hero-line var(--dur-hero) var(--ease-out-expo) calc(var(--i) * var(--dur-tap) * 0.7)
+    both;
+}
+@keyframes hero-line {
+  from {
+    clip-path: inset(0 -0.2em 100% -0.2em);
+    transform: translateY(0.3em);
+  }
+  to {
+    /* Negative insets leave room for italic overhangs and descenders. */
+    clip-path: inset(-0.2em -0.2em -0.2em -0.2em);
+    transform: none;
+  }
+}
+
+.hero-prop {
+  animation:
+    hero-prop var(--dur-hero) var(--ease-out-expo) var(--d, 0ms) both,
+    pv-float var(--float, 7s) ease-in-out calc(var(--d, 0ms) + var(--dur-hero)) infinite;
+}
+/* Held at its first frame until the picture has loaded (data-loaded, set in Landing.tsx). */
+.hero-prop:not([data-loaded]) {
+  animation-play-state: paused;
+}
+/* Each product slides in from its own side of the screen (--side: -1 left, 1 right). */
+@keyframes hero-prop {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--side, 1) * 70vw)) rotate(calc(var(--side, 1) * 12deg));
+  }
+}
+/* Starts and ends at rest, so the float picks up from the arrival without a jump. */
+@keyframes pv-float {
+  25% {
+    transform: translateY(-6px);
+  }
+  75% {
+    transform: translateY(6px);
+  }
+}
+
+/* Circular texts pause off screen (data-offscreen, set by an observer in Landing.tsx). */
+.pv-spin[data-offscreen] {
+  animation-play-state: paused;
+}
+
+/*
+ * Scroll-driven reveals where supported; elsewhere the IntersectionObserver in Landing.tsx
+ * toggles opacity/translate and the transition above plays.
+ */
+@supports (animation-timeline: view()) {
+  .reveal-on-scroll {
+    transition: none;
+    animation: pv-reveal linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 70%;
+  }
+  /* Toolkit rows: the picture unveils from the bottom, its number slides in from the left. */
+  .kit-media {
+    animation: kit-unveil linear both;
+    animation-timeline: view();
+    animation-range: entry 10% cover 40%;
+  }
+  .kit-num {
+    animation: kit-num linear both;
+    animation-timeline: view();
+    animation-range: entry 20% cover 35%;
+  }
+  /* Gallery: the photo drifts 30 px against the scroll, scaled so no edge shows. */
+  .gal-par {
+    animation: gal-par linear both;
+    animation-timeline: view();
+  }
+}
+@keyframes pv-reveal {
+  from {
+    opacity: 0;
+    translate: 0 2rem;
+  }
+}
+@keyframes kit-unveil {
+  from {
+    clip-path: inset(100% 0 0 0);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
+@keyframes kit-num {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+}
+@keyframes gal-par {
+  from {
+    transform: translateY(-15px) scale(1.08);
+  }
+  to {
+    transform: translateY(15px) scale(1.08);
+  }
+}
+
+/* Calm versions: a short fade, no movement. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-line,
+  .hero-prop,
+  .animate-pv-fade-up,
+  .animate-pv-stamp {
+    animation: pv-fade var(--dur-ui) linear var(--d, 0ms) both;
+  }
+  .animate-pv-stamp {
+    transform: rotate(-12deg);
+  }
+  .animate-pv-line {
+    animation: none;
+  }
+  .reveal-on-scroll {
+    transition: opacity var(--dur-ui) linear;
+    translate: none !important;
+  }
+  .reveal-on-scroll {
+    animation-name: pv-fade;
+  }
+  .kit-media,
+  .gal-par {
+    animation: none;
+  }
+  .kit-num {
+    animation-name: pv-fade;
+  }
+}
+
+.theme-paper-vermilion {
+  --text-ink: #173b32;
+  --accent-vermilion: #8aae4a;
+  --line-faint: rgba(23, 59, 50, 0.16);
+  --line-strong: rgba(23, 59, 50, 0.8);
+}
+.theme-paper-vermilion [class*="text-black"],
+.theme-paper-vermilion [class*="text-[#111"],
+.theme-paper-vermilion [class*="text-[#111111"] {
+  color: #173b32 !important;
+}
+.theme-paper-vermilion [class*="text-[#E3342F]"] {
+  color: #719541 !important;
+}
+.theme-paper-vermilion [class*="bg-[#E3342F]"] {
+  background-color: #8aae4a !important;
+}
+.theme-paper-vermilion [class*="hover:text-[#E3342F]"]:hover {
+  color: #719541 !important;
+}
+.theme-paper-vermilion header {
+  color: #173b32;
+}
+
+/* Header over a dark section (toggled from Landing.tsx) */
+.theme-paper-vermilion header[data-dark="true"] {
+  color: #f6f4f0;
+}
+.theme-paper-vermilion header[data-dark="true"] a:hover {
+  color: #a3c651 !important;
+}
