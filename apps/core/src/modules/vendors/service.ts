@@ -6,7 +6,7 @@ import type { Context } from '../../context';
 import { AppError } from '../../errors';
 import { iso } from '../../util';
 import type { Session } from '../auth/service';
-import { type Vendor, vendorSettings } from '../catalog/store';
+import { alertSettings, type Vendor, vendorSettings } from '../catalog/store';
 import { audit } from '../events/outbox';
 import { currentSubscription } from '../subscriptions/service';
 import { liveWallet } from '../wallet/service';
@@ -46,7 +46,6 @@ export async function vendorView(ctx: Context, v: Vendor) {
   else if (sub.status === 'suspended') blockers.push('subscription_suspended');
   const s = vendorSettings(v);
   const raw = v.settings as {
-    alerts?: { web_push?: boolean; nostr_dm?: { enabled?: boolean; pubkey?: string | null } };
     agent?: { keep_logs?: boolean };
   };
   return {
@@ -68,13 +67,7 @@ export async function vendorView(ctx: Context, v: Vendor) {
         negotiation: { mode: s.negotiation.mode, max_discount_pct: s.negotiation.maxDiscountPct },
         keep_logs: raw.agent?.keep_logs ?? true,
       },
-      alerts: {
-        web_push: raw.alerts?.web_push ?? true,
-        nostr_dm: {
-          enabled: raw.alerts?.nostr_dm?.enabled ?? false,
-          pubkey: raw.alerts?.nostr_dm?.pubkey ?? null,
-        },
-      },
+      alerts: alertSettings(v),
     },
     live: v.status === 'active' && blockers.length === 0,
     live_blockers: blockers,
