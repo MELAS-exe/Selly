@@ -1,0 +1,133 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap');
+
+.theme-paper-vermilion {
+  --bg-paper: #F6F4F0;
+  --text-ink: #111111;
+  --accent-vermilion: #E3342F;
+  --line-faint: rgba(17, 17, 17, 0.12);
+  --line-strong: rgba(17, 17, 17, 0.8);
+  
+  --font-serif: 'Cormorant Garamond', serif;
+  --font-sans: 'DM Sans', sans-serif;
+  
+  background-color: var(--bg-paper);
+  color: var(--text-ink);
+  font-family: var(--font-sans);
+  
+  /* Add paper texture via noise */
+  position: relative;
+}
+
+.theme-paper-vermilion::before {
+  content: "";
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.8;
+}
+
+.pv-serif {
+  font-family: var(--font-serif);
+}
+
+.pv-sans {
+  font-family: var(--font-sans);
+}
+
+.pv-bg {
+  background-color: var(--bg-paper);
+}
+
+.pv-ink {
+  color: var(--text-ink);
+}
+
+.pv-vermilion {
+  color: var(--accent-vermilion);
+}
+
+.pv-bg-vermilion {
+  background-color: var(--accent-vermilion);
+}
+
+.pv-border-faint {
+  border-color: var(--line-faint);
+}
+
+.pv-border-strong {
+  border-color: var(--line-strong);
+}
+
+.pv-stamp {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  background-color: var(--accent-vermilion);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: 1.5rem;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  transform: rotate(-12deg);
+}
+
+.pv-hairline-t { border-top: 1px solid var(--line-faint); }
+.pv-hairline-b { border-bottom: 1px solid var(--line-faint); }
+.pv-hairline-l { border-left: 1px solid var(--line-faint); }
+.pv-hairline-r { border-right: 1px solid var(--line-faint); }
+
+/* Animation utilities */
+@keyframes pv-fade-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pv-reveal-line {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes pv-stamp-press {
+  0% { opacity: 0; transform: scale(1.5) rotate(0deg); }
+  50% { opacity: 1; transform: scale(0.9) rotate(-15deg); }
+  100% { opacity: 1; transform: scale(1) rotate(-12deg); }
+}
+
+.animate-pv-fade-up {
+  animation: pv-fade-up 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-pv-line {
+  transform-origin: left;
+  animation: pv-reveal-line 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-pv-stamp {
+  animation: pv-stamp-press 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+.delay-600 { animation-delay: 600ms; }
+.delay-700 { animation-delay: 700ms; }
+.delay-1000 { animation-delay: 1000ms; }
+
+.pv-circle-text {
+  /* We will implement circular text using SVG in the component */
+}
+
+      .theme-paper-vermilion { --text-ink: #173B32; --accent-vermilion: #8AAE4A; --line-faint: rgba(23,59,50,.16); --line-strong: rgba(23,59,50,.8); }
+      .theme-paper-vermilion [class*="text-black"], .theme-paper-vermilion [class*="text-[#111"], .theme-paper-vermilion [class*="text-[#111111"] { color: #173B32 !important; }
+      .theme-paper-vermilion [class*="text-[#E3342F]"] { color: #719541 !important; }
+      .theme-paper-vermilion [class*="bg-[#E3342F]"] { background-color: #8AAE4A !important; }
+      .theme-paper-vermilion [class*="hover:text-[#E3342F]"]:hover { color: #719541 !important; }
+      .theme-paper-vermilion header { color: #173B32; }
