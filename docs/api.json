@@ -1236,7 +1236,7 @@
               }
             }
           },
-          "409": {
+          "422": {
             "description": "Wrong status",
             "content": {
               "application/problem+json": {
@@ -1246,7 +1246,7 @@
                 "example": {
                   "type": "https://app.selly.example/problems/validation-failed",
                   "title": "Wrong status",
-                  "status": 409,
+                  "status": 422,
                   "code": "VALIDATION_FAILED",
                   "detail": "Only paid orders can be fulfilled. This order is pending_payment.",
                   "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
@@ -1383,7 +1383,7 @@
               }
             }
           },
-          "409": {
+          "422": {
             "description": "Wrong status",
             "content": {
               "application/problem+json": {
@@ -1393,7 +1393,7 @@
                 "example": {
                   "type": "https://app.selly.example/problems/validation-failed",
                   "title": "Wrong status",
-                  "status": 409,
+                  "status": 422,
                   "code": "VALIDATION_FAILED",
                   "detail": "A fulfilled order cannot be cancelled.",
                   "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
@@ -4858,7 +4858,7 @@
               }
             }
           },
-          "409": {
+          "422": {
             "description": "Stock held by orders",
             "content": {
               "application/problem+json": {
@@ -4868,7 +4868,7 @@
                 "example": {
                   "type": "https://app.selly.example/problems/validation-failed",
                   "title": "Stock held by orders",
-                  "status": 409,
+                  "status": 422,
                   "code": "VALIDATION_FAILED",
                   "detail": "on_hand cannot go below 1, which is held by pending orders.",
                   "errors": [
@@ -7487,6 +7487,9 @@
                 }
               }
             }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
           }
         },
         "tags": [
@@ -7647,150 +7650,9 @@
                 }
               }
             }
-          }
-        },
-        "tags": [
-          "Internal"
-        ]
-      }
-    },
-    "/internal/v1/products/{id}": {
-      "get": {
-        "servers": [
-          {
-            "url": "http://core.internal:4000",
-            "description": "core, private network only"
-          }
-        ],
-        "security": [
-          {
-            "serviceToken": []
-          }
-        ],
-        "operationId": "internalGetProduct",
-        "summary": "Product detail",
-        "description": "Scope `catalog:read`. Exact availability for every variant.",
-        "parameters": [
-          {
-            "name": "X-Request-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string"
-            },
-            "example": "4bf92f3577b34da6a3ce929d0e0e4736"
           },
-          {
-            "name": "X-Actor",
-            "in": "header",
-            "required": false,
-            "description": "`customer:<conversation id>` or `vendor:<id>`, for the audit log.",
-            "schema": {
-              "type": "string"
-            },
-            "example": "customer:0193a8f4-6f7a-7b8c-9d0e-1f2a3b4c5d6e"
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "example": "0193a8f0-6a1e-7c3b-9a1d-3f2b1c0d4e5f"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The product.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProductDetail"
-                },
-                "example": {
-                  "id": "0193a8f0-6a1e-7c3b-9a1d-3f2b1c0d4e5f",
-                  "slug": "robe-wax-noire",
-                  "title": "Robe wax noire",
-                  "description": "Robe en tissu wax, coupe droite, doublée.",
-                  "category": "robes",
-                  "price": {
-                    "amount": 15000,
-                    "currency": "XOF"
-                  },
-                  "images": [
-                    {
-                      "url": "https://cdn.selly.example/p/0193a8f0/640.webp",
-                      "width": 640,
-                      "height": 853,
-                      "dominant": "#1b1b1f"
-                    }
-                  ],
-                  "availability": "in_stock",
-                  "options": {
-                    "size": [
-                      "38",
-                      "40",
-                      "42"
-                    ],
-                    "color": [
-                      "noir"
-                    ]
-                  },
-                  "variants": [
-                    {
-                      "id": "0193a8f0-6b2c-7d4e-8f9a-1b2c3d4e5f60",
-                      "options": {
-                        "size": "42",
-                        "color": "noir"
-                      },
-                      "price": {
-                        "amount": 15000,
-                        "currency": "XOF"
-                      },
-                      "availability": "low",
-                      "available": 2
-                    },
-                    {
-                      "id": "0193a8f0-6b2c-7d4e-8f9a-1b2c3d4e5f61",
-                      "options": {
-                        "size": "40",
-                        "color": "noir"
-                      },
-                      "price": {
-                        "amount": 15000,
-                        "currency": "XOF"
-                      },
-                      "availability": "in_stock",
-                      "available": 6
-                    }
-                  ],
-                  "url": "https://app.selly.example/s/awa-style/p/robe-wax-noire"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                },
-                "example": {
-                  "type": "https://app.selly.example/problems/not-found",
-                  "title": "Not found",
-                  "status": 404,
-                  "code": "NOT_FOUND",
-                  "detail": "No such product.",
-                  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
-                }
-              }
-            }
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
           }
         },
         "tags": [
@@ -8184,6 +8046,9 @@
               }
             }
           },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
           "429": {
             "description": "Too many pending orders",
             "content": {
@@ -8344,6 +8209,9 @@
                 }
               }
             }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
           }
         },
         "tags": [
@@ -8472,7 +8340,7 @@
         ],
         "operationId": "internalFulfillOrder",
         "summary": "Mark an order fulfilled",
-        "description": "Scope `orders:write`. Only from a vendor assistant conversation (`X-Actor: vendor:<id>`).",
+        "description": "Scope `orders:write`. Only from a vendor assistant conversation (`X-Actor: vendor:<id>`). Idempotent: an order that is already fulfilled is returned as it is.",
         "parameters": [
           {
             "name": "X-Request-Id",
@@ -8588,7 +8456,7 @@
               }
             }
           },
-          "409": {
+          "422": {
             "description": "Wrong status",
             "content": {
               "application/problem+json": {
@@ -8598,7 +8466,7 @@
                 "example": {
                   "type": "https://app.selly.example/problems/validation-failed",
                   "title": "Wrong status",
-                  "status": 409,
+                  "status": 422,
                   "code": "VALIDATION_FAILED",
                   "detail": "Only paid orders can be fulfilled.",
                   "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
@@ -8627,7 +8495,7 @@
         ],
         "operationId": "internalGetMetrics",
         "summary": "Sales numbers for the assistant",
-        "description": "Scope `orders:read`. Same body as `GET /api/v1/vendors/dashboard/metrics`.",
+        "description": "Scope `orders:read`. Same body as `GET /api/v1/vendors/dashboard/metrics`. Orders are counted by creation date and revenue by payment date, in UTC days. `chats_waiting` is the agent's own data and is 0 here; `agent_turns` counts the current calendar month.",
         "parameters": [
           {
             "name": "X-Request-Id",
@@ -8731,6 +8599,9 @@
                 }
               }
             }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
           }
         },
         "tags": [
@@ -9245,7 +9116,7 @@
               }
             }
           },
-          "409": {
+          "422": {
             "description": "Stock held by orders",
             "content": {
               "application/problem+json": {
@@ -9255,7 +9126,7 @@
                 "example": {
                   "type": "https://app.selly.example/problems/validation-failed",
                   "title": "Stock held by orders",
-                  "status": 409,
+                  "status": 422,
                   "code": "VALIDATION_FAILED",
                   "detail": "on_hand cannot go below 1, which is held by pending orders.",
                   "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
@@ -9270,6 +9141,159 @@
       }
     },
     "/internal/v1/vendors/{id}/products/{product_id}": {
+      "get": {
+        "servers": [
+          {
+            "url": "http://core.internal:4000",
+            "description": "core, private network only"
+          }
+        ],
+        "security": [
+          {
+            "serviceToken": []
+          }
+        ],
+        "operationId": "internalGetProduct",
+        "summary": "Product detail, with exact stock for every variant",
+        "description": "Scope `catalog:read`. Scoped to the vendor of the path: a product of another shop is a 404, so a conversation can never read another shop's catalog. Only active products.",
+        "parameters": [
+          {
+            "name": "X-Request-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "4bf92f3577b34da6a3ce929d0e0e4736"
+          },
+          {
+            "name": "X-Actor",
+            "in": "header",
+            "required": false,
+            "description": "`customer:<conversation id>` or `vendor:<id>`, for the audit log.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "customer:0193a8f4-6f7a-7b8c-9d0e-1f2a3b4c5d6e"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Vendor id.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "0193a000-0000-7000-8000-000000000001"
+          },
+          {
+            "name": "product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "0193a8f0-6a1e-7c3b-9a1d-3f2b1c0d4e5f"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The product.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductDetail"
+                },
+                "example": {
+                  "id": "0193a8f0-6a1e-7c3b-9a1d-3f2b1c0d4e5f",
+                  "slug": "robe-wax-noire",
+                  "title": "Robe wax noire",
+                  "description": "Robe en tissu wax, coupe droite, doublée.",
+                  "category": "robes",
+                  "price": {
+                    "amount": 15000,
+                    "currency": "XOF"
+                  },
+                  "images": [
+                    {
+                      "url": "https://cdn.selly.example/p/0193a8f0/640.webp",
+                      "width": 640,
+                      "height": 853,
+                      "dominant": "#1b1b1f"
+                    }
+                  ],
+                  "availability": "in_stock",
+                  "options": {
+                    "size": [
+                      "38",
+                      "40",
+                      "42"
+                    ],
+                    "color": [
+                      "noir"
+                    ]
+                  },
+                  "variants": [
+                    {
+                      "id": "0193a8f0-6b2c-7d4e-8f9a-1b2c3d4e5f60",
+                      "options": {
+                        "size": "42",
+                        "color": "noir"
+                      },
+                      "price": {
+                        "amount": 15000,
+                        "currency": "XOF"
+                      },
+                      "availability": "low",
+                      "available": 2
+                    },
+                    {
+                      "id": "0193a8f0-6b2c-7d4e-8f9a-1b2c3d4e5f61",
+                      "options": {
+                        "size": "40",
+                        "color": "noir"
+                      },
+                      "price": {
+                        "amount": 15000,
+                        "currency": "XOF"
+                      },
+                      "availability": "in_stock",
+                      "available": 6
+                    }
+                  ],
+                  "url": "https://app.selly.example/s/awa-style/p/robe-wax-noire"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "example": {
+                  "type": "https://app.selly.example/problems/not-found",
+                  "title": "Not found",
+                  "status": 404,
+                  "code": "NOT_FOUND",
+                  "detail": "No such product.",
+                  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Internal"
+        ]
+      },
       "patch": {
         "servers": [
           {
@@ -9409,6 +9433,9 @@
                 }
               }
             }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
           }
         },
         "tags": [
@@ -10150,6 +10177,30 @@
               "status": 403,
               "code": "STEP_UP_REQUIRED",
               "detail": "Confirm with your Nostr key first: this change needs a signature less than 10 minutes old.",
+              "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+            }
+          }
+        }
+      },
+      "ValidationFailed": {
+        "description": "Validation failed",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            },
+            "example": {
+              "type": "https://app.selly.example/problems/validation-failed",
+              "title": "Validation failed",
+              "status": 422,
+              "code": "VALIDATION_FAILED",
+              "detail": "The request is not valid.",
+              "errors": [
+                {
+                  "field": "limit",
+                  "message": "Too big: expected number to be <=5"
+                }
+              ],
               "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
             }
           }

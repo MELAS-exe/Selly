@@ -1,5 +1,5 @@
 import { core } from '@selly/db';
-import { eq } from 'drizzle-orm';
+import { eq } from '@selly/db/orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadConfig } from './config';
 import { reconcileOnce, settleInvoice } from './modules/payments/service';
@@ -566,7 +566,7 @@ describe('internal API (agent)', () => {
 });
 
 describe('config', () => {
-  it('refuses the dev service token in production, unless the local stack says so', () => {
+  it('refuses dev secrets in production, unless the local stack says so', () => {
     expect(() => loadConfig({ NODE_ENV: 'production' } as NodeJS.ProcessEnv)).toThrow(
       /SERVICE_TOKEN_AGENT/,
     );
@@ -586,10 +586,18 @@ describe('config', () => {
       loadConfig({ NODE_ENV: 'production', ALLOW_DEV_SECRETS: 'true' } as NodeJS.ProcessEnv)
         .SERVICE_TOKEN_AGENT,
     ).toBe('dev-agent-token');
+    // Both secrets are required in production, the events secret too.
+    expect(() =>
+      loadConfig({
+        NODE_ENV: 'production',
+        SERVICE_TOKEN_AGENT: 'x'.repeat(40),
+      } as NodeJS.ProcessEnv),
+    ).toThrow(/EVENTS_HMAC_SECRET/);
     expect(
       loadConfig({
         NODE_ENV: 'production',
         SERVICE_TOKEN_AGENT: 'x'.repeat(40),
+        EVENTS_HMAC_SECRET: 'y'.repeat(40),
       } as NodeJS.ProcessEnv).NODE_ENV,
     ).toBe('production');
     expect(loadConfig({ NODE_ENV: 'development' } as NodeJS.ProcessEnv).SERVICE_TOKEN_AGENT).toBe(

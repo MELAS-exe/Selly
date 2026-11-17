@@ -1,9 +1,10 @@
 // Read side of the public storefront (architecture.md section 5.2, group A).
 import { core } from '@selly/db';
-import { and, asc, desc, eq, inArray, lt, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, lt, or, sql } from '@selly/db/orm';
 import type { Context } from '../../context';
 import { AppError } from '../../errors';
 import { iso, money } from '../../util';
+import { currentSubscription, isServing } from '../subscriptions/service';
 
 const { vendors, products, productVariants: pv, productImages } = core;
 
@@ -30,8 +31,11 @@ export function vendorSettings(v: Vendor) {
     hours?: unknown[];
     agent?: {
       enabled?: boolean;
+      tone?: 'friendly' | 'formal';
+      languages?: ('fr' | 'wo' | 'en')[];
       negotiation?: { mode?: 'fixed' | 'allow'; max_discount_pct?: number };
     };
+    policies?: { returns?: string; payment?: string };
   };
   return {
     pricingCurrency: (s.pricing_currency ?? 'XOF') as Cur,
@@ -41,6 +45,13 @@ export function vendorSettings(v: Vendor) {
     } satisfies DeliverySettings,
     hours: s.hours ?? [],
     agentEnabled: s.agent?.enabled ?? true,
+    tone: s.agent?.tone ?? 'friendly',
+    // Wolof replies are switched on per vendor only after the evaluation passes (architecture.md section 8.5).
+    languages: s.agent?.languages ?? ['fr'],
+    policies: {
+      returns: s.policies?.returns ?? '',
+      payment: s.policies?.payment ?? 'Paiement en bitcoin (Lightning) uniquement.',
+    },
     negotiation: {
       mode: s.agent?.negotiation?.mode ?? 'fixed',
       maxDiscountPct: s.agent?.negotiation?.max_discount_pct ?? 0,
@@ -54,12 +65,25 @@ export async function findVendorBySlug(ctx: Context, slug: string): Promise<Vend
   return v;
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const isUuid = (s: string) => UUID.test(s);
+
+/** The vendor named by an internal route. A malformed id is a 404, not a database error. */
+export async function findVendorById(ctx: Context, id: string): Promise<Vendor> {
+  if (!isUuid(id)) throw new AppError('NOT_FOUND', 'No such vendor.');
+  const [v] = await ctx.db.select().from(vendors).where(eq(vendors.id, id));
+  if (!v) throw new AppError('NOT_FOUND', 'No such vendor.');
+  return v;
+}
+
 /**
- * Is the shop open for orders? TODO (subscriptions): also require a working wallet and a plan that is not suspended
- * (architecture.md section 3.7). Today only an operator suspension closes a shop.
+ * Is the shop open for orders? The vendor must not be suspended by an operator, and must have a plan that is
+ * trialing, active or in grace (architecture.md section 3.7). A missing wallet does not close the shop: orders then
+ * fail with PAYMENT_UNAVAILABLE, and the dashboard shows the blocker.
  */
-export async function storeStatus(_ctx: Context, v: Vendor): Promise<'active' | 'paused'> {
-  return v.status === 'active' ? 'active' : 'paused';
+export async function storeStatus(ctx: Context, v: Vendor): Promise<'active' | 'paused'> {
+  if (v.status !== 'active') return 'paused';
+  return isServing(await currentSubscription(ctx, v.id)) ? 'active' : 'paused';
 }
 
 export const availabilityOf = (available: number): 'in_stock' | 'low' | 'out_of_stock' =>
@@ -162,9 +186,10 @@ export async function productDetail(
   ctx: Context,
   vendor: Vendor,
   idOrSlug: string,
-  exactVariantId?: string,
+  /** Which variants get an exact count: one variant id, or 'all' for the agent. Others get null. */
+  exact?: string,
 ) {
-  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
+  const byId = isUuid(idOrSlug);
   const [p] = await ctx.db
     .select()
     .from(products)
@@ -172,7 +197,7 @@ export async function productDetail(
       and(
         eq(products.vendorId, vendor.id),
         eq(products.status, 'active'),
-        isUuid ? eq(products.id, idOrSlug) : eq(products.slug, idOrSlug),
+        byId ? eq(products.id, idOrSlug) : eq(products.slug, idOrSlug),
       ),
     );
   if (!p) throw new AppError('NOT_FOUND', 'This product does not exist or is hidden.');
@@ -200,7 +225,7 @@ export async function productDetail(
         options: v.options,
         price: money(v.priceOverride ?? p.priceAmount, p.priceCurrency),
         availability: availabilityOf(available),
-        available: exactVariantId === v.id ? Math.max(available, 0) : null,
+        available: exact === 'all' || exact === v.id ? Math.max(available, 0) : null,
       };
     }),
     url: `${ctx.config.APP_BASE_URL}/s/${vendor.slug}/p/${p.slug}`,
@@ -210,6 +235,7 @@ export async function productDetail(
 export async function storeProfile(ctx: Context, v: Vendor) {
   const s = vendorSettings(v);
   const status = await storeStatus(ctx, v);
+  const sub = await currentSubscription(ctx, v.id);
   return {
     slug: v.slug,
     display_name: v.displayName,
@@ -226,7 +252,7 @@ export async function storeProfile(ctx: Context, v: Vendor) {
       reason: status !== 'active' ? 'store_paused' : s.agentEnabled ? null : 'vendor_disabled',
     },
     payment_options: ['lightning'] as const,
-    powered_by_badge: false, // TODO (subscriptions): true on the Starter plan
+    powered_by_badge: sub?.limits.powered_by_badge ?? true,
   };
 }
 

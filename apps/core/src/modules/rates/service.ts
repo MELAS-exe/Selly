@@ -1,6 +1,6 @@
 import { core } from '@selly/db';
+import { desc } from '@selly/db/orm';
 import { medianBigint, xofPerBtcCentsFromBtcEurCents } from '@selly/money';
-import { desc } from 'drizzle-orm';
 import type { Database } from '../../context';
 import { AppError } from '../../errors';
 import type { RateFeed } from './feeds';

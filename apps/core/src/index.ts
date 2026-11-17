@@ -1,9 +1,9 @@
-import { createDb } from '@selly/db';
-import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import { createDb, runMigrations } from '@selly/db';
 import { buildApp } from './app';
 import { loadConfig } from './config';
 import { type Context, type Database, silentLogger } from './context';
 import { seedDemo } from './dev/seed';
+import { dispatchOnce } from './modules/events/dispatcher';
 import { FakeInvoiceProvider } from './modules/payments/fake';
 import { NwcGateway } from './modules/payments/nwc-gateway';
 import { singleProvider } from './modules/payments/provider';
@@ -29,7 +29,7 @@ async function main() {
   const now = () => new Date();
 
   if (config.MIGRATE_ON_START) {
-    await migrate(pgDb, { migrationsFolder: config.MIGRATIONS_DIR });
+    await runMigrations(pgDb, config.MIGRATIONS_DIR);
   }
   if (config.SEED_DEMO) await seedDemo(db);
 
@@ -78,6 +78,25 @@ async function main() {
       running = false;
     }
   }, config.RECONCILE_INTERVAL_MS);
+  // Event dispatcher: delivers the outbox to the agent, signed, in order per order.
+  let dispatching = false;
+  const dispatcher =
+    config.EVENTS_DISPATCH_INTERVAL_MS > 0
+      ? setInterval(async () => {
+          if (dispatching) return;
+          dispatching = true;
+          try {
+            await dispatchOnce(ctx, {
+              agentUrl: config.AGENT_URL,
+              secret: config.EVENTS_HMAC_SECRET,
+            });
+          } catch (err) {
+            app.log.error({ err }, 'event dispatch failed');
+          } finally {
+            dispatching = false;
+          }
+        }, config.EVENTS_DISPATCH_INTERVAL_MS)
+      : null;
   const walletRefresh = gateway
     ? setInterval(() => {
         gateway
@@ -88,6 +107,7 @@ async function main() {
 
   const shutdown = async () => {
     clearInterval(reconciler);
+    if (dispatcher) clearInterval(dispatcher);
     if (walletRefresh) clearInterval(walletRefresh);
     gateway?.close();
     await app.close();

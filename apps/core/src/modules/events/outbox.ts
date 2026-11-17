@@ -27,6 +27,9 @@ export async function publishEvent(
   await tx.insert(core.outbox).values({
     topic: e.type,
     key: e.key,
+    // Due at the caller's clock, not the database's: the dispatcher compares with ctx.now().
+    createdAt: e.now,
+    nextAttemptAt: e.now,
     payload: {
       event_id: eventId,
       type: e.type,

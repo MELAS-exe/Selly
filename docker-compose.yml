@@ -79,6 +79,8 @@ services:
       S3_SECRET_ACCESS_KEY: selly-secret-key
       SERVICE_TOKEN_AGENT: ${SERVICE_TOKEN_AGENT:-dev-agent-token}
       EVENTS_HMAC_SECRET: ${EVENTS_HMAC_SECRET:-dev-events-secret}
+      # Core delivers its events (order paid, expired...) to the agent.
+      AGENT_URL: http://agent:4100
       SECRETS_KEK_V1: ${SECRETS_KEK_V1:-}
       SECRETS_PLATFORM_NWC_URI: ${SECRETS_PLATFORM_NWC_URI:-}
       # Local stack: apply migrations, load the demo shop (awa-style), simulate Lightning invoices.

@@ -66,7 +66,7 @@ export type TestApp = Awaited<ReturnType<typeof createTestApp>>;
 export async function createShop(
   db: Database,
   slug: string,
-  opts: { stock?: number; negotiate?: boolean } = {},
+  opts: { stock?: number; negotiate?: boolean; plan?: 'starter' | 'pro' | 'business' | null } = {},
 ) {
   const [v] = await db
     .insert(core.vendors)
@@ -86,6 +86,16 @@ export async function createShop(
     })
     .returning();
   const vendorId = (v as { id: string }).id;
+  if (opts.plan !== null) {
+    // Far from the test clock (2026-11-17), so the shop stays open in every test.
+    await db.insert(core.subscriptions).values({
+      vendorId,
+      planId: opts.plan ?? 'pro',
+      status: 'active',
+      currentPeriodStart: new Date('2026-01-01T00:00:00Z'),
+      currentPeriodEnd: new Date('2030-01-01T00:00:00Z'),
+    });
+  }
   const [p] = await db
     .insert(core.products)
     .values({

@@ -40,9 +40,17 @@ These endpoints work, and their responses match `docs/api.json`:
 - Storefront: `GET /api/v1/stores/{slug}`, `/products`, `/products/{product_id}`, `POST /cart-quotes`.
 - Checkout: `POST /api/v1/orders`, `GET /api/v1/checkout/{token}`, `/status`, `/events` (SSE), `POST /invoice`.
 - `GET /api/v1/rates/btc-xof` and `GET /api/v1/plans`.
-- For the agent (service token): `POST /internal/v1/vendors/{id}/cart-quotes` and `/orders`.
+- For the agent (service token), every route of group G except drafts, media, notifications and session introspection:
+  `GET /internal/v1/stores/{slug}/vendor`, and under `/internal/v1/vendors/{id}/`: `agent-profile`, `entitlements`, `usage`,
+  `products/search`, `products/{product_id}` (GET and PATCH), `variants/{variant_id}/adjustments`, `cart-quotes`,
+  `orders` (GET and POST), `orders/{order_ref}`, `orders/{order_ref}/fulfill`, `metrics`. Core tests check every
+  answer against `docs/api.json`.
+- Events: core delivers `order.*` and `wallet.*` events to the agent's `POST /internal/v1/events`, signed with
+  `EVENTS_HMAC_SECRET`, in order per order, with retries.
 
-By default Lightning is simulated (`INVOICE_PROVIDER=fake`): invoices look real but cannot be paid. Vendor sign-in, the vendor dashboard API and subscriptions are not built yet; mock them from `docs/api.json`.
+A shop is open only with a plan that is trialing, active or in grace. The demo shop has a year of Pro.
+
+By default Lightning is simulated (`INVOICE_PROVIDER=fake`): invoices look real but cannot be paid. Vendor sign-in, the vendor dashboard API and paying for subscriptions are not built yet; mock them from `docs/api.json`.
 
 ## Taking real payments on a wallet (NWC)
 

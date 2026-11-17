@@ -1,6 +1,6 @@
 // Demo data so the web and agent developers have a shop to work against: SEED_DEMO=true.
 import { core } from '@selly/db';
-import { eq } from 'drizzle-orm';
+import { eq } from '@selly/db/orm';
 import type { Database } from '../context';
 
 export const DEMO_SLUG = 'awa-style';
@@ -34,6 +34,16 @@ export async function seedDemo(db: Database) {
     })
     .returning();
   const vendorId = (vendor as { id: string }).id;
+
+  // A year of Pro, so the shop is open and the agent has a quota (architecture.md section 3.7).
+  const now = new Date();
+  await db.insert(core.subscriptions).values({
+    vendorId,
+    planId: 'pro',
+    status: 'active',
+    currentPeriodStart: now,
+    currentPeriodEnd: new Date(now.getTime() + 365 * 86_400_000),
+  });
 
   const catalog = [
     {

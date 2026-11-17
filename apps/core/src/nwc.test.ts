@@ -1,7 +1,7 @@
 import { core } from '@selly/db';
+import { and, eq } from '@selly/db/orm';
 import { createTestDb } from '@selly/db/testing';
 import { FakeNwcWallet, TestRelay } from '@selly/nwc/testkit';
-import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from './app';
 import { loadConfig } from './config';

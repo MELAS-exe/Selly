@@ -2,6 +2,7 @@ import path from 'node:path';
 import { z } from 'zod';
 
 const DEV_SERVICE_TOKEN_DEFAULT = 'dev-agent-token';
+const DEV_EVENTS_SECRET_DEFAULT = 'dev-events-secret';
 
 const flag = z
   .enum(['true', 'false'])
@@ -29,6 +30,11 @@ const schema = z.object({
   RATE_SOURCES: z.string().default('kraken,coinbase'),
   SERVICE_TOKEN_AGENT: z.string().min(8).default(DEV_SERVICE_TOKEN_DEFAULT),
   SSE_POLL_MS: z.coerce.number().int().default(2000),
+  // Where core delivers its events (outbox) and the secret both sides sign them with.
+  AGENT_URL: z.url().default('http://localhost:4100'),
+  EVENTS_HMAC_SECRET: z.string().min(8).default(DEV_EVENTS_SECRET_DEFAULT),
+  // 0 turns the dispatcher off (events stay in the outbox).
+  EVENTS_DISPATCH_INTERVAL_MS: z.coerce.number().int().min(0).default(1000),
   // Migrations ship with the image at /app/migrations (see apps/core/Dockerfile). In a checkout they live in packages/db.
   MIGRATIONS_DIR: z.string().default(path.resolve(process.cwd(), '../../packages/db/migrations')),
   MIGRATE_ON_START: flag,
@@ -38,21 +44,25 @@ const schema = z.object({
 export type Config = z.infer<typeof schema>;
 
 export const DEV_SERVICE_TOKEN = DEV_SERVICE_TOKEN_DEFAULT;
+export const DEV_EVENTS_SECRET = DEV_EVENTS_SECRET_DEFAULT;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const config = schema.parse(env);
   // A production process must not run on the dev token that ships in this repository. The local Docker stack runs
   // NODE_ENV=production with dev values on purpose, and says so with ALLOW_DEV_SECRETS=true.
   if (config.NODE_ENV === 'production' && env.ALLOW_DEV_SECRETS !== 'true') {
-    if (
-      !env.SERVICE_TOKEN_AGENT ||
-      config.SERVICE_TOKEN_AGENT === DEV_SERVICE_TOKEN ||
-      config.SERVICE_TOKEN_AGENT.length < 32
-    ) {
-      throw new Error(
-        'SERVICE_TOKEN_AGENT must be set to a random value of at least 32 characters in production ' +
-          '(set ALLOW_DEV_SECRETS=true only for a local stack).',
-      );
+    const weak = (name: 'SERVICE_TOKEN_AGENT' | 'EVENTS_HMAC_SECRET', dev: string) =>
+      !env[name] || config[name] === dev || config[name].length < 32;
+    for (const [name, dev] of [
+      ['SERVICE_TOKEN_AGENT', DEV_SERVICE_TOKEN],
+      ['EVENTS_HMAC_SECRET', DEV_EVENTS_SECRET],
+    ] as const) {
+      if (weak(name, dev)) {
+        throw new Error(
+          `${name} must be set to a random value of at least 32 characters in production ` +
+            '(set ALLOW_DEV_SECRETS=true only for a local stack).',
+        );
+      }
     }
   }
   return config;
