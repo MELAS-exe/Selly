@@ -22,6 +22,15 @@ export function isVendorImageKey(key: string, vendorId: string): boolean {
   );
 }
 
+function mediaTypeOf(key: string): 'image/png' | 'image/webp' | 'image/jpeg' {
+  const lower = key.toLowerCase();
+  return lower.endsWith('.png')
+    ? 'image/png'
+    : lower.endsWith('.webp')
+      ? 'image/webp'
+      : 'image/jpeg';
+}
+
 export function urlImageResolver(baseUrl: string): ImageResolver {
   return async (key) => {
     if (!baseUrl) return null;
@@ -139,13 +148,22 @@ export class ProductExtractor {
 
   async extract(input: {
     imageKeys: string[];
+    /** Private read links from core (draft.requested), one per key; used instead of MEDIA_BASE_URL. */
+    imageUrls?: string[];
     text?: string;
     vendorId: string;
     conversationId?: string;
     signal?: AbortSignal;
   }): Promise<Extraction> {
     const images = (
-      await Promise.all(input.imageKeys.slice(0, 6).map((k) => this.resolveImage(k)))
+      await Promise.all(
+        input.imageKeys.slice(0, 6).map((k, i) => {
+          const url = input.imageUrls?.[i];
+          return url
+            ? { type: 'image' as const, mediaType: mediaTypeOf(k), url }
+            : this.resolveImage(k);
+        }),
+      )
     ).filter((x): x is NonNullable<typeof x> => x !== null);
     const started = Date.now();
     let error: string | null = null;

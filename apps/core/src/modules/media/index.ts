@@ -10,8 +10,8 @@ import { z } from 'zod';
 import { AppError } from '../../errors';
 import { iso } from '../../util';
 import { requireVendor } from '../auth/http';
-import { isUuid } from '../catalog/store';
-import { IMAGE_TYPES, type ImageType, MAX_IMAGE_BYTES, uploadKey } from './images';
+import { findVendorById, isUuid } from '../catalog/store';
+import { IMAGE_TYPES, type ImageType, isUploadKeyOf, MAX_IMAGE_BYTES, uploadKey } from './images';
 
 export const UPLOAD_EXPIRY_SECONDS = 15 * 60;
 const MAX_AUDIO_BYTES = 2 * 1024 * 1024;
@@ -21,6 +21,10 @@ const AUDIO_TYPES: Record<string, string> = {
   'audio/mp4': 'm4a',
   'audio/mpeg': 'mp3',
 };
+
+/** Read links for the agent's vision model: long enough for a turn and its retries. */
+export const READ_LINK_SECONDS = 60 * 60;
+const linksBody = z.strictObject({ keys: z.array(z.string().max(200)).min(1).max(6) });
 
 const uploadBody = z.strictObject({
   content_type: z.enum(Object.keys(IMAGE_TYPES) as [ImageType, ...ImageType[]]),
@@ -127,5 +131,25 @@ export const mediaModule: FastifyPluginAsync = async (app) => {
 
     await app.ctx.media.put('private', key, bytes, type);
     return reply.code(201).send({ storage_key: key, content_type: type, size_bytes: bytes.length });
+  });
+  // Short-lived read links to a vendor's own uploads, for the agent's vision model (photos sent in the assistant
+  // chat). The bucket stays private: originals still carry EXIF (location) and it also holds customers' voice notes.
+  app.post<{ Params: { id: string } }>('/internal/v1/vendors/:id/media/links', async (req) => {
+    const body = linksBody.parse(req.body);
+    const vendor = await findVendorById(app.ctx, req.params.id);
+    const expiresAt = iso(new Date(app.ctx.now().getTime() + READ_LINK_SECONDS * 1000));
+    const links = [];
+    for (const key of [...new Set(body.keys)]) {
+      if (!isUploadKeyOf(key, vendor.id) || !(await app.ctx.media.head('private', key)))
+        throw new AppError('VALIDATION_FAILED', `Image ${key} is not an upload of this shop.`, {
+          errors: [{ field: 'keys', key, message: 'Unknown upload' }],
+        });
+      links.push({
+        key,
+        url: await app.ctx.media.presignGet(key, READ_LINK_SECONDS),
+        expires_at: expiresAt,
+      });
+    }
+    return { links };
   });
 };

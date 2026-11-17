@@ -241,6 +241,29 @@ describe('uploads and images', () => {
   });
 });
 
+describe('read links for the agent', () => {
+  it('signs links to the vendor’s own uploads only', async () => {
+    const s = await shop('links-a');
+    const other = await shop('links-b');
+    const key = await upload(s.cookie);
+    const url = `/internal/v1/vendors/${s.vendorId}/media/links`;
+    const ok = await call('POST', '/internal/v1/vendors/{id}/media/links', url, {
+      body: { keys: [key] },
+    });
+    expect(ok.status, JSON.stringify(ok.body)).toBe(200);
+    expect(ok.body.links).toEqual([
+      { key, url: expect.stringContaining(key), expires_at: expect.any(String) },
+    ]);
+    const theirs = await upload(other.cookie);
+    const missing = `vendors/${s.vendorId}/uploads/0193a000-0000-7000-8000-000000000009.jpg`;
+    for (const k of [theirs, missing, 'chat-audio/2026-11/x.webm'])
+      expect(
+        (await call('POST', '/internal/v1/vendors/{id}/media/links', url, { body: { keys: [k] } }))
+          .status,
+        k,
+      ).toBe(422);
+  });
+});
 describe('drafts', () => {
   it('dashboard: processing, extracted by the agent, answered, confirmed as a new product', async () => {
     const s = await shop('draft-a');
