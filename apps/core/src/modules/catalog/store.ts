@@ -24,6 +24,19 @@ export interface DeliverySettings {
 }
 
 /** The customer-facing parts of vendors.settings. Everything has a safe default. */
+/** Where the vendor wants alerts: Web Push (on by default) and Nostr direct messages (off; Pro and Business). */
+export function alertSettings(v: Vendor) {
+  const raw = (
+    v.settings as {
+      alerts?: { web_push?: boolean; nostr_dm?: { enabled?: boolean; pubkey?: string | null } };
+    }
+  ).alerts;
+  return {
+    web_push: raw?.web_push ?? true,
+    nostr_dm: { enabled: raw?.nostr_dm?.enabled ?? false, pubkey: raw?.nostr_dm?.pubkey ?? null },
+  };
+}
+
 export function vendorSettings(v: Vendor) {
   const s = v.settings as {
     pricing_currency?: Cur;

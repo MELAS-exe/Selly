@@ -80,7 +80,8 @@ const n = await call(
   { authorization: `Bearer ${token}` },
 );
 console.log('agent notification', n.status);
-for (let i = 0; i < 40 && !text.includes('conversation.handoff'); i++)
+// Up to 12 s: past the 10 s fallback poll, for databases where NOTIFY does not cross connections (PGlite socket).
+for (let i = 0; i < 120 && !text.includes('conversation.handoff'); i++)
   await new Promise((r) => setTimeout(r, 100));
 console.log('stream received:', (text.match(/event: \S+/g) ?? []).join(', ') || 'nothing');
 ctrl.abort();

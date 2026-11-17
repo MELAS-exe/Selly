@@ -4190,7 +4190,7 @@
         ],
         "operationId": "registerPushSubscription",
         "summary": "Register a browser for Web Push",
-        "description": "Called after the vendor allows notifications in the installed PWA. The endpoint and keys come from `PushManager.subscribe` with the VAPID public key. Re-registering the same endpoint moves it to this vendor. At most 20 browsers per vendor. Sending comes with the notification worker.",
+        "description": "Called after the vendor allows notifications in the installed PWA. The endpoint and keys come from `PushManager.subscribe` with the VAPID public key. Re-registering the same endpoint moves it to this vendor. At most 20 browsers per vendor. Core sends a Web Push for paid orders, handoffs and new chats, renewal reminders, an expired or suspended subscription, and a wallet that stops answering. The payload is JSON `{title, body, url, tag}`; the service worker shows it and opens `url`. A browser that unsubscribed (404 or 410 from its push service) is dropped. The VAPID public key for `PushManager.subscribe` is the web app's `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, the same as core's `VAPID_PUBLIC_KEY`.",
         "security": [
           {
             "vendorSession": []

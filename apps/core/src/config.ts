@@ -65,6 +65,15 @@ const schema = z.object({
   EVENTS_HMAC_SECRET: z.string().min(8).default(DEV_EVENTS_SECRET_DEFAULT),
   // 0 turns the dispatcher off (events stay in the outbox).
   EVENTS_DISPATCH_INTERVAL_MS: z.coerce.number().int().min(0).default(1000),
+  // Web Push (VAPID). Without the keys, alerts stay on the dashboard. The web app needs the public key too.
+  VAPID_PUBLIC_KEY: z.string().default(''),
+  VAPID_PRIVATE_KEY: z.string().default(''),
+  VAPID_SUBJECT: z.string().default('mailto:support@selly.example'),
+  // Nostr direct-message alerts (NIP-17) are sent from this key (64 hex), to these relays.
+  SECRETS_PLATFORM_NOSTR_KEY: z.string().default(''),
+  NOSTR_DM_RELAYS: z.string().default('wss://relay.damus.io,wss://nos.lol,wss://relay.primal.net'),
+  // How often the alert worker runs. 0 turns it off.
+  ALERTS_INTERVAL_MS: z.coerce.number().int().min(0).default(5_000),
   // Migrations ship with the image at /app/migrations (see apps/core/Dockerfile). In a checkout they live in packages/db.
   MIGRATIONS_DIR: z.string().default(path.resolve(process.cwd(), '../../packages/db/migrations')),
   MIGRATE_ON_START: flag,
