@@ -235,7 +235,8 @@ export class FakeCore implements CoreClient {
     };
   }
 
-  async getProduct(productId: string): Promise<ProductDetail> {
+  async getProduct(vendorId: string, productId: string): Promise<ProductDetail> {
+    this.vendor(vendorId);
     const p = this.resolveProduct(productId);
     const options: Record<string, string[]> = {};
     for (const v of p.variants)

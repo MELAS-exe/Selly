@@ -125,9 +125,11 @@ services:
       LLM_PRIMARY: ${LLM_PRIMARY:-demo}
       LLM_FALLBACK: ${LLM_FALLBACK:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      # fake: in-memory core until core serves /internal/v1; memory: no migration needed
-      AGENT_CORE_MODE: ${AGENT_CORE_MODE:-fake}
-      AGENT_STORE: ${AGENT_STORE:-memory}
+      # Real core (internal API, demo shop awa-style) and PostgreSQL: core applies every migration,
+      # the agent schema included, before it reports healthy. AGENT_CORE_MODE=fake or AGENT_STORE=memory
+      # switch back to the in-memory stand-ins.
+      AGENT_CORE_MODE: ${AGENT_CORE_MODE:-}
+      AGENT_STORE: ${AGENT_STORE:-}
       MEDIA_BASE_URL: ${MEDIA_BASE_URL:-}
     ports:
       - "4100:4100"
