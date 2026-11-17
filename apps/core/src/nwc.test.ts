@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from './app';
 import { loadConfig } from './config';
 import { type Context, type Database, silentLogger } from './context';
+import { MemoryObjectStore } from './modules/media/storage';
 import { NwcGateway } from './modules/payments/nwc-gateway';
 import { confirmPayment, reconcileOnce } from './modules/payments/service';
 import { RateService } from './modules/rates/service';
@@ -59,6 +60,7 @@ beforeAll(async () => {
         throw new Error('set below');
       },
     },
+    media: new MemoryObjectStore(),
     keyring: Keyring.forTests(),
     log: silentLogger,
   };

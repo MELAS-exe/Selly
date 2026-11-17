@@ -4352,7 +4352,7 @@
         ],
         "operationId": "streamVendorEvents",
         "summary": "Server-Sent Events for the dashboard",
-        "description": "Server-Sent Events for the dashboard, from now on (or from `Last-Event-ID`). Event names: `order.created`, `order.paid`, `order.expired`, `order.cancelled`, `order.fulfilled`, `wallet.degraded`, `wallet.restored`, `conversation.handoff`, `conversation.new`, `usage.warning`, `subscription.updated`; later `draft.ready`. `subscription.updated` carries `reason`: `trial_started`, `paid` (with `invoice_id`), `status` (grace or suspended), `plan_started` (a booked plan began) or `reminder` (with `days_left`: 7, 3 or 1). Each event id is a UUIDv7; data is JSON with an `at` time. A `: ping` every 20 seconds. The session is checked again every minute: a signed-out device stops receiving. Notifications are kept 7 days.",
+        "description": "Server-Sent Events for the dashboard, from now on (or from `Last-Event-ID`). Event names: `order.created`, `order.paid`, `order.expired`, `order.cancelled`, `order.fulfilled`, `wallet.degraded`, `wallet.restored`, `conversation.handoff`, `conversation.new`, `usage.warning`, `subscription.updated`, `draft.ready` (`{draft_id, status}`, status `needs_review` or `failed`). `subscription.updated` carries `reason`: `trial_started`, `paid` (with `invoice_id`), `status` (grace or suspended), `plan_started` (a booked plan began) or `reminder` (with `days_left`: 7, 3 or 1). Each event id is a UUIDv7; data is JSON with an `at` time. A `: ping` every 20 seconds. The session is checked again every minute: a signed-out device stops receiving. Notifications are kept 7 days.",
         "security": [
           {
             "vendorSession": []
@@ -4951,7 +4951,7 @@
         ],
         "operationId": "createRestockDraft",
         "summary": "Create a product draft from photos and text",
-        "description": "Asynchronous. Returns 202 with the draft in `processing`. The agent extracts the product with a vision model; when done, the dashboard stream sends `draft.ready`. Counts one photo draft against the plan.",
+        "description": "Asynchronous. Returns 202 with the draft in `processing`, and asks the agent through the outbox event `draft.requested` (with `image_urls`, private links valid one hour). When the agent sends the extraction back, the dashboard stream sends `draft.ready`. A draft the agent does not answer within 10 minutes becomes `failed` (also announced with `draft.ready`). Counts one photo draft against the plan; 409 `PLAN_LIMIT_REACHED` when none is left. A repeat with the same `Idempotency-Key` returns the same draft.",
         "security": [
           {
             "vendorSession": []
@@ -5193,7 +5193,8 @@
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           }
-        }
+        },
+        "description": "Newest first. Without `status`: the open drafts (`processing` and `needs_review`)."
       }
     },
     "/api/v1/inventory/drafts/{id}": {
@@ -5343,7 +5344,7 @@
         ],
         "operationId": "confirmDraft",
         "summary": "Confirm a draft",
-        "description": "In one transaction: creates the product, its variants and the restock movements (`mode: new`), or adds the stock to `target_product_id` (`mode: restock`). Then purges the CDN URLs. Questions must be answered first.",
+        "description": "Every question must have an answer in `answers` (422 lists the open ones). Fields come from `extracted`, and `edits` overrides them with plain values (`title`, `description`, `category`, `price`, `variants: [{options, stock}]`). A stock left null by the model is filled from an answer of the form \"5 par pointure\" (each) or \"5 au total\" (spread evenly); otherwise send it in `edits.variants`. `mode: new` creates the product with its variants, stock movements and images in one transaction (plan product limit applies). `mode: restock` adds the stock to `target_product_id`; options it does not have yet become new variants. A draft is confirmed once: a second confirm is 404.",
         "security": [
           {
             "vendorSession": []
@@ -5604,7 +5605,7 @@
         ],
         "operationId": "createMediaUpload",
         "summary": "Presigned upload for one image",
-        "description": "JPEG, PNG, WebP or HEIC, at most 8 MB. Upload the bytes with `PUT` to `upload_url`, then use `storage_key` in a product or a restock request. Core re-encodes the image, strips EXIF data and makes three widths.",
+        "description": "JPEG, PNG or WebP, at most 8 MB. Upload the bytes with `PUT` to `upload_url`, with the `headers` given and exactly `size_bytes` bytes (both are signed), within 15 minutes. Then use `storage_key` in a product (`image_keys`) or a restock request. Core re-encodes the image when a product uses it: upright, metadata (EXIF, GPS) removed, 320, 640 and 960 px wide in WebP and AVIF. HEIC is not accepted; iPhones convert photos to JPEG when they are picked in a browser.",
         "security": [
           {
             "vendorSession": []
@@ -8683,7 +8684,7 @@
         ],
         "operationId": "internalUpsertDraft",
         "summary": "Create or update a draft from extraction results",
-        "description": "Scope `drafts:write`. With `draft_id` null, creates a draft and counts one photo draft against the plan. With a `draft_id`, updates its answers and fields.",
+        "description": "Scope `drafts:write`. With `draft_id` null, creates a draft from the assistant chat (`needs_review` when `extracted` is given) and counts one photo draft against the plan, with the draft id as the usage reference: a later usage report with the same reference is not counted again. With a `draft_id`, sets the extraction of a dashboard draft or updates an open draft, and the dashboard hears `draft.ready`. `image_keys` must be uploads of this vendor.",
         "parameters": [
           {
             "name": "X-Request-Id",
@@ -8906,7 +8907,7 @@
         ],
         "operationId": "internalConfirmDraft",
         "summary": "Confirm a draft from the vendor's reply",
-        "description": "Scope `drafts:write`. Same effect as `POST /api/v1/inventory/drafts/{id}/confirm`.",
+        "description": "Scope `drafts:write`. Same effect as `POST /api/v1/inventory/drafts/{id}/confirm`. The draft names its vendor.",
         "parameters": [
           {
             "name": "X-Request-Id",
@@ -9517,7 +9518,7 @@
         ],
         "operationId": "internalUploadMedia",
         "summary": "Upload bytes and get a storage key",
-        "description": "Scope `media:write`. For files the agent holds (a customer's voice note after upload checks). Multipart, one file, at most 2 MB for audio and 8 MB for images.",
+        "description": "Scope `media:write`. For files the agent holds. Multipart, one file. `chat_audio`: WebM, Ogg, MP4 or MP3, at most 2 MB, stored under `chat-audio/`. `product_image`: JPEG, PNG or WebP, at most 8 MB, needs `X-Actor: vendor:<id>` and is stored as that vendor's upload (usable in `image_keys`).",
         "requestBody": {
           "required": true,
           "content": {
@@ -9534,12 +9535,12 @@
                     "enum": [
                       "chat_audio",
                       "product_image"
-                    ]
+                    ],
+                    "description": "Optional: `chat_audio` for audio/* files, `product_image` otherwise. Send it before the file."
                   }
                 },
                 "required": [
-                  "file",
-                  "purpose"
+                  "file"
                 ]
               }
             }
@@ -9891,9 +9892,12 @@
                     "data": {
                       "draft_id": "0193a8f3-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
                       "image_keys": [
-                        "uploads/0193a8f3/a.jpg"
+                        "vendors/0193a000-0000-7000-8000-000000000001/uploads/0193a8f3-5e6f-7a8b-9c0d-1e2f3a4b5c6d.jpg"
                       ],
-                      "input_text": "Ajoute ces baskets à 20 000, 5 paires du 40 au 44"
+                      "input_text": "Ajoute ces baskets à 20 000, 5 paires du 40 au 44",
+                      "image_urls": [
+                        "https://storage.selly.example/selly-private/vendors/0193a000-0000-7000-8000-000000000001/uploads/0193a8f3-5e6f-7a8b-9c0d-1e2f3a4b5c6d.jpg?X-Amz-Expires=3600"
+                      ]
                     }
                   }
                 },
@@ -13194,8 +13198,7 @@
             "enum": [
               "image/jpeg",
               "image/png",
-              "image/webp",
-              "image/heic"
+              "image/webp"
             ]
           },
           "size_bytes": {

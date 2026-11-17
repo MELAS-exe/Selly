@@ -4,6 +4,7 @@ import { createTestDb } from '@selly/db/testing';
 import { buildApp } from './app';
 import { loadConfig } from './config';
 import { type Context, type Database, silentLogger } from './context';
+import { MemoryObjectStore } from './modules/media/storage';
 import { FakeInvoiceProvider } from './modules/payments/fake';
 import { singleProvider } from './modules/payments/provider';
 import type { RateFeed } from './modules/rates/feeds';
@@ -31,6 +32,7 @@ export async function createTestApp() {
     },
   };
   const provider = new FakeInvoiceProvider(clock.now);
+  const media = new MemoryObjectStore();
   // BTC = 90,000 EUR: 59,036,130 XOF per BTC, the example of architecture.md section 4.5.
   const feeds = [feed('a', 9_000_000n), feed('b', 9_000_000n)];
   const ctx: Context = {
@@ -49,6 +51,7 @@ export async function createTestApp() {
     now: clock.now,
     rates: new RateService(db, feeds, clock.now),
     invoices: singleProvider(provider),
+    media,
     keyring: Keyring.forTests(),
     log: silentLogger,
   };
@@ -59,6 +62,7 @@ export async function createTestApp() {
     ctx,
     db,
     provider,
+    media,
     clock,
     close: async () => {
       await app.close();

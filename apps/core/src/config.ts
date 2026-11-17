@@ -16,6 +16,21 @@ const schema = z.object({
   TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(1),
   APP_BASE_URL: z.url().default('http://localhost:3000'),
   CDN_BASE_URL: z.url().default('http://localhost:9000/selly-public'),
+  // Where images and voice notes live. 'memory' keeps them in the process (tests, development without MinIO).
+  MEDIA_STORE: z.enum(['memory', 's3']).default('memory'),
+  S3_ENDPOINT: z.string().default('http://localhost:9000'),
+  // The address browsers reach for presigned uploads, when it differs (http://localhost:9000 next to http://minio:9000).
+  S3_PRESIGN_ENDPOINT: z.string().default(''),
+  S3_REGION: z.string().default('us-east-1'),
+  // MinIO and most S3-compatible services need path-style URLs.
+  S3_FORCE_PATH_STYLE: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
+  S3_BUCKET_PUBLIC: z.string().default('selly-public'),
+  S3_BUCKET_PRIVATE: z.string().default('selly-private'),
+  S3_ACCESS_KEY_ID: z.string().default(''),
+  S3_SECRET_ACCESS_KEY: z.string().default(''),
   DATABASE_URL: z.string().default('postgres://selly:selly@localhost:5432/selly'),
   // 'fake' simulates invoices in memory (development only). 'nwc' creates them on each vendor's own wallet.
   INVOICE_PROVIDER: z.enum(['fake', 'nwc']).default('fake'),
