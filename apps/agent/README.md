@@ -10,7 +10,7 @@ pnpm --filter @selly/agent dev        # http://localhost:4100
 pnpm --filter @selly/agent test
 ```
 
-Three switches choose the dependencies, so web can work against the agent before core exists:
+Three switches choose the dependencies:
 
 | Variable          | Values                                                      | Default                      |
 | ----------------- | ----------------------------------------------------------- | ---------------------------- |
@@ -18,7 +18,7 @@ Three switches choose the dependencies, so web can work against the agent before
 | `AGENT_STORE`     | `memory`: no database                                       | PostgreSQL at `DATABASE_URL` |
 | `LLM_PRIMARY`     | `scripted` (tests), `demo` (rule-based, no key), `claude-…` | `scripted`                   |
 
-`.env.example` sets `fake`, `memory` and `demo`: open a chat on `awa-style` and ask « robe noire en 42 ? ». For the real agent, set `LLM_PRIMARY=claude-opus-5-5` and `ANTHROPIC_API_KEY` (or sign in with `ant auth login`). `LLM_FALLBACK` names a second provider, used once when the first one fails.
+`.env.example` uses the real core (run `pnpm dev`: core migrates and loads the demo shop), the memory store and `demo`: open a chat on `awa-style` and ask « robe noire en 42 ? ». The compose uses the real core and PostgreSQL. For the real agent, set `LLM_PRIMARY=claude-opus-5-5` and `ANTHROPIC_API_KEY` (or sign in with `ant auth login`). `LLM_FALLBACK` names a second provider, used once when the first one fails.
 
 With PostgreSQL, create the `agent` schema first: `pnpm --filter @selly/db db:migrate`. The agent refuses to start without it.
 
@@ -71,6 +71,21 @@ src/
 - Discounts are capped by core (`quote_cart`), whatever the model asks.
 - Every amount in a reply must appear in this turn's tool results or in the visible conversation (property P5). Otherwise the model gets one chance to fix it, then the turn ends with the fixed reply and a handoff.
 - Links only to our domain and the vendor's WhatsApp, no other phone numbers, 1,000 characters at most.
+
+## The real core
+
+`src/e2e/real-core.test.ts` runs the agent's HTTP client against core's app (PGlite, simulated wallet) and core's outbox dispatcher against the agent's app. It covers: chat session by slug, search, product detail, negotiated quote (capped at 10 %), order with `discount_pct`, payment settled by core, `order.paid` delivered and shown in the chat, order status, and the vendor tools (stock, price, orders, fulfilment, metrics).
+
+Also checked by hand with real processes on PostgreSQL 18: core's migrations create the `agent` schema, the chat answers from core's demo catalog over SSE, and core delivers signed events to the agent.
+
+Core does not serve these yet; the agent degrades as follows:
+
+| Route                                                                                            | Used for                   | Without it                                                    |
+| ------------------------------------------------------------------------------------------------ | -------------------------- | ------------------------------------------------------------- |
+| `POST /internal/v1/sessions/introspect`                                                          | inbox and vendor assistant | vendor routes answer 504: use `AGENT_CORE_MODE=fake` for them |
+| `POST /internal/v1/vendors/{id}/product-drafts`, `POST /internal/v1/product-drafts/{id}/confirm` | photo drafts               | the assistant says it cannot do it now                        |
+| `POST /internal/v1/media`                                                                        | customer voice notes       | the upload fails                                              |
+| `POST /internal/v1/vendors/{id}/notifications`                                                   | handoff and quota alerts   | logged, the chat goes on                                      |
 
 ## Points for Dev 3 (core) to check
 

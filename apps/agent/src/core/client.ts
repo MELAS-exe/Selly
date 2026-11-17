@@ -46,7 +46,7 @@ export interface CoreClient {
   getEntitlements(vendorId: string, ctx?: CallContext): Promise<Entitlements>;
   reportUsage(vendorId: string, body: UsageRequest, ctx?: CallContext): Promise<UsageResponse>;
   searchProducts(vendorId: string, q: SearchQuery, ctx?: CallContext): Promise<SearchResult>;
-  getProduct(productId: string, ctx?: CallContext): Promise<ProductDetail>;
+  getProduct(vendorId: string, productId: string, ctx?: CallContext): Promise<ProductDetail>;
   createCartQuote(vendorId: string, body: CartQuoteRequest, ctx?: CallContext): Promise<CartQuote>;
   createOrder(
     vendorId: string,
@@ -224,10 +224,10 @@ export class HttpCoreClient implements CoreClient {
       ctx,
     });
   }
-  async getProduct(productId: string, ctx?: CallContext) {
+  async getProduct(vendorId: string, productId: string, ctx?: CallContext) {
     return this.request<ProductDetail>({
       method: 'GET',
-      path: `/internal/v1/products/${idSeg(productId)}`,
+      path: `/internal/v1/vendors/${idSeg(vendorId)}/products/${idSeg(productId)}`,
       timeoutMs: READ_MS,
       ctx,
     });

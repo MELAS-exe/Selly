@@ -21,7 +21,10 @@ describe('core client paths (blocking 1)', () => {
     const fetchImpl = vi.fn(async () => new Response('{}', { status: 200 }));
     const client = new HttpCoreClient('http://core:4000', 'token-1234567890', fetchImpl);
     for (const bad of traversals) {
-      await expect(client.getProduct(bad)).rejects.toHaveProperty('code', 'NOT_FOUND');
+      await expect(client.getProduct(FAKE_VENDOR_ID, bad)).rejects.toHaveProperty(
+        'code',
+        'NOT_FOUND',
+      );
       await expect(client.getOrder(FAKE_VENDOR_ID, bad)).rejects.toHaveProperty(
         'code',
         'NOT_FOUND',

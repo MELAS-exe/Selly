@@ -145,7 +145,7 @@ const getProduct = tool({
   description: 'Détail d’un produit : description, options, variantes et stock disponible.',
   input: z.strictObject({ product_id: z.uuid() }),
   async run(p, ctx) {
-    const d = await ctx.core.getProduct(p.product_id, ctx.call);
+    const d = await ctx.core.getProduct(ctx.conversation.vendorId, p.product_id, ctx.call);
     rememberAmounts(ctx, d.price, ...d.variants.map((v) => v.price));
     ctx.state.productInView = d.id;
     addCard(ctx, {
@@ -327,7 +327,7 @@ const handoff = tool({
 // ---------------------------------------------------------------- vendor assistant
 
 async function resolveProduct(ctx: ToolContext, ref: string) {
-  if (UUID_RE.test(ref)) return ctx.core.getProduct(ref, ctx.call);
+  if (UUID_RE.test(ref)) return ctx.core.getProduct(ctx.conversation.vendorId, ref, ctx.call);
   const res = await ctx.core.searchProducts(
     ctx.conversation.vendorId,
     { q: ref, limit: 5 },
@@ -343,9 +343,13 @@ async function resolveProduct(ctx: ToolContext, ref: string) {
         candidates: res.results.map((r) => ({ product_id: r.product_id, title: r.title })),
         hint: 'Demande au vendeur lequel, ou rappelle l’outil avec le product_id.',
       } as const;
-    return ctx.core.getProduct(exact.product_id, ctx.call);
+    return ctx.core.getProduct(ctx.conversation.vendorId, exact.product_id, ctx.call);
   }
-  return ctx.core.getProduct((res.results[0] as { product_id: string }).product_id, ctx.call);
+  return ctx.core.getProduct(
+    ctx.conversation.vendorId,
+    (res.results[0] as { product_id: string }).product_id,
+    ctx.call,
+  );
 }
 
 const createProductDraft = tool({
