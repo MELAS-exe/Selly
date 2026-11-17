@@ -10,6 +10,7 @@ import { singleProvider } from './modules/payments/provider';
 import type { RateFeed } from './modules/rates/feeds';
 import { RateService } from './modules/rates/service';
 import { Keyring } from './secrets';
+import { PgliteSignals } from './signals';
 
 export const SERVICE_TOKEN = 'test-service-token';
 
@@ -21,8 +22,12 @@ export const feed = (name: string, cents: bigint | Error): RateFeed => ({
   },
 });
 
-export async function createTestApp() {
-  const { db: pg, close } = await createTestDb();
+/** env overrides the test configuration, for example a long SSE_POLL_MS to prove that a signal woke a stream. */
+export async function createTestApp(env: Record<string, string> = {}) {
+  const { db: pg, client, close } = await createTestDb();
+  // Real LISTEN/NOTIFY through PGlite: live streams wake on commit like in production.
+  const signals = new PgliteSignals(client);
+  await signals.start();
   const db = pg as unknown as Database;
   let time = new Date('2026-11-17T10:00:00Z');
   const clock = {
@@ -46,12 +51,14 @@ export async function createTestApp() {
       NWC_MAKE_INVOICE_TIMEOUT_MS: '1500',
       NWC_LOOKUP_TIMEOUT_MS: '1500',
       NWC_GET_INFO_TIMEOUT_MS: '1500',
+      ...env,
     } as NodeJS.ProcessEnv),
     db,
     now: clock.now,
     rates: new RateService(db, feeds, clock.now),
     invoices: singleProvider(provider),
     media,
+    signals,
     keyring: Keyring.forTests(),
     log: silentLogger,
   };
@@ -66,6 +73,7 @@ export async function createTestApp() {
     clock,
     close: async () => {
       await app.close();
+      signals.close();
       await close();
     },
   };

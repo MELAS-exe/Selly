@@ -46,11 +46,14 @@ const schema = z.object({
   NWC_LOOKUP_TIMEOUT_MS: z.coerce.number().int().default(8_000),
   NWC_GET_INFO_TIMEOUT_MS: z.coerce.number().int().default(8_000),
   RECONCILE_INTERVAL_MS: z.coerce.number().int().default(5000),
+  // Looks up invoices that expired in the last 24 hours, for late payments. 0 turns it off.
+  LATE_PAYMENT_INTERVAL_MS: z.coerce.number().int().min(0).default(600_000),
   // Grace, suspension, booked plans and renewal reminders (architecture.md section 4.4). 0 turns the job off.
   SUBSCRIPTION_JOB_INTERVAL_MS: z.coerce.number().int().min(0).default(300_000),
   RATE_SOURCES: z.string().default('kraken,coinbase'),
   SERVICE_TOKEN_AGENT: z.string().min(8).default(DEV_SERVICE_TOKEN_DEFAULT),
-  SSE_POLL_MS: z.coerce.number().int().default(2000),
+  // Live streams wake on LISTEN/NOTIFY; this poll is the fallback when that connection is down.
+  SSE_POLL_MS: z.coerce.number().int().default(10_000),
   // How often the vendor's live stream checks that its session is still valid.
   VENDOR_STREAM_SESSION_CHECK_MS: z.coerce.number().int().min(10).default(60_000),
   // Where core delivers its events (outbox) and the secret both sides sign them with.

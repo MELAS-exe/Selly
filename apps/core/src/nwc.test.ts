@@ -18,6 +18,7 @@ import {
 import { PairingWatcher, startPairing } from './modules/wallet/pairing';
 import { linkWallet, liveWallet, unlinkWallet } from './modules/wallet/service';
 import { Keyring, walletAad } from './secrets';
+import { Signals } from './signals';
 import { createShop, feed, idemKey, orderPayload } from './test-helpers';
 
 let relay: TestRelay;
@@ -63,6 +64,7 @@ beforeAll(async () => {
       },
     },
     media: new MemoryObjectStore(),
+    signals: new Signals(),
     keyring: Keyring.forTests(),
     log: silentLogger,
   };

@@ -3,6 +3,7 @@
 import { core } from '@selly/db';
 import { and, desc, eq, gt, lt } from '@selly/db/orm';
 import type { Database } from '../../context';
+import { signal } from '../../signals';
 
 const { vendorNotifications: vn } = core;
 
@@ -67,6 +68,7 @@ export async function notifyVendor(
     dedupeKey: n.dedupeKey ?? null,
     createdAt: n.now,
   });
+  await signal(tx, 'vendor', n.vendorId);
   return true;
 }
 

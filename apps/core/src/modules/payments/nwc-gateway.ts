@@ -174,9 +174,14 @@ export class NwcGateway implements InvoiceGateway {
     }
   }
 
-  close() {
+  /** Stops listening for payments (this process is no longer the job leader). Invoices still work. */
+  unsubscribeAll() {
     for (const unsub of this.subscriptions.values()) unsub();
     this.subscriptions.clear();
+  }
+
+  close() {
+    this.unsubscribeAll();
     for (const c of this.clients.values()) c.conn.close();
     this.clients.clear();
   }

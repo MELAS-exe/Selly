@@ -133,9 +133,10 @@ export const ordersModule: FastifyPluginAsync = async (app) => {
     return reply.code(res.status).send(res.body);
   });
 
-  // Server-Sent Events. Reads the database every SSE_POLL_MS; PostgreSQL LISTEN/NOTIFY will replace the polling.
+  // Server-Sent Events. A signal (LISTEN/NOTIFY) on every order event makes it look at once; the slow poll
+  // (SSE_POLL_MS) covers a lost LISTEN connection and invoice expiry, which has no event.
   app.get<{ Params: { token: string } }>('/api/v1/checkout/:token/events', async (req, reply) => {
-    await findOrderByToken(ctx(), req.params.token);
+    const order = await findOrderByToken(ctx(), req.params.token);
     reply.hijack();
     const res = reply.raw;
     res.writeHead(200, {
@@ -149,13 +150,21 @@ export const ordersModule: FastifyPluginAsync = async (app) => {
     let lastSent = '';
     let lastWrite = Date.now();
     let closed = false;
+    let busy = false;
+    let again = false;
     const stop = () => {
       closed = true;
       clearInterval(timer);
+      off();
       if (!res.writableEnded) res.end();
     };
-    const tick = async () => {
+    const tick = async (): Promise<void> => {
       if (closed) return;
+      if (busy) {
+        again = true;
+        return;
+      }
+      busy = true;
       try {
         const s = await checkoutStatus(ctx(), req.params.token);
         const data = JSON.stringify({
@@ -175,9 +184,16 @@ export const ordersModule: FastifyPluginAsync = async (app) => {
         }
       } catch {
         stop();
+      } finally {
+        busy = false;
+      }
+      if (again) {
+        again = false;
+        return tick();
       }
     };
     const timer = setInterval(tick, ctx().config.SSE_POLL_MS);
+    const off = ctx().signals.on('order', order.id, () => void tick());
     req.raw.on('close', stop);
     await tick();
   });

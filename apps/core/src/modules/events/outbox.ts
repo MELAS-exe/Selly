@@ -1,6 +1,7 @@
 import { core } from '@selly/db';
 import { uuidv7 } from 'uuidv7';
 import type { Database } from '../../context';
+import { signal } from '../../signals';
 import { iso } from '../../util';
 import { notifyVendor, VENDOR_TOPICS, type VendorNotificationType } from './notifications';
 
@@ -40,6 +41,8 @@ export async function publishEvent(
       data: e.data,
     },
   });
+  // The checkout page of this order looks again.
+  if (e.type.startsWith('order.')) await signal(tx, 'order', e.key);
   if (VENDOR_TOPICS.has(e.type)) {
     await notifyVendor(tx, {
       vendorId: e.vendorId,

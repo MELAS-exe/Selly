@@ -12,7 +12,8 @@ export async function createTestDb() {
   const client = new PGlite({ extensions: { citext, pg_trgm, unaccent } });
   const db = drizzle(client, { schema });
   await migrate(db, { migrationsFolder: fileURLToPath(new URL('../migrations', import.meta.url)) });
-  return { db, close: () => client.close() };
+  // The PGlite client too: tests listen for NOTIFY through it.
+  return { db, client, close: () => client.close() };
 }
 
 export type TestDb = Awaited<ReturnType<typeof createTestDb>>['db'];
