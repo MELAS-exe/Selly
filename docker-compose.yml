@@ -1,0 +1,159 @@
+# Runs the whole project:  docker compose up --build
+# Infrastructure only (to run the apps with `pnpm dev`):  pnpm infra:up
+name: selly
+
+x-node-healthcheck: &node-healthcheck
+  interval: 10s
+  timeout: 3s
+  retries: 5
+  start_period: 5s
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: selly
+      POSTGRES_PASSWORD: selly
+      POSTGRES_DB: selly
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U selly -d selly"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: selly
+      MINIO_ROOT_PASSWORD: selly-secret-key
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Creates the two buckets, then exits.
+  minio-init:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 selly selly-secret-key &&
+      mc mb --ignore-existing local/selly-public local/selly-private &&
+      mc anonymous set download local/selly-public
+      "
+    restart: "no"
+
+  # Local Nostr relay for the fake NWC wallet service (packages/nwc testkit, to be built).
+  relay:
+    image: scsibug/nostr-rs-relay
+    ports:
+      - "7777:8080"
+
+  core:
+    build:
+      context: .
+      dockerfile: apps/core/Dockerfile
+    environment:
+      NODE_ENV: production
+      CORE_PORT: 4000
+      APP_BASE_URL: http://localhost:3000
+      DATABASE_URL: postgres://selly:selly@postgres:5432/selly
+      DATABASE_DIRECT_URL: postgres://selly:selly@postgres:5432/selly
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET_PUBLIC: selly-public
+      S3_BUCKET_PRIVATE: selly-private
+      S3_ACCESS_KEY_ID: selly
+      S3_SECRET_ACCESS_KEY: selly-secret-key
+      SERVICE_TOKEN_AGENT: ${SERVICE_TOKEN_AGENT:-dev-agent-token}
+      EVENTS_HMAC_SECRET: ${EVENTS_HMAC_SECRET:-dev-events-secret}
+      SECRETS_KEK_V1: ${SECRETS_KEK_V1:-}
+      SECRETS_PLATFORM_NWC_URI: ${SECRETS_PLATFORM_NWC_URI:-}
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:4000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      <<: *node-healthcheck
+
+  agent:
+    build:
+      context: .
+      dockerfile: apps/agent/Dockerfile
+    environment:
+      NODE_ENV: production
+      AGENT_PORT: 4100
+      CORE_URL: http://core:4000
+      DATABASE_URL: postgres://selly:selly@postgres:5432/selly
+      SERVICE_TOKEN_AGENT: ${SERVICE_TOKEN_AGENT:-dev-agent-token}
+      EVENTS_HMAC_SECRET: ${EVENTS_HMAC_SECRET:-dev-events-secret}
+      LLM_PRIMARY: ${LLM_PRIMARY:-scripted}
+      LLM_FALLBACK: ${LLM_FALLBACK:-}
+    ports:
+      - "4100:4100"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      core:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:4100/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      <<: *node-healthcheck
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        CORE_URL: http://core:4000
+        AGENT_URL: http://agent:4100
+    environment:
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      core:
+        condition: service_healthy
+      agent:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      <<: *node-healthcheck
+
+volumes:
+  pgdata:
+  miniodata:

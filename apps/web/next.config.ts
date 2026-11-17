@@ -1,3 +1,4 @@
+import path from 'node:path';
 import type { NextConfig } from 'next';
 
 const core = process.env.CORE_URL ?? 'http://localhost:4000';
@@ -5,6 +6,8 @@ const agent = process.env.AGENT_URL ?? 'http://localhost:4100';
 
 const config: NextConfig = {
   output: 'standalone',
+  // Monorepo root, so the standalone build traces files from workspace packages (needed by the Docker image).
+  outputFileTracingRoot: path.resolve(process.cwd(), '../..'),
   transpilePackages: ['@selly/ui'],
   // Mirrors production routing (docs/architecture.md section 11.1): chat, inbox and assistant go to the agent,
   // every other /api/v1 path goes to core. Internal endpoints are never proxied.

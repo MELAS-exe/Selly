@@ -21,6 +21,16 @@ pnpm dev
 
 The web app proxies `/api/v1/chat/*`, `/api/v1/conversations*` and `/api/v1/assistant*` to the agent, and every other `/api/v1/*` path to core. This mirrors production routing (architecture.md section 11.1).
 
+## Run everything in Docker
+
+```
+docker compose up --build
+```
+
+This starts PostgreSQL 18, MinIO (the buckets are created for you), a local Nostr relay, and the three apps built from `apps/*/Dockerfile`. Then open http://localhost:3000. Core is on :4000 and agent on :4100. Secrets default to dev values; override them in a root `.env`. Stop with `docker compose down` (add `-v` to wipe the data).
+
+For day-to-day work, `pnpm infra:up` starts only the infrastructure, and `pnpm dev` runs the apps with hot reload.
+
 ## Who owns what
 
 | Dev   | Owns                                                                | Start with                                           |
