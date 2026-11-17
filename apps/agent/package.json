@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "@selly/config": "workspace:*",
+    "@selly/core": "workspace:*",
     "@types/node": "^24",
     "@types/pg": "^8.23.1",
     "tsup": "^8.0.0",

@@ -81,7 +81,18 @@ export class PostgresStore implements AgentStore {
 
   static connect(url: string) {
     const pool = new pg.Pool({ connectionString: url, max: 10 });
-    return new PostgresStore(drizzle(pool), () => pool.end(), poolLock(pool), pool);
+    // Advisory locks live on their own pool. Each held lock pins a connection for the whole turn,
+    // and the turn's queries need the main pool: sharing one pool would deadlock once 10 turns hold
+    // a lock and wait for a free connection. A full lock pool only queues turns.
+    const lockPool = new pg.Pool({ connectionString: url, max: 20 });
+    return new PostgresStore(
+      drizzle(pool),
+      async () => {
+        await Promise.all([pool.end(), lockPool.end()]);
+      },
+      poolLock(lockPool),
+      pool,
+    );
   }
 
   /** Fails when the agent schema has not been migrated. */
