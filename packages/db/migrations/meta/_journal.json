@@ -50,6 +50,13 @@
       "when": 1794928415267,
       "tag": "0006_agent_vendor_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794929613297,
+      "tag": "0007_subscription_billing",
+      "breakpoints": true
     }
   ]
 }

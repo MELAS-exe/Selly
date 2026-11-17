@@ -10,6 +10,11 @@ export { assertContract } from './contract';
 export { dispatchOnce, signEvent } from './modules/events/dispatcher';
 export { confirmPayment, reconcileOnce, settleInvoice } from './modules/payments/service';
 export {
+  reconcileSubscriptionInvoices,
+  runSubscriptionJob,
+  settleSubscriptionInvoice,
+} from './modules/subscriptions/billing';
+export {
   createShop,
   createTestApp,
   feed,

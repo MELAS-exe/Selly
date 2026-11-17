@@ -37,9 +37,37 @@ const NO_LIMITS: PlanLimits = {
 export interface EffectiveSubscription {
   planId: string;
   status: SubscriptionStatus;
+  periodStart: Date;
   periodEnd: Date;
   graceEndsAt: Date | null;
   limits: PlanLimits;
+  /** A plan bought to start later (after the trial, or a lower plan from the period end), until it starts. */
+  next: { planId: string; at: Date } | null;
+  /** The free trial is still running (the vendor may already have paid for what follows). */
+  inTrial: boolean;
+  trialEndsAt: Date | null;
+  row: typeof subscriptions.$inferSelect;
+}
+
+type SubRow = typeof subscriptions.$inferSelect;
+
+/**
+ * The subscription as it stands at `now`: status from the dates, and a booked plan that has started counts as the
+ * plan. The status job persists both; reads never wait for it.
+ */
+export function stateOf(s: SubRow, now: Date) {
+  const eff = effectiveStatus(s, now);
+  const switched = !!s.nextPlanId && !!s.nextPlanAt && s.nextPlanAt <= now;
+  return {
+    planId: switched ? (s.nextPlanId as string) : s.planId,
+    switched,
+    status: eff.status,
+    graceEndsAt: eff.graceEndsAt,
+    periodStart: switched ? (s.nextPlanAt as Date) : s.currentPeriodStart,
+    next:
+      !switched && s.nextPlanId && s.nextPlanAt ? { planId: s.nextPlanId, at: s.nextPlanAt } : null,
+    inTrial: !!s.trialEndsAt && now < s.trialEndsAt,
+  };
 }
 
 /** trialing or active past the period end is grace; grace past its end is suspended. */
@@ -61,20 +89,30 @@ export async function currentSubscription(
   vendorId: string,
 ): Promise<EffectiveSubscription | null> {
   const [row] = await ctx.db
-    .select({ s: subscriptions, p: plans })
+    .select()
     .from(subscriptions)
-    .innerJoin(plans, eq(plans.id, subscriptions.planId))
     .where(eq(subscriptions.vendorId, vendorId));
   if (!row) return null;
-  const eff = effectiveStatus(row.s, ctx.now());
+  const st = stateOf(row, ctx.now());
+  const [plan] = await ctx.db.select().from(plans).where(eq(plans.id, st.planId));
   return {
-    planId: row.s.planId,
-    status: eff.status,
-    periodEnd: row.s.currentPeriodEnd,
-    graceEndsAt: eff.graceEndsAt,
-    limits: { ...NO_LIMITS, ...(row.p.limits as Partial<PlanLimits>) },
+    planId: st.planId,
+    status: st.status,
+    periodStart: st.periodStart,
+    periodEnd: row.currentPeriodEnd,
+    graceEndsAt: st.graceEndsAt,
+    limits: limitsOf(plan),
+    next: st.next,
+    inTrial: st.inTrial,
+    trialEndsAt: row.trialEndsAt,
+    row,
   };
 }
+
+export const limitsOf = (plan: { limits: unknown } | undefined): PlanLimits => ({
+  ...NO_LIMITS,
+  ...((plan?.limits ?? {}) as Partial<PlanLimits>),
+});
 
 /** A subscription that lets the shop sell: trialing, active or in grace. */
 export const isServing = (s: EffectiveSubscription | null) => !!s && s.status !== 'suspended';

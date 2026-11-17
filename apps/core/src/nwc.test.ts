@@ -9,6 +9,11 @@ import { type Context, type Database, silentLogger } from './context';
 import { NwcGateway } from './modules/payments/nwc-gateway';
 import { confirmPayment, reconcileOnce } from './modules/payments/service';
 import { RateService } from './modules/rates/service';
+import {
+  confirmSubscriptionPayment,
+  createSubscriptionInvoice,
+  reconcileSubscriptionInvoices,
+} from './modules/subscriptions/billing';
 import { linkWallet, liveWallet, unlinkWallet } from './modules/wallet/service';
 import { Keyring, walletAad } from './secrets';
 import { createShop, feed, idemKey, orderPayload } from './test-helpers';
@@ -50,13 +55,22 @@ beforeAll(async () => {
       forVendor: () => {
         throw new Error('set below');
       },
+      forPlatform: () => {
+        throw new Error('set below');
+      },
     },
     keyring: Keyring.forTests(),
     log: silentLogger,
   };
-  gateway = new NwcGateway(ctx, (n) => {
-    confirmed.push(confirmPayment(ctx, n));
-  });
+  gateway = new NwcGateway(
+    ctx,
+    (n) => {
+      confirmed.push(confirmPayment(ctx, n));
+    },
+    (n) => {
+      confirmed.push(confirmSubscriptionPayment(ctx, n));
+    },
+  );
   ctx.invoices = gateway;
   app = buildApp(ctx);
   await app.ready();
@@ -320,5 +334,55 @@ describe('orders paid on the vendor wallet', () => {
       'idempotency-key': idemKey(),
     });
     expect(r.json().code).toBe('PAYMENT_UNAVAILABLE');
+  });
+});
+
+describe('subscription invoices on the platform wallet', () => {
+  it('are made on the platform wallet, never the vendor one, and settle from its notification', async () => {
+    const s = await createShop(ctx.db, 'nwc-sub-a');
+    const vendorWallet = await newWallet();
+    await link(s.vendorId, vendorWallet.uri);
+    const platform = await newWallet();
+    await linkWallet(ctx, { owner: 'platform', uri: platform.uri, actor: 'test' });
+    await gateway.refresh();
+    const before = vendorWallet.invoiceCount();
+
+    const inv = await createSubscriptionInvoice(ctx, s.vendorId, { plan_id: 'pro', months: 1 });
+    expect(inv).toMatchObject({ status: 'pending', amount_msat: 15_000_000 });
+    expect(inv.bolt11.startsWith('lnbc150u1')).toBe(true);
+    expect(vendorWallet.invoiceCount()).toBe(before);
+    const [row] = await ctx.db
+      .select()
+      .from(core.subscriptionInvoices)
+      .where(eq(core.subscriptionInvoices.id, inv.id));
+    expect(row?.walletConnectionId).toBe((await liveWallet(ctx.db, { owner: 'platform' }))?.id);
+
+    await platform.pay(inv.payment_hash);
+    await expect
+      .poll(
+        async () =>
+          (
+            await ctx.db
+              .select({ status: core.subscriptionInvoices.status })
+              .from(core.subscriptionInvoices)
+              .where(eq(core.subscriptionInvoices.id, inv.id))
+          )[0]?.status,
+        { timeout: 5000 },
+      )
+      .toBe('settled');
+    await Promise.all(confirmed);
+  });
+
+  it('settles from the reconciler, and answers 503 when no platform wallet is linked', async () => {
+    const s = await createShop(ctx.db, 'nwc-sub-b');
+    const inv = await createSubscriptionInvoice(ctx, s.vendorId, { plan_id: 'pro', months: 1 });
+    const platform = wallets.at(-1) as FakeNwcWallet;
+    await platform.pay(inv.payment_hash, { notify: false });
+    expect(await reconcileSubscriptionInvoices(ctx)).toMatchObject({ settled: 1 });
+
+    await unlinkWallet(ctx, { owner: 'platform', actor: 'test' });
+    await expect(
+      createSubscriptionInvoice(ctx, s.vendorId, { plan_id: 'pro', months: 1 }),
+    ).rejects.toMatchObject({ code: 'PAYMENT_UNAVAILABLE' });
   });
 });

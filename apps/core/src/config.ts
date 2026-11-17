@@ -29,6 +29,8 @@ const schema = z.object({
   NWC_LOOKUP_TIMEOUT_MS: z.coerce.number().int().default(8_000),
   NWC_GET_INFO_TIMEOUT_MS: z.coerce.number().int().default(8_000),
   RECONCILE_INTERVAL_MS: z.coerce.number().int().default(5000),
+  // Grace, suspension, booked plans and renewal reminders (architecture.md section 4.4). 0 turns the job off.
+  SUBSCRIPTION_JOB_INTERVAL_MS: z.coerce.number().int().min(0).default(300_000),
   RATE_SOURCES: z.string().default('kraken,coinbase'),
   SERVICE_TOKEN_AGENT: z.string().min(8).default(DEV_SERVICE_TOKEN_DEFAULT),
   SSE_POLL_MS: z.coerce.number().int().default(2000),

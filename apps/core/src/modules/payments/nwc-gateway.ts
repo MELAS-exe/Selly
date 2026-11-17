@@ -46,6 +46,11 @@ export class NwcGateway implements InvoiceGateway {
       walletConnectionId: string;
       paymentHash: string;
     }) => void = () => {},
+    /** A payment on the platform wallet: a subscription invoice, confirmed by a lookup as well. */
+    private readonly onPlatformPaymentNotice: (n: {
+      walletConnectionId: string;
+      paymentHash: string;
+    }) => void = () => {},
   ) {
     requireKeyring(deps.keyring);
   }
@@ -57,12 +62,40 @@ export class NwcGateway implements InvoiceGateway {
     };
   }
 
+  /** The platform's receive-only wallet, for subscription invoices (architecture.md section 3.7). */
+  forPlatform(): InvoiceProvider {
+    return {
+      makeInvoice: async (req) => {
+        const [row] = await this.deps.db
+          .select()
+          .from(wc)
+          .where(and(eq(wc.owner, 'platform'), ne(wc.status, 'revoked')));
+        if (!row?.uriCiphertext)
+          throw new WalletUnavailableError(
+            'No platform wallet is linked (cli wallet:link --platform).',
+          );
+        return this.made(row, req);
+      },
+      lookupInvoice: async (req) => {
+        if (!req.walletConnectionId) return { settled: false };
+        const [row] = await this.deps.db.select().from(wc).where(eq(wc.id, req.walletConnectionId));
+        if (!row || row.owner !== 'platform')
+          throw new Error('wallet connection is not the platform wallet');
+        return this.lookupOn(row, req.paymentHash);
+      },
+    };
+  }
+
   async makeInvoice(req: MakeInvoiceRequest): Promise<MadeInvoice> {
     const [row] = await this.deps.db
       .select()
       .from(wc)
       .where(and(eq(wc.owner, 'vendor'), eq(wc.vendorId, req.vendorId), ne(wc.status, 'revoked')));
     if (!row?.uriCiphertext) throw new WalletUnavailableError('This vendor has no linked wallet.');
+    return this.made(row, req);
+  }
+
+  private async made(row: Row, req: MakeInvoiceRequest): Promise<MadeInvoice> {
     const made = await this.call(row, (c) =>
       c.makeInvoice({
         amountMsat: req.amountMsat,
@@ -89,23 +122,25 @@ export class NwcGateway implements InvoiceGateway {
     const [row] = await this.deps.db.select().from(wc).where(eq(wc.id, req.walletConnectionId));
     if (!row || row.vendorId !== req.vendorId)
       throw new Error('wallet connection does not belong to this vendor');
+    return this.lookupOn(row, req.paymentHash);
+  }
+
+  private async lookupOn(row: Row, paymentHash: string): Promise<InvoiceLookup> {
     // An unlinked wallet cannot be asked any more. Its open invoices simply expire.
     if (row.status === 'revoked' || !row.uriCiphertext) return { settled: false };
-    const state = await this.call(row, (c) => c.lookupInvoice(req.paymentHash));
+    const state = await this.call(row, (c) => c.lookupInvoice(paymentHash));
     return state.settled
       ? { settled: true, ...(state.preimage ? { preimage: state.preimage } : {}) }
       : { settled: false };
   }
 
   /**
-   * Subscribe to payment notifications of every live wallet that offers them, and drop wallets that were unlinked.
-   * Called at start and then every minute, so a wallet linked from the CLI is picked up without a restart.
+   * Subscribe to payment notifications of every live wallet that offers them (vendors' and the platform's), and drop
+   * wallets that were unlinked. Called at start and then every minute, so a wallet linked from the CLI is picked up
+   * without a restart.
    */
   async refresh(): Promise<void> {
-    const rows = await this.deps.db
-      .select()
-      .from(wc)
-      .where(and(eq(wc.owner, 'vendor'), ne(wc.status, 'revoked')));
+    const rows = await this.deps.db.select().from(wc).where(ne(wc.status, 'revoked'));
     const live = new Set(rows.map((r) => r.id));
 
     for (const [id, unsub] of this.subscriptions) {
@@ -121,17 +156,13 @@ export class NwcGateway implements InvoiceGateway {
       }
     }
     for (const row of rows) {
-      if (
-        !row.notifications ||
-        this.subscriptions.has(row.id) ||
-        !row.uriCiphertext ||
-        !row.vendorId
-      )
-        continue;
+      if (!row.notifications || this.subscriptions.has(row.id) || !row.uriCiphertext) continue;
       const vendorId = row.vendorId;
       try {
         const unsub = await this.client(row).onPaymentReceived((paymentHash) =>
-          this.onPaymentNotice({ vendorId, walletConnectionId: row.id, paymentHash }),
+          vendorId
+            ? this.onPaymentNotice({ vendorId, walletConnectionId: row.id, paymentHash })
+            : this.onPlatformPaymentNotice({ walletConnectionId: row.id, paymentHash }),
         );
         this.subscriptions.set(row.id, unsub);
       } catch (err) {
