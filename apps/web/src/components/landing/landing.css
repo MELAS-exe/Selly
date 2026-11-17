@@ -184,8 +184,8 @@
 
 /*
  * Hero choreography, one sequence instead of scattered fades:
- * the three h1 lines unmask one after the other (0 to ~800 ms), the products arrive in a
- * cascade (300 to ~1200 ms) and then float, each on its own period, and the stamp falls last.
+ * the three h1 lines unmask one after the other (0 to ~800 ms), the products slide in
+ * from the sides (300 to ~1200 ms) and then float, each on its own period, and the stamp falls last.
  */
 .hero-line {
   display: block;
@@ -213,10 +213,11 @@
 .hero-prop:not([data-loaded]) {
   animation-play-state: paused;
 }
+/* Each product slides in from its own side of the screen (--side: -1 left, 1 right). */
 @keyframes hero-prop {
   from {
     opacity: 0;
-    transform: translateY(24px) scale(0.94);
+    transform: translateX(calc(var(--side, 1) * 70vw)) rotate(calc(var(--side, 1) * 12deg));
   }
 }
 /* Starts and ends at rest, so the float picks up from the arrival without a jump. */

@@ -158,35 +158,35 @@ export function Landing() {
           <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-[#F6F4F0] to-transparent"></div>
         </div>
         <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden md:overflow-visible">
-          <div className="absolute top-[6%] left-[-5%] md:left-[10%] w-48 h-48 md:w-64 md:h-64 hero-prop [--d:300ms] [--float:7s] z-0 pointer-events-auto">
+          <div className="absolute top-[6%] left-[-5%] md:left-[10%] w-48 h-48 md:w-64 md:h-64 hero-prop [--side:-1] [--d:300ms] [--float:7s] z-0 pointer-events-auto">
             <img
               alt="Leather handbag"
               className="w-full h-full object-contain drop-shadow-[0_20px_25px_rgba(0,0,0,0.15)] -rotate-12 hover:-rotate-[6deg] hover:scale-[1.03] transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
               src="/landing/products/handbag.webp"
             />
           </div>
-          <div className="absolute top-[12%] right-[-5%] md:right-[15%] w-40 h-40 md:w-56 md:h-56 hero-prop [--d:380ms] [--float:6s] z-20 pointer-events-auto">
+          <div className="absolute top-[12%] right-[-5%] md:right-[15%] w-40 h-40 md:w-56 md:h-56 hero-prop [--side:1] [--d:380ms] [--float:6s] z-20 pointer-events-auto">
             <img
               alt="Smartphone"
               className="w-full h-full object-contain drop-shadow-[0_25px_35px_rgba(0,0,0,0.2)] rotate-15 hover:rotate-[21deg] hover:scale-[1.03] transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
               src="/landing/products/smartphone.webp"
             />
           </div>
-          <div className="absolute bottom-[20%] left-0 md:left-[15%] w-56 h-56 md:w-72 md:h-72 hero-prop [--d:460ms] [--float:8s] z-20 pointer-events-auto">
+          <div className="absolute bottom-[20%] left-0 md:left-[15%] w-56 h-56 md:w-72 md:h-72 hero-prop [--side:-1] [--d:460ms] [--float:8s] z-20 pointer-events-auto">
             <img
               alt="Sneaker"
               className="w-full h-full object-contain drop-shadow-[0_30px_40px_rgba(0,0,0,0.25)] -rotate-[25deg] hover:-rotate-[19deg] hover:scale-[1.03] transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
               src="/landing/products/sneaker.webp"
             />
           </div>
-          <div className="absolute bottom-[10%] right-[10%] w-32 h-32 md:w-48 md:h-48 hero-prop [--d:540ms] [--float:6.5s] z-0 pointer-events-auto">
+          <div className="absolute bottom-[10%] right-[10%] w-32 h-32 md:w-48 md:h-48 hero-prop [--side:1] [--d:540ms] [--float:6.5s] z-0 pointer-events-auto">
             <img
               alt="Folded shirt"
               className="w-full h-full object-contain drop-shadow-[0_15px_20px_rgba(0,0,0,0.1)] rotate-6 hover:rotate-[12deg] hover:scale-[1.03] transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
               src="/landing/products/garment.webp"
             />
           </div>
-          <div className="absolute top-[45%] right-[-10%] md:right-[5%] w-32 h-32 md:w-40 md:h-40 hero-prop [--d:620ms] [--float:7.5s] z-0 pointer-events-auto">
+          <div className="absolute top-[45%] right-[-10%] md:right-[5%] w-32 h-32 md:w-40 md:h-40 hero-prop [--side:1] [--d:620ms] [--float:7.5s] z-0 pointer-events-auto">
             <img
               alt="Perfume bottle"
               className="w-full h-full object-contain drop-shadow-[0_10px_15px_rgba(0,0,0,0.05)] rotate-[35deg] hover:rotate-[41deg] hover:scale-[1.03] transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
