@@ -112,7 +112,7 @@ export const eventsModule: FastifyPluginAsync = async (app) => {
   });
 
   // A browser allowed Web Push. The endpoint is unique per browser: re-registering moves it to this vendor.
-  // Sending comes with the notification worker; the subscription is kept now so nothing is lost.
+  // Alerts are sent by the alert worker (alerts.ts).
   app.post('/api/v1/vendors/me/push-subscriptions', async (req, reply) => {
     const s = await requireVendor(ctx(), req);
     const body = pushBody.parse(req.body);
