@@ -12,6 +12,8 @@
     "cli": "tsx --env-file-if-exists=../../.env src/cli.ts"
   },
   "dependencies": {
+    "@fastify/cookie": "^11.1.5",
+    "@fastify/rate-limit": "^11.2.2",
     "@getalby/sdk": "9.0.0",
     "@selly/contracts": "workspace:*",
     "@selly/db": "workspace:*",
@@ -21,7 +23,6 @@
     "drizzle-orm": "^0.44.7",
     "fastify": "^5.0.0",
     "light-bolt11-decoder": "3.2.0",
-    "nostr-tools": "2.26.1",
     "pg": "^8.23.1",
     "qrcode": "^1.5.4",
     "uuidv7": "^1.2.1",
@@ -35,6 +36,7 @@
     "@types/qrcode": "^1.5.6",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
+    "nostr-tools": "2.26.1",
     "tsup": "^8.0.0",
     "tsx": "^4.0.0",
     "ws": "8.23.0"
