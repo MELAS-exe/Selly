@@ -1,4 +1,3 @@
-import { timingSafeEqual } from 'node:crypto';
 import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import Fastify from 'fastify';
@@ -15,12 +14,7 @@ import { ratesModule } from './modules/rates';
 import { subscriptionsModule } from './modules/subscriptions';
 import { vendorsModule } from './modules/vendors';
 import { walletModule } from './modules/wallet';
-
-const safeEqual = (a: string, b: string) => {
-  const x = Buffer.from(a);
-  const y = Buffer.from(b);
-  return x.length === y.length && timingSafeEqual(x, y);
-};
+import { findToken, ROUTE_SCOPES, serviceTokens } from './scopes';
 
 export function buildApp(ctx: Context) {
   const app = Fastify({
@@ -69,14 +63,25 @@ export function buildApp(ctx: Context) {
 
   app.get('/healthz', async () => ({ status: 'ok', service: 'core' }));
 
-  // /internal/* is for the agent only and is never routed from the internet (architecture.md section 11.1).
-  // This check is the second lock. Scopes per endpoint come with the service-token table.
+  // /internal/* is for services only and is never routed from the internet (architecture.md section 11.1).
+  // This check is the second lock: a known token, and the scope this route needs (scopes.ts). A route with no scope
+  // listed is refused for every token.
+  const tokens = serviceTokens(ctx.config);
   app.addHook('onRequest', async (req) => {
     if (!req.url.startsWith('/internal/')) return;
-    const token = /^Bearer (.+)$/.exec(req.headers.authorization ?? '')?.[1];
-    if (!token || !safeEqual(token, ctx.config.SERVICE_TOKEN_AGENT)) {
-      throw new AppError('UNAUTHORIZED', 'A valid service token is required.');
-    }
+    const presented = /^Bearer (.+)$/.exec(req.headers.authorization ?? '')?.[1];
+    const token = presented ? findToken(tokens, presented) : null;
+    if (!token) throw new AppError('UNAUTHORIZED', 'A valid service token is required.');
+    const route = req.routeOptions.url;
+    if (!route) return; // no such route: the 404 handler answers
+    const scope = ROUTE_SCOPES[`${req.method} ${route}`];
+    if (!scope || !token.scopes.has(scope))
+      throw new AppError(
+        'FORBIDDEN',
+        scope
+          ? `The "${token.name}" token does not have the ${scope} scope.`
+          : 'No service may call this route.',
+      );
   });
 
   app.register(authModule);

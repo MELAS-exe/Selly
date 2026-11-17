@@ -90,14 +90,6 @@ export async function findDraft(ctx: Context, vendorId: string, id: string): Pro
   return d;
 }
 
-/** For the agent's confirm route, which names the draft only: the draft says which vendor it belongs to. */
-export async function findDraftById(ctx: Context, id: string): Promise<Draft> {
-  if (!isUuid(id)) throw new AppError('NOT_FOUND', 'No such draft.');
-  const [d] = await ctx.db.select().from(drafts).where(eq(drafts.id, id));
-  if (!d) throw new AppError('NOT_FOUND', 'No such draft.');
-  return d;
-}
-
 /** Newest first. Without a status: the drafts still open (processing or waiting for review). */
 export async function listDrafts(
   ctx: Context,

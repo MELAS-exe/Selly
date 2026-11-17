@@ -423,8 +423,8 @@ describe('drafts', () => {
     // The existing variant is size 42 colour noir; the draft says size 42 only, so it is a new variant there.
     const res = await call(
       'POST',
-      '/internal/v1/product-drafts/{id}/confirm',
-      `/internal/v1/product-drafts/${created.body.id}/confirm`,
+      '/internal/v1/vendors/{id}/product-drafts/{draft_id}/confirm',
+      `/internal/v1/vendors/${s.vendorId}/product-drafts/${created.body.id}/confirm`,
       {
         body: {
           mode: 'restock',
@@ -446,6 +446,16 @@ describe('drafts', () => {
       ]),
     );
     expect(bySize).toEqual({ '42': 5, '44': 1 });
+
+    // Another shop's path never reaches this draft.
+    const other = await shop('draft-b-other');
+    const stranger = await t.app.inject({
+      method: 'POST',
+      url: `/internal/v1/vendors/${other.vendorId}/product-drafts/${created.body.id}/confirm`,
+      headers: AUTH,
+      payload: { mode: 'new' },
+    });
+    expect(stranger.statusCode).toBe(404);
   });
 
   it('counts drafts against the plan and refuses one past the limit', async () => {

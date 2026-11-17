@@ -422,6 +422,7 @@ const confirmProductDraft = tool({
   }),
   async run(p, ctx) {
     const product = await ctx.core.confirmDraft(
+      ctx.conversation.vendorId,
       p.draft_id,
       {
         mode: p.mode,

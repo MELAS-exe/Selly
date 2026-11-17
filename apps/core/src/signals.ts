@@ -9,7 +9,7 @@ import type pg from 'pg';
 import type { Database, Logger } from './context';
 
 export const SIGNAL_CHANNEL = 'selly_signal';
-export type SignalTopic = 'vendor' | 'order';
+export type SignalTopic = 'vendor' | 'order' | 'wallet';
 
 export async function signal(tx: Database, topic: SignalTopic, key: string) {
   await tx.execute(sql`select pg_notify(${SIGNAL_CHANNEL}, ${`${topic}:${key}`})`);

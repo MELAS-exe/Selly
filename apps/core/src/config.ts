@@ -56,6 +56,8 @@ const schema = z.object({
   SUBSCRIPTION_JOB_INTERVAL_MS: z.coerce.number().int().min(0).default(300_000),
   RATE_SOURCES: z.string().default('kraken,coinbase'),
   SERVICE_TOKEN_AGENT: z.string().min(8).default(DEV_SERVICE_TOKEN_DEFAULT),
+  // More service tokens with fewer scopes, as JSON (scopes.ts): [{"name":"ops","token":"...","scopes":["orders:read"]}].
+  SERVICE_TOKENS: z.string().default(''),
   // Live streams wake on LISTEN/NOTIFY; this poll is the fallback when that connection is down.
   SSE_POLL_MS: z.coerce.number().int().default(10_000),
   // How often the vendor's live stream checks that its session is still valid.
@@ -103,6 +105,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
         );
       }
     }
+  }
+  if (config.NODE_ENV === 'production' && config.SERVICE_TOKENS.trim()) {
+    const extra = JSON.parse(config.SERVICE_TOKENS) as { name?: string; token?: string }[];
+    const weak = extra.find((t) => (t.token ?? '').length < 32);
+    if (weak)
+      throw new Error(`SERVICE_TOKENS: the "${weak.name}" token must be at least 32 characters.`);
   }
   return config;
 }

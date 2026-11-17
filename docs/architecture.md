@@ -1319,13 +1319,15 @@ Vendor endpoints served by the agent check the session cookie through `POST /int
 | POST   | `/internal/v1/vendors/{id}/orders/{order_ref}/fulfill`        | `orders:write`        | The vendor's "A7K2 livrée"                                                                                            |
 | GET    | `/internal/v1/vendors/{id}/metrics`                           | `orders:read`         | The vendor's "mes ventes de la semaine"                                                                               |
 | POST   | `/internal/v1/vendors/{id}/product-drafts`                    | `drafts:write`        | Create or update a draft from extraction results                                                                      |
-| POST   | `/internal/v1/product-drafts/{id}/confirm`                    | `drafts:write`        | Confirm from the vendor's reply in the assistant                                                                      |
+| POST   | `/internal/v1/vendors/{id}/product-drafts/{draft_id}/confirm` | `drafts:write`        | Confirm from the vendor's reply in the assistant                                                                      |
 | POST   | `/internal/v1/vendors/{id}/variants/{variant_id}/adjustments` | `inventory:write`     | The vendor's stock command ("plus que 2 en 42")                                                                       |
 | PATCH  | `/internal/v1/vendors/{id}/products/{product_id}`             | `catalog:write`       | The vendor's price command                                                                                            |
 | POST   | `/internal/v1/media`                                          | `media:write`         | Upload bytes (a customer's voice note) and get a storage key                                                          |
 | POST   | `/internal/v1/vendors/{id}/media/links`                       | `media:read`          | One-hour read links to the vendor's uploads, for the vision model                                                     |
 | POST   | `/internal/v1/vendors/{id}/notifications`                     | `notifications:write` | Ask core to alert the vendor (Web Push, banner): handoff, new chat                                                    |
 | POST   | `/internal/v1/sessions/introspect`                            | `auth:introspect`     | Session check for vendor endpoints served by the agent                                                                |
+
+Every route above needs its scope. Core checks the bearer token and the route's scope before the handler runs (`apps/core/src/scopes.ts`); a route with no scope listed is refused for every token. The agent's token has every scope; `SERVICE_TOKENS` can add narrower tokens, for example a read-only one for operations. A test keeps the code's table equal to the scopes documented in `docs/api.json`.
 
 The agent only calls vendor-scoped write endpoints (drafts, stock, prices, fulfilment) in a vendor assistant conversation, where the session proved which vendor is writing.
 
@@ -1596,7 +1598,7 @@ sequenceDiagram
   V->>D: taps 5 par pointure
   A-->>D: "Baskets blanches, 20 000 FCFA, du 40 au 44, 5 par pointure. Je valide ?" (Valider, Modifier)
   V->>D: taps Valider
-  A->>K: POST /internal/v1/product-drafts/{id}/confirm
+  A->>K: POST /internal/v1/vendors/{id}/product-drafts/{draft_id}/confirm
   K->>K: transaction creates product, variants and restock movements, then purges CDN URLs
   K-->>A: product created
   A-->>D: "Ajouté, voici le lien {product_url}"
@@ -1942,7 +1944,7 @@ Targets for the pilot. Each one has a check.
 
 ### 11.3 Configuration
 
-Environment variables (examples): `DATABASE_URL`, `DATABASE_DIRECT_URL`, `APP_BASE_URL`, `CDN_PURGE_TOKEN`, `S3_ENDPOINT`, `S3_BUCKET_PUBLIC`, `S3_BUCKET_PRIVATE`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `NWC_PAIRING_RELAYS` (where wallets announce a pairing), `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (Web Push; the web app gets the public key as `NEXT_PUBLIC_VAPID_PUBLIC_KEY`), `SECRETS_PLATFORM_NOSTR_KEY` and `NOSTR_DM_RELAYS` (NIP-17 alerts), `MEDIA_STORE` (s3, or memory for development), `S3_PRESIGN_ENDPOINT` (the storage address browsers reach), `S3_REGION`, `S3_FORCE_PATH_STYLE`, `SECRETS_KEK_V1` (32-byte key, base64), `SECRETS_PLATFORM_NWC_URI` (the receive-only platform wallet, linked on first start), `SUBSCRIPTION_JOB_INTERVAL_MS` (300000), `PLATFORM_LUD16` (optional fallback), `SERVICE_TOKEN_AGENT`, `EVENTS_HMAC_SECRET`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (Web Push), `NOSTR_NOTIFIER_NSEC` (optional, for Nostr direct messages to vendors), `NOSTR_NOTIFIER_RELAYS`, `LLM_PRIMARY`, `LLM_FALLBACK`, `LLM_API_KEY_*`, `ASR_PROVIDER`, `ASR_API_KEY`, `PRICE_SOURCES`, `INVOICE_PROVIDER` (`fake` or `nwc`), `LIGHTNING_NETWORK`, `NWC_MIN_INTERVAL_MS`, `NWC_MAKE_INVOICE_TIMEOUT_MS`, `NWC_LOOKUP_TIMEOUT_MS`, `NWC_GET_INFO_TIMEOUT_MS`, `SUBSCRIPTION_GRACE_DAYS` (7), `TRIAL_DAYS` (14).
+Environment variables (examples): `DATABASE_URL`, `DATABASE_DIRECT_URL`, `APP_BASE_URL`, `CDN_PURGE_TOKEN`, `S3_ENDPOINT`, `S3_BUCKET_PUBLIC`, `S3_BUCKET_PRIVATE`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `SERVICE_TOKENS` (extra service tokens with fewer scopes, JSON; the agent's `SERVICE_TOKEN_AGENT` has every scope), `NWC_PAIRING_RELAYS` (where wallets announce a pairing), `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (Web Push; the web app gets the public key as `NEXT_PUBLIC_VAPID_PUBLIC_KEY`), `SECRETS_PLATFORM_NOSTR_KEY` and `NOSTR_DM_RELAYS` (NIP-17 alerts), `MEDIA_STORE` (s3, or memory for development), `S3_PRESIGN_ENDPOINT` (the storage address browsers reach), `S3_REGION`, `S3_FORCE_PATH_STYLE`, `SECRETS_KEK_V1` (32-byte key, base64), `SECRETS_PLATFORM_NWC_URI` (the receive-only platform wallet, linked on first start), `SUBSCRIPTION_JOB_INTERVAL_MS` (300000), `PLATFORM_LUD16` (optional fallback), `SERVICE_TOKEN_AGENT`, `EVENTS_HMAC_SECRET`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (Web Push), `NOSTR_NOTIFIER_NSEC` (optional, for Nostr direct messages to vendors), `NOSTR_NOTIFIER_RELAYS`, `LLM_PRIMARY`, `LLM_FALLBACK`, `LLM_API_KEY_*`, `ASR_PROVIDER`, `ASR_API_KEY`, `PRICE_SOURCES`, `INVOICE_PROVIDER` (`fake` or `nwc`), `LIGHTNING_NETWORK`, `NWC_MIN_INTERVAL_MS`, `NWC_MAKE_INVOICE_TIMEOUT_MS`, `NWC_LOOKUP_TIMEOUT_MS`, `NWC_GET_INFO_TIMEOUT_MS`, `SUBSCRIPTION_GRACE_DAYS` (7), `TRIAL_DAYS` (14).
 
 In production core refuses to start with a missing or dev `SERVICE_TOKEN_AGENT`. The local Docker stack runs the production build with dev values and says so with `ALLOW_DEV_SECRETS=true`; nothing else may set it. Secrets come from the host's secret manager. `.env` files are for local development only and are git-ignored. Plan prices and limits are data (`core.plans`), not configuration.
 
