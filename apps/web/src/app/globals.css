@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "../components/motion/motion.css";
 
 /*
  * Selly design tokens.
