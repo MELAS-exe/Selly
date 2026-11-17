@@ -1,13 +1,7 @@
 {
   "extends": "@selly/config/tsconfig.base.json",
   "compilerOptions": {
-    "types": [
-      "node"
-    ]
+    "types": ["node"]
   },
-  "include": [
-    "src",
-    "eval",
-    "tsup.config.ts"
-  ]
+  "include": ["src", "eval", "tsup.config.ts"]
 }

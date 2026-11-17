@@ -31,12 +31,14 @@ export function normalise(text: string): string {
     .trim();
 }
 
-const contains = (haystack: string, needle: string) => normalise(haystack).includes(normalise(needle));
+const contains = (haystack: string, needle: string) =>
+  normalise(haystack).includes(normalise(needle));
 
 /** Does `actual` contain every key of `expected` with an equal value (deeply, partially)? */
 export function partialMatch(actual: unknown, expected: unknown): boolean {
   if (expected === null || typeof expected !== 'object') {
-    if (typeof expected === 'string' && typeof actual === 'string') return normalise(actual) === normalise(expected);
+    if (typeof expected === 'string' && typeof actual === 'string')
+      return normalise(actual) === normalise(expected);
     return actual === expected;
   }
   if (typeof actual !== 'object' || actual === null) return false;
@@ -45,7 +47,8 @@ export function partialMatch(actual: unknown, expected: unknown): boolean {
   );
 }
 
-const FR = /\b(le|la|les|est|vous|pour|avec|une|des|du|nous|votre|oui|bonjour|merci|il|elle|sont|pas)\b/g;
+const FR =
+  /\b(le|la|les|est|vous|pour|avec|une|des|du|nous|votre|oui|bonjour|merci|il|elle|sont|pas)\b/g;
 const EN = /\b(the|is|you|for|with|and|we|our|are|yes|hello|thank|it|this|not|your|can)\b/g;
 
 /** A rough guess of the reply's language from common words: enough to catch a reply in the wrong one. */
@@ -82,7 +85,9 @@ export function grade(c: EvalCase, o: TurnObservation): Grade {
     const calls = o.toolCalls.filter((t) => t.name === name);
     if (!calls.some((t) => partialMatch(t.arguments, expected))) {
       args = false;
-      problems.push(`arguments of ${name}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(calls.map((t) => t.arguments))}`);
+      problems.push(
+        `arguments of ${name}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(calls.map((t) => t.arguments))}`,
+      );
     }
   }
 
@@ -112,7 +117,15 @@ export function grade(c: EvalCase, o: TurnObservation): Grade {
     }
   }
 
-  return { pass: tools && args && facts && handoff && language, tools, args, facts, handoff, language, problems };
+  return {
+    pass: tools && args && facts && handoff && language,
+    tools,
+    args,
+    facts,
+    handoff,
+    language,
+    problems,
+  };
 }
 
 export function percentile(values: number[], p: number): number {

@@ -42,7 +42,11 @@ export class HttpAsr implements AsrProvider {
     private readonly fetchImpl: typeof fetch = fetch,
   ) {}
 
-  async transcribe(audio: Buffer, contentType: string, signal?: AbortSignal): Promise<Transcript | null> {
+  async transcribe(
+    audio: Buffer,
+    contentType: string,
+    signal?: AbortSignal,
+  ): Promise<Transcript | null> {
     const res = await this.fetchImpl(this.url, {
       method: 'POST',
       headers: {

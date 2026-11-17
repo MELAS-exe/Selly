@@ -473,7 +473,13 @@ const adjustStock = tool({
       .update(JSON.stringify([ctx.call.requestId, variant.id, body]))
       .digest('hex')
       .slice(0, 40);
-    const adjusted = await ctx.core.adjustStock(ctx.conversation.vendorId, variant.id, body, key, ctx.call);
+    const adjusted = await ctx.core.adjustStock(
+      ctx.conversation.vendorId,
+      variant.id,
+      body,
+      key,
+      ctx.call,
+    );
     // Stock set to 0 can be undone for 5 minutes (section 8.4).
     if (adjusted.variant.on_hand === 0 && adjusted.movement.delta_on_hand !== 0)
       offerUndo(ctx, {
@@ -491,8 +497,15 @@ export const UNDO_WINDOW_MS = 5 * 60_000;
 
 /** Records how to undo a risky change and offers the « Annuler » button. The undo itself runs in code. */
 function offerUndo(ctx: ToolContext, action: UndoAction) {
-  const id = createHash('sha256').update(JSON.stringify([ctx.call.requestId, action])).digest('hex').slice(0, 12);
-  ctx.state.undo = { ...action, id, expiresAt: new Date(Date.now() + UNDO_WINDOW_MS).toISOString() };
+  const id = createHash('sha256')
+    .update(JSON.stringify([ctx.call.requestId, action]))
+    .digest('hex')
+    .slice(0, 12);
+  ctx.state.undo = {
+    ...action,
+    id,
+    expiresAt: new Date(Date.now() + UNDO_WINDOW_MS).toISOString(),
+  };
   ctx.out.quickReplies = [{ id: `undo:${id}`, label: 'Annuler' }];
 }
 
@@ -515,7 +528,13 @@ const updatePrice = tool({
         ? Math.abs(p.price.amount - product.price.amount) / product.price.amount
         : 1;
     // A change over 30 % can be undone for 5 minutes (section 8.4).
-    if (change > 0.3) offerUndo(ctx, { kind: 'price', productId: product.id, title: product.title, previous: product.price });
+    if (change > 0.3)
+      offerUndo(ctx, {
+        kind: 'price',
+        productId: product.id,
+        title: product.title,
+        previous: product.price,
+      });
     return { product: updated, previous_price: product.price, large_change: change > 0.3 };
   },
 });

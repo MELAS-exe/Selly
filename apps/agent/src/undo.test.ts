@@ -21,12 +21,19 @@ describe('« Annuler » after a risky change (section 8.4)', () => {
     const s = setup();
     const robe = s.core.products.find((p) => p.slug === 'robe-wax-noire');
     s.llm.push(
-      () => [toolCall('update_price', { product_ref: 'Robe wax noire', price: { amount: 5000, currency: 'XOF' } })],
+      () => [
+        toolCall('update_price', {
+          product_ref: 'Robe wax noire',
+          price: { amount: 5000, currency: 'XOF' },
+        }),
+      ],
       () => [say('Prix changé : 5 000 FCFA.')],
     );
     const reply = await assistant(s, { text: 'La robe wax passe à 5 000' });
     expect(robe?.priceXof).toBe(5000);
-    expect(reply.quick_replies).toEqual([{ id: expect.stringMatching(/^undo:/), label: 'Annuler' }]);
+    expect(reply.quick_replies).toEqual([
+      { id: expect.stringMatching(/^undo:/), label: 'Annuler' },
+    ]);
 
     const calls = s.llm.requests.length;
     const undone = await assistant(s, { quick_reply_id: reply.quick_replies[0]?.id });
@@ -42,7 +49,12 @@ describe('« Annuler » after a risky change (section 8.4)', () => {
   it('does not offer Annuler for a small price change', async () => {
     const s = setup();
     s.llm.push(
-      () => [toolCall('update_price', { product_ref: 'Robe wax noire', price: { amount: 16000, currency: 'XOF' } })],
+      () => [
+        toolCall('update_price', {
+          product_ref: 'Robe wax noire',
+          price: { amount: 16000, currency: 'XOF' },
+        }),
+      ],
       () => [say('Prix changé : 16 000 FCFA.')],
     );
     const reply = await assistant(s, { text: 'La robe wax passe à 16 000' });
@@ -51,9 +63,18 @@ describe('« Annuler » after a risky change (section 8.4)', () => {
 
   it('offers Annuler after a stock set to 0, and puts the stock back', async () => {
     const s = setup();
-    const v = s.core.products.find((p) => p.slug === 'robe-wax-noire')?.variants.find((x) => x.options.size === '40');
+    const v = s.core.products
+      .find((p) => p.slug === 'robe-wax-noire')
+      ?.variants.find((x) => x.options.size === '40');
     s.llm.push(
-      () => [toolCall('adjust_stock', { product_ref: 'Robe wax noire', options: { size: '40' }, set_to: 0, reason: 'adjustment' })],
+      () => [
+        toolCall('adjust_stock', {
+          product_ref: 'Robe wax noire',
+          options: { size: '40' },
+          set_to: 0,
+          reason: 'adjustment',
+        }),
+      ],
       () => [say('Plus de robe en 40.')],
     );
     const reply = await assistant(s, { text: 'Plus de robe wax en 40' });
@@ -66,7 +87,12 @@ describe('« Annuler » after a risky change (section 8.4)', () => {
   it('refuses to undo after 5 minutes', async () => {
     const s = setup();
     s.llm.push(
-      () => [toolCall('update_price', { product_ref: 'Robe wax noire', price: { amount: 30000, currency: 'XOF' } })],
+      () => [
+        toolCall('update_price', {
+          product_ref: 'Robe wax noire',
+          price: { amount: 30000, currency: 'XOF' },
+        }),
+      ],
       () => [say('Prix changé : 30 000 FCFA.')],
     );
     const reply = await assistant(s, { text: 'La robe wax passe à 30 000' });

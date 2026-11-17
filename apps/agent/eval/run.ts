@@ -16,7 +16,14 @@ import { FAKE_VENDOR_ID, FakeCore } from '../src/core/fake';
 import type { LlmProvider, LlmRequest, LlmResponse } from '../src/engine/llm';
 import { MemoryStore } from '../src/store/memory';
 import { CASES, type EvalCase } from './cases';
-import { type CallUsage, callCostUsd, type Grade, grade, percentile, type TurnObservation } from './grade';
+import {
+  type CallUsage,
+  callCostUsd,
+  type Grade,
+  grade,
+  percentile,
+  type TurnObservation,
+} from './grade';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -76,15 +83,23 @@ export async function runCase(c: EvalCase, makeProvider: () => LlmProvider): Pro
   });
   const role = c.role ?? 'customer';
   let conversationRef: string | undefined;
-  let last: { reply: { text: string; conversation_id: string }; tool_calls: TurnObservation['toolCalls']; usage: { latency_ms: number } } | null =
-    null;
+  let last: {
+    reply: { text: string; conversation_id: string };
+    tool_calls: TurnObservation['toolCalls'];
+    usage: { latency_ms: number };
+  } | null = null;
   try {
     for (const text of c.turns) {
       const res = await app.inject({
         method: 'POST',
         url: '/internal/v1/agent/chat',
         headers: { authorization: 'Bearer eval-service-token' },
-        payload: { vendor_id: FAKE_VENDOR_ID, role, message_text: text, ...(conversationRef ? { conversation_ref: conversationRef } : {}) },
+        payload: {
+          vendor_id: FAKE_VENDOR_ID,
+          role,
+          message_text: text,
+          ...(conversationRef ? { conversation_ref: conversationRef } : {}),
+        },
       });
       if (res.statusCode !== 200) {
         // A turn refused because the chat went to the vendor (human mode) ends the case there.
@@ -110,7 +125,9 @@ export async function runCase(c: EvalCase, makeProvider: () => LlmProvider): Pro
       turns: c.turns.length,
       observation,
       grade: grade(c, observation),
-      costUsd: costs.some((x) => x === null) ? null : costs.reduce<number>((s, x) => s + (x ?? 0), 0),
+      costUsd: costs.some((x) => x === null)
+        ? null
+        : costs.reduce<number>((s, x) => s + (x ?? 0), 0),
     };
   } catch (err) {
     const observation: TurnObservation = { reply: '', toolCalls: [], mode: 'bot', latencyMs: 0 };
@@ -121,7 +138,15 @@ export async function runCase(c: EvalCase, makeProvider: () => LlmProvider): Pro
       wolofToCheck: Boolean(c.wolofToCheck),
       turns: c.turns.length,
       observation,
-      grade: { pass: false, tools: false, args: false, facts: false, handoff: false, language: false, problems: [String(err)] },
+      grade: {
+        pass: false,
+        tools: false,
+        args: false,
+        facts: false,
+        handoff: false,
+        language: false,
+        problems: [String(err)],
+      },
       costUsd: null,
       error: String(err),
     };
@@ -152,12 +177,22 @@ export function summarise(results: CaseResult[], model: string, eurPerUsd: numbe
   const turns = results.reduce((s, r) => s + r.turns, 0);
   const costs = results.map((r) => r.costUsd).filter((x): x is number => x !== null);
   const totalUsd = costs.reduce((s, x) => s + x, 0);
-  const perReplyUsd = costs.length ? totalUsd / results.filter((r) => r.costUsd !== null).reduce((s, r) => s + r.turns, 0) : null;
+  const perReplyUsd = costs.length
+    ? totalUsd / results.filter((r) => r.costUsd !== null).reduce((s, r) => s + r.turns, 0)
+    : null;
   const latencies = results.map((r) => r.observation.latencyMs).filter((x) => x > 0);
   const byLang = Object.fromEntries(
     ['fr', 'en', 'wo', 'mixed'].map((l) => {
       const rs = results.filter((r) => r.lang === l);
-      return [l, { cases: rs.length, pass: rs.length ? Math.round((100 * rs.filter((r) => r.grade.pass).length) / rs.length) : null }];
+      return [
+        l,
+        {
+          cases: rs.length,
+          pass: rs.length
+            ? Math.round((100 * rs.filter((r) => r.grade.pass).length) / rs.length)
+            : null,
+        },
+      ];
     }),
   );
   return {
@@ -208,7 +243,10 @@ function markdown(s: ReturnType<typeof summarise>, results: CaseResult[]): strin
     '',
     ...results
       .filter((r) => !r.grade.pass)
-      .map((r) => `- **${r.id}** (${r.intent}): ${r.grade.problems.join('; ')}. Reply: « ${r.observation.reply.slice(0, 160).replaceAll('\n', ' ')} »`),
+      .map(
+        (r) =>
+          `- **${r.id}** (${r.intent}): ${r.grade.problems.join('; ')}. Reply: « ${r.observation.reply.slice(0, 160).replaceAll('\n', ' ')} »`,
+      ),
   ];
   return `${lines.join('\n')}\n`;
 }
@@ -216,7 +254,9 @@ function markdown(s: ReturnType<typeof summarise>, results: CaseResult[]): strin
 async function main() {
   // Request logs would drown the progress line; the report has what matters.
   process.env.NODE_ENV = 'test';
-  const model = arg('model') ?? (process.env.LLM_PRIMARY?.startsWith('claude-') ? process.env.LLM_PRIMARY : 'claude-opus-5-5');
+  const model =
+    arg('model') ??
+    (process.env.LLM_PRIMARY?.startsWith('claude-') ? process.env.LLM_PRIMARY : 'claude-opus-5-5');
   const limit = Number(arg('limit') ?? CASES.length);
   const only = arg('only')?.split(',').filter(Boolean);
   const concurrency = Number(arg('concurrency') ?? 4);

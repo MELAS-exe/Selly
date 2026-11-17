@@ -315,7 +315,10 @@ export class PostgresStore implements AgentStore {
   }
 
   async getVendorPause(vendorId: string) {
-    const [row] = await this.db.select().from(vendorSettings).where(eq(vendorSettings.vendorId, vendorId));
+    const [row] = await this.db
+      .select()
+      .from(vendorSettings)
+      .where(eq(vendorSettings.vendorId, vendorId));
     return row?.botPaused ? { until: row.botPausedUntil } : null;
   }
 

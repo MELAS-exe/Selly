@@ -17,6 +17,7 @@ import {
   type TurnResult,
   TurnTimeoutError,
 } from '../engine';
+import { formatXof } from '../engine/filter';
 import {
   checkTurn,
   type EntitlementsCache,
@@ -26,7 +27,6 @@ import {
 } from '../quota';
 import type { AgentStore, Conversation, StoredMessage } from '../store/types';
 import type { HandoffRequest } from '../tools';
-import { formatXof } from '../engine/filter';
 import { assistantLabel, type ConversationService, diffState } from '.';
 
 export interface TurnDeps {
@@ -135,7 +135,9 @@ export class TurnService {
 
   /** One turn, under the conversation lock: no two instances answer the same chat at once. */
   private processOnce(conversationId: string): Promise<TurnOutcome | null> {
-    return this.d.store.withConversationLock(conversationId, () => this.processLocked(conversationId));
+    return this.d.store.withConversationLock(conversationId, () =>
+      this.processLocked(conversationId),
+    );
   }
 
   private async processLocked(conversationId: string): Promise<TurnOutcome | null> {
@@ -145,7 +147,10 @@ export class TurnService {
     const pending = await this.d.store.pendingInbound(conv.id);
     if (pending.length === 0) return null;
 
-    if (conv.role === 'customer' && (conv.mode !== 'bot' || (await this.isVendorPaused(conv.vendorId)))) {
+    if (
+      conv.role === 'customer' &&
+      (conv.mode !== 'bot' || (await this.isVendorPaused(conv.vendorId)))
+    ) {
       // The vendor is answering: the message is only stored, and the vendor is alerted (section 7.2).
       await this.notify(conv, {
         type: 'conversation.new',
@@ -227,7 +232,12 @@ export class TurnService {
     } else {
       try {
         if (u.kind === 'price') {
-          await this.d.core.updateProduct(conv.vendorId, u.productId, { price: u.previous }, { actor: `vendor:${conv.vendorId}` });
+          await this.d.core.updateProduct(
+            conv.vendorId,
+            u.productId,
+            { price: u.previous },
+            { actor: `vendor:${conv.vendorId}` },
+          );
           text = `Annulé : ${u.title} revient à ${formatXof(u.previous.amount)}.`;
         } else {
           await this.d.core.adjustStock(

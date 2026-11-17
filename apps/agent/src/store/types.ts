@@ -221,5 +221,10 @@ export interface AgentStore {
 
 /** A change the vendor can undo (section 8.4): a large price change, or a stock set to 0. */
 export type UndoAction =
-  | { kind: 'price'; productId: string; title: string; previous: { amount: number; currency: 'XOF' | 'SAT' } }
+  | {
+      kind: 'price';
+      productId: string;
+      title: string;
+      previous: { amount: number; currency: 'XOF' | 'SAT' };
+    }
   | { kind: 'stock'; productId: string; variantId: string; title: string; previousOnHand: number };

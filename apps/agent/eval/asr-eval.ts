@@ -29,7 +29,11 @@ export function wer(reference: string, hypothesis: string): number {
     const cur = [i];
     for (let j = 1; j <= h.length; j++) {
       const cost = r[i - 1] === h[j - 1] ? 0 : 1;
-      cur[j] = Math.min((prev[j] as number) + 1, (cur[j - 1] as number) + 1, (prev[j - 1] as number) + cost);
+      cur[j] = Math.min(
+        (prev[j] as number) + 1,
+        (cur[j - 1] as number) + 1,
+        (prev[j - 1] as number) + cost,
+      );
     }
     prev = cur;
   }
@@ -37,19 +41,29 @@ export function wer(reference: string, hypothesis: string): number {
 }
 
 const typeOf = (file: string) =>
-  file.endsWith('.ogg') ? 'audio/ogg' : file.endsWith('.mp4') || file.endsWith('.m4a') ? 'audio/mp4' : 'audio/webm';
+  file.endsWith('.ogg')
+    ? 'audio/ogg'
+    : file.endsWith('.mp4') || file.endsWith('.m4a')
+      ? 'audio/mp4'
+      : 'audio/webm';
 
 async function main() {
   const url = process.env.ASR_URL;
   if (!url) throw new Error('Set ASR_URL (and ASR_API_KEY if the service needs one).');
   const dir = join(dirname(fileURLToPath(import.meta.url)), 'asr');
-  const labels = JSON.parse(readFileSync(join(dir, 'labels.json'), 'utf8')) as { file: string; language: string; text: string }[];
+  const labels = JSON.parse(readFileSync(join(dir, 'labels.json'), 'utf8')) as {
+    file: string;
+    language: string;
+    text: string;
+  }[];
   const asr = new HttpAsr(url, process.env.ASR_API_KEY ?? '', 30_000);
   const byLang = new Map<string, { n: number; wer: number; unsure: number; failed: number }>();
   for (const l of labels) {
     const s = byLang.get(l.language) ?? { n: 0, wer: 0, unsure: 0, failed: 0 };
     s.n++;
-    const t = await asr.transcribe(readFileSync(join(dir, l.file)), typeOf(l.file)).catch(() => null);
+    const t = await asr
+      .transcribe(readFileSync(join(dir, l.file)), typeOf(l.file))
+      .catch(() => null);
     if (!t) s.failed++;
     else {
       s.wer += wer(l.text, t.text);
@@ -61,7 +75,9 @@ async function main() {
   console.log('| --- | --- | --- | --- | --- |');
   for (const [lang, s] of byLang) {
     const ok = s.n - s.failed;
-    console.log(`| ${lang} | ${s.n} | ${ok ? Math.round((100 * s.wer) / ok) : '-'} % | ${s.unsure} | ${s.failed} |`);
+    console.log(
+      `| ${lang} | ${s.n} | ${ok ? Math.round((100 * s.wer) / ok) : '-'} % | ${s.unsure} | ${s.failed} |`,
+    );
   }
 }
 

@@ -92,12 +92,8 @@
           "tableFrom": "customer_identities",
           "tableTo": "vendors",
           "schemaTo": "core",
-          "columnsFrom": [
-            "vendor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["vendor_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -106,12 +102,8 @@
           "tableFrom": "customer_identities",
           "tableTo": "customers",
           "schemaTo": "core",
-          "columnsFrom": [
-            "customer_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["customer_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -119,11 +111,7 @@
       "compositePrimaryKeys": {
         "customer_identities_vendor_id_channel_external_id_pk": {
           "name": "customer_identities_vendor_id_channel_external_id_pk",
-          "columns": [
-            "vendor_id",
-            "channel",
-            "external_id"
-          ]
+          "columns": ["vendor_id", "channel", "external_id"]
         }
       },
       "uniqueConstraints": {},
@@ -174,12 +162,8 @@
           "tableFrom": "customers",
           "tableTo": "vendors",
           "schemaTo": "core",
-          "columnsFrom": [
-            "vendor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["vendor_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -237,10 +221,7 @@
       "compositePrimaryKeys": {
         "idempotency_keys_scope_key_pk": {
           "name": "idempotency_keys_scope_key_pk",
-          "columns": [
-            "scope",
-            "key"
-          ]
+          "columns": ["scope", "key"]
         }
       },
       "uniqueConstraints": {},
@@ -339,12 +320,8 @@
           "tableFrom": "inventory_movements",
           "tableTo": "product_variants",
           "schemaTo": "core",
-          "columnsFrom": [
-            "variant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["variant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -492,12 +469,8 @@
           "tableFrom": "invoices",
           "tableTo": "orders",
           "schemaTo": "core",
-          "columnsFrom": [
-            "order_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["order_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -506,12 +479,8 @@
           "tableFrom": "invoices",
           "tableTo": "vendors",
           "schemaTo": "core",
-          "columnsFrom": [
-            "vendor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["vendor_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -520,12 +489,8 @@
           "tableFrom": "invoices",
           "tableTo": "wallet_connections",
           "schemaTo": "core",
-          "columnsFrom": [
-            "wallet_connection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["wallet_connection_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -535,10 +500,7 @@
         "invoices_vendor_hash": {
           "name": "invoices_vendor_hash",
           "nullsNotDistinct": false,
-          "columns": [
-            "vendor_id",
-            "payment_hash"
-          ]
+          "columns": ["vendor_id", "payment_hash"]
         }
       },
       "policies": {},
@@ -609,9 +571,7 @@
         "nostr_challenges_challenge_unique": {
           "name": "nostr_challenges_challenge_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "challenge"
-          ]
+          "columns": ["challenge"]
         }
       },
       "policies": {},
@@ -680,12 +640,8 @@
           "tableFrom": "order_items",
           "tableTo": "orders",
           "schemaTo": "core",
-          "columnsFrom": [
-            "order_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["order_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -694,12 +650,8 @@
           "tableFrom": "order_items",
           "tableTo": "product_variants",
           "schemaTo": "core",
-          "columnsFrom": [
-            "variant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["variant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -908,12 +860,8 @@
           "tableFrom": "orders",
           "tableTo": "vendors",
           "schemaTo": "core",
-          "columnsFrom": [
-            "vendor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["vendor_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -922,12 +870,8 @@
           "tableFrom": "orders",
           "tableTo": "customers",
           "schemaTo": "core",
-          "columnsFrom": [
-            "customer_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["customer_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -936,12 +880,8 @@
           "tableFrom": "orders",
           "tableTo": "rate_quotes",
           "schemaTo": "core",
-          "columnsFrom": [
-            "rate_quote_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["rate_quote_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -951,17 +891,12 @@
         "orders_public_token_unique": {
           "name": "orders_public_token_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "public_token"
-          ]
+          "columns": ["public_token"]
         },
         "orders_vendor_number": {
           "name": "orders_vendor_number",
           "nullsNotDistinct": false,
-          "columns": [
-            "vendor_id",
-            "number"
-          ]
+          "columns": ["vendor_id", "number"]
         }
       },
       "policies": {},
@@ -1198,12 +1133,8 @@
           "tableFrom": "product_drafts",
           "tableTo": "vendors",
           "schemaTo": "core",
-          "columnsFrom": [
-            "vendor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["vendor_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1212,12 +1143,8 @@
           "tableFrom": "product_drafts",
           "tableTo": "products",
           "schemaTo": "core",
-          "columnsFrom": [
-            "target_product_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["target_product_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1283,12 +1210,8 @@
           "tableFrom": "product_images",
           "tableTo": "products",
           "schemaTo": "core",
-          "columnsFrom": [
-            "product_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["product_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1356,12 +1279,8 @@
           "tableFrom": "product_variants",
           "tableTo": "products",
           "schemaTo": "core",
-          "columnsFrom": [
-            "product_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["product_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1371,10 +1290,7 @@
         "variants_unique_options": {
           "name": "variants_unique_options",
           "nullsNotDistinct": false,
-          "columns": [
-            "product_id",
-            "options"
-          ]
+          "columns": ["product_id", "options"]
         }
       },
       "policies": {},
@@ -1544,12 +1460,8 @@
           "tableFrom": "products",
           "tableTo": "vendors",
           "schemaTo": "core",
-          "columnsFrom": [
-            "vendor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["vendor_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1559,10 +1471,7 @@
         "products_vendor_slug": {
           "name": "products_vendor_slug",
           "nullsNotDistinct": false,
-          "columns": [
-            "vendor_id",
-            "slug"
-          ]
+          "columns": ["vendor_id", "slug"]
         }
       },
       "policies": {},
@@ -1818,12 +1727,8 @@
           "tableFrom": "subscription_invoices",
           "tableTo": "vendors",
           "schemaTo": "core",
-          "columnsFrom": [
-            "vendor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["vendor_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1832,12 +1737,8 @@
           "tableFrom": "subscription_invoices",
           "tableTo": "subscriptions",
           "schemaTo": "core",
-          "columnsFrom": [
-            "subscription_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["subscription_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1846,12 +1747,8 @@
           "tableFrom": "subscription_invoices",
           "tableTo": "plans",
           "schemaTo": "core",
-          "columnsFrom": [
-            "plan_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["plan_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1860,12 +1757,8 @@
           "tableFrom": "subscription_invoices",
           "tableTo": "wallet_connections",
           "schemaTo": "core",
-          "columnsFrom": [
-            "wallet_connection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["wallet_connection_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1875,10 +1768,7 @@
         "sub_invoices_wallet_hash": {
           "name": "sub_invoices_wallet_hash",
           "nullsNotDistinct": false,
-          "columns": [
-            "wallet_connection_id",
-            "payment_hash"
-          ]
+          "columns": ["wallet_connection_id", "payment_hash"]
         }
       },
       "policies": {},
@@ -1989,12 +1879,8 @@
           "tableFrom": "subscriptions",
           "tableTo": "vendors",
           "schemaTo": "core",
-          "columnsFrom": [
-            "vendor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["vendor_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2003,12 +1889,8 @@
           "tableFrom": "subscriptions",
           "tableTo": "plans",
           "schemaTo": "core",
-          "columnsFrom": [
-            "plan_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["plan_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2017,12 +1899,8 @@
           "tableFrom": "subscriptions",
           "tableTo": "plans",
           "schemaTo": "core",
-          "columnsFrom": [
-            "next_plan_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["next_plan_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2032,9 +1910,7 @@
         "subscriptions_vendor_id_unique": {
           "name": "subscriptions_vendor_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "vendor_id"
-          ]
+          "columns": ["vendor_id"]
         }
       },
       "policies": {},
@@ -2072,12 +1948,8 @@
           "tableFrom": "trial_claims",
           "tableTo": "vendors",
           "schemaTo": "core",
-          "columnsFrom": [
-            "vendor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["vendor_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2125,12 +1997,8 @@
           "tableFrom": "usage_counters",
           "tableTo": "vendors",
           "schemaTo": "core",
-          "columnsFrom": [
-            "vendor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["vendor_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2138,11 +2006,7 @@
       "compositePrimaryKeys": {
         "usage_counters_vendor_id_metric_month_pk": {
           "name": "usage_counters_vendor_id_metric_month_pk",
-          "columns": [
-            "vendor_id",
-            "metric",
-            "month"
-          ]
+          "columns": ["vendor_id", "metric", "month"]
         }
       },
       "uniqueConstraints": {},
@@ -2221,12 +2085,8 @@
           "tableFrom": "vendor_keys",
           "tableTo": "vendors",
           "schemaTo": "core",
-          "columnsFrom": [
-            "vendor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["vendor_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2316,12 +2176,8 @@
           "tableFrom": "vendor_sessions",
           "tableTo": "vendors",
           "schemaTo": "core",
-          "columnsFrom": [
-            "vendor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["vendor_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2331,9 +2187,7 @@
         "vendor_sessions_token_hash_unique": {
           "name": "vendor_sessions_token_hash_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token_hash"
-          ]
+          "columns": ["token_hash"]
         }
       },
       "policies": {},
@@ -2411,9 +2265,7 @@
         "vendors_slug_unique": {
           "name": "vendors_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         }
       },
       "policies": {},
@@ -2592,12 +2444,8 @@
           "tableFrom": "wallet_connections",
           "tableTo": "vendors",
           "schemaTo": "core",
-          "columnsFrom": [
-            "vendor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["vendor_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2675,12 +2523,8 @@
           "tableFrom": "chat_sessions",
           "tableTo": "conversations",
           "schemaTo": "agent",
-          "columnsFrom": [
-            "conversation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["conversation_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2690,9 +2534,7 @@
         "chat_sessions_token_hash_unique": {
           "name": "chat_sessions_token_hash_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token_hash"
-          ]
+          "columns": ["token_hash"]
         }
       },
       "policies": {},
@@ -2813,11 +2655,7 @@
         "conversations_vendor_channel_user": {
           "name": "conversations_vendor_channel_user",
           "nullsNotDistinct": false,
-          "columns": [
-            "vendor_id",
-            "channel",
-            "external_user_id"
-          ]
+          "columns": ["vendor_id", "channel", "external_user_id"]
         }
       },
       "policies": {},
@@ -3045,12 +2883,8 @@
           "tableFrom": "messages",
           "tableTo": "conversations",
           "schemaTo": "agent",
-          "columnsFrom": [
-            "conversation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["conversation_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3060,10 +2894,7 @@
         "messages_conversation_client_id": {
           "name": "messages_conversation_client_id",
           "nullsNotDistinct": false,
-          "columns": [
-            "conversation_id",
-            "client_message_id"
-          ]
+          "columns": ["conversation_id", "client_message_id"]
         }
       },
       "policies": {},
@@ -3163,40 +2994,22 @@
     "core.channel": {
       "name": "channel",
       "schema": "core",
-      "values": [
-        "whatsapp",
-        "instagram",
-        "web"
-      ]
+      "values": ["whatsapp", "instagram", "web"]
     },
     "core.currency": {
       "name": "currency",
       "schema": "core",
-      "values": [
-        "XOF",
-        "SAT"
-      ]
+      "values": ["XOF", "SAT"]
     },
     "core.invoice_status": {
       "name": "invoice_status",
       "schema": "core",
-      "values": [
-        "pending",
-        "settled",
-        "expired",
-        "cancelled"
-      ]
+      "values": ["pending", "settled", "expired", "cancelled"]
     },
     "core.order_status": {
       "name": "order_status",
       "schema": "core",
-      "values": [
-        "pending_payment",
-        "paid",
-        "fulfilled",
-        "cancelled",
-        "expired"
-      ]
+      "values": ["pending_payment", "paid", "fulfilled", "cancelled", "expired"]
     }
   },
   "schemas": {
