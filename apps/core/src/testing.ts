@@ -8,8 +8,14 @@ import type { TestApp } from './test-helpers';
 
 export { assertContract } from './contract';
 export { dispatchOnce, signEvent } from './modules/events/dispatcher';
-export { confirmPayment, reconcileOnce, settleInvoice } from './modules/payments/service';
 export {
+  confirmPayment,
+  reconcileLateOnce,
+  reconcileOnce,
+  settleInvoice,
+} from './modules/payments/service';
+export {
+  reconcileLateSubscriptionInvoices,
   reconcileSubscriptionInvoices,
   runSubscriptionJob,
   settleSubscriptionInvoice,

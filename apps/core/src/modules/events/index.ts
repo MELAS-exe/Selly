@@ -59,15 +59,21 @@ export const eventsModule: FastifyPluginAsync = async (app) => {
 
     let closed = false;
     let busy = false;
+    let again = false;
     let lastWrite = Date.now();
     let lastCheck = Date.now();
     const stop = () => {
       closed = true;
       clearInterval(timer);
+      off();
       if (!res.writableEnded) res.end();
     };
-    const tick = async () => {
-      if (closed || busy) return;
+    const tick = async (): Promise<void> => {
+      if (closed) return;
+      if (busy) {
+        again = true;
+        return;
+      }
       busy = true;
       try {
         if (Date.now() - lastCheck >= ctx().config.VENDOR_STREAM_SESSION_CHECK_MS) {
@@ -92,8 +98,15 @@ export const eventsModule: FastifyPluginAsync = async (app) => {
       } finally {
         busy = false;
       }
+      if (again) {
+        again = false;
+        return tick();
+      }
     };
+    // Wakes at once on a new notification for this vendor (LISTEN/NOTIFY); the poll is the fallback, and also
+    // drives the pings and the session check.
     const timer = setInterval(tick, ctx().config.SSE_POLL_MS);
+    const off = ctx().signals.on('vendor', s.vendorId, () => void tick());
     req.raw.on('close', stop);
     await tick();
   });
