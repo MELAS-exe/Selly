@@ -670,6 +670,7 @@ export async function confirmSubscriptionPayment(
     vendorId: inv.vendorId,
     walletConnectionId: inv.walletConnectionId,
     paymentHash: inv.paymentHash,
+    verifyUrl: inv.verifyUrl,
   });
   if (!state.settled) return 'pending';
   return settleSubscriptionInvoice(ctx, { invoiceId: inv.id, preimage: state.preimage });
@@ -697,6 +698,7 @@ export async function reconcileLateSubscriptionInvoices(
         vendorId: inv.vendorId,
         walletConnectionId: inv.walletConnectionId,
         paymentHash: inv.paymentHash,
+        verifyUrl: inv.verifyUrl,
       });
       if (
         found.settled &&
@@ -726,6 +728,7 @@ export async function reconcileSubscriptionInvoices(
         vendorId: inv.vendorId,
         walletConnectionId: inv.walletConnectionId,
         paymentHash: inv.paymentHash,
+        verifyUrl: inv.verifyUrl,
       });
       if (found.settled) {
         if (
