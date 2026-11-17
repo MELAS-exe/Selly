@@ -11,8 +11,11 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"
   },
-  "dependencies": {},
+  "dependencies": {
+    "nostr-tools": "2.26.1"
+  },
   "devDependencies": {
-    "@selly/config": "workspace:*"
+    "@selly/config": "workspace:*",
+    "fast-check": "^4.10.2"
   }
 }
