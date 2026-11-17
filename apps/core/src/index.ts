@@ -176,7 +176,16 @@ async function main() {
     await purgeOldNotifications(db, now());
     await purgeOldChallenges(db, now());
   });
-  if (gateway) every(WALLET_REFRESH_MS, 'wallet refresh', () => (gateway as NwcGateway).refresh());
+  if (gateway) {
+    every(WALLET_REFRESH_MS, 'wallet refresh', () => (gateway as NwcGateway).refresh());
+    // A wallet linked on any process: the leader subscribes to its notifications at once.
+    signals.on('wallet', 'linked', () => {
+      if (leader.isLeader())
+        gateway
+          ?.refresh()
+          .catch((err) => app.log.warn({ err: String(err) }, 'wallet refresh failed'));
+    });
+  }
   if (pairing) every(5_000, 'pairing refresh', () => pairing.refresh());
 
   const shutdown = async () => {
