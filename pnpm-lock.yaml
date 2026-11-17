@@ -51,6 +51,9 @@ importers:
       '@selly/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@selly/core':
+        specifier: workspace:*
+        version: link:../core
       '@types/node':
         specifier: ^24
         version: 24.19.2

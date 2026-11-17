@@ -74,18 +74,17 @@ src/
 
 ## The real core
 
-`src/e2e/real-core.test.ts` runs the agent's HTTP client against core's app (PGlite, simulated wallet) and core's outbox dispatcher against the agent's app. It covers: chat session by slug, search, product detail, negotiated quote (capped at 10 %), order with `discount_pct`, payment settled by core, `order.paid` delivered and shown in the chat, order status, and the vendor tools (stock, price, orders, fulfilment, metrics).
+`src/e2e/real-core.test.ts` runs the agent's HTTP client against core's app (PGlite, simulated wallet) and core's outbox dispatcher against the agent's app. It covers: chat session by slug, search, product detail, negotiated quote (capped at 10 %), order with `discount_pct`, payment settled by core, `order.paid` delivered and shown in the chat, order status, the vendor tools (stock, price, orders, fulfilment, metrics), and the inbox and assistant on a real vendor session (`sessions/introspect`).
 
 Also checked by hand with real processes on PostgreSQL 18: core's migrations create the `agent` schema, the chat answers from core's demo catalog over SSE, and core delivers signed events to the agent.
 
 Core does not serve these yet; the agent degrades as follows:
 
-| Route                                                                                            | Used for                   | Without it                                                    |
-| ------------------------------------------------------------------------------------------------ | -------------------------- | ------------------------------------------------------------- |
-| `POST /internal/v1/sessions/introspect`                                                          | inbox and vendor assistant | vendor routes answer 504: use `AGENT_CORE_MODE=fake` for them |
-| `POST /internal/v1/vendors/{id}/product-drafts`, `POST /internal/v1/product-drafts/{id}/confirm` | photo drafts               | the assistant says it cannot do it now                        |
-| `POST /internal/v1/media`                                                                        | customer voice notes       | the upload fails                                              |
-| `POST /internal/v1/vendors/{id}/notifications`                                                   | handoff and quota alerts   | logged, the chat goes on                                      |
+| Route                                                                                            | Used for                 | Without it                             |
+| ------------------------------------------------------------------------------------------------ | ------------------------ | -------------------------------------- |
+| `POST /internal/v1/vendors/{id}/product-drafts`, `POST /internal/v1/product-drafts/{id}/confirm` | photo drafts             | the assistant says it cannot do it now |
+| `POST /internal/v1/media`                                                                        | customer voice notes     | the upload fails                       |
+| `POST /internal/v1/vendors/{id}/notifications`                                                   | handoff and quota alerts | logged, the chat goes on               |
 
 ## Points for Dev 3 (core) to check
 
@@ -101,9 +100,39 @@ Core does not serve these yet; the agent degrades as follows:
 - A message with only `quick_reply_id` (no text) is fine: the agent uses the button's label.
 - Payment confirmations arrive as `author: "system"` messages with an order card.
 
+## Several agent instances
+
+Turns, live events and the bot pause work across instances when the agent uses PostgreSQL:
+
+- **One turn at a time per chat**: a session-level advisory lock per conversation, on its own connection (`store/postgres.ts`).
+- **Live events**: each instance publishes its events with `pg_notify('agent_events', ...)` and listens on the same channel (`chat/bus.ts`). Events larger than one NOTIFY travel as the message id and are read from the store. Event ids follow the clock, so `Last-Event-ID` works on any instance.
+- **"Pause all chats"**: stored in `agent.vendor_settings` (migration `0005`), so it holds for every instance and survives a restart.
+
+Checked with two agent processes on PostgreSQL 18: a reply produced on one instance reached a stream open on the other, and simultaneous messages sent to both instances got exactly one reply per burst.
+
+## « Annuler » (section 8.4)
+
+After a price change over 30 % or a stock set to 0, the assistant's reply carries an « Annuler » button for 5 minutes. The undo runs in code (no model call), with the value saved before the change.
+
+## Evaluation (section 12.4)
+
+`eval/cases.ts` holds 100 cases on the demo shop: French, English, Wolof, mixed, typos, voice transcripts, negotiation, orders over several turns, handoffs, off-topic requests, prompt injections and vendor commands. Each case says which tools the turn must (and must not) call, the facts the reply must contain, and the language.
+
+```sh
+pnpm --filter @selly/agent eval -- --limit 10          # start small: every run is billed
+pnpm --filter @selly/agent eval -- --only wo-,mix-     # some cases only
+pnpm --filter @selly/agent eval -- --model claude-sonnet-5-5
+```
+
+It needs `ANTHROPIC_API_KEY`. The report (`eval/results/`, not committed) gives the pass rate, correct tools and arguments, facts, handoffs, reply language, latency p50 and p95, and the cost per reply against the 0.004 EUR the plans assume (`EUR_PER_USD`, 0.9 by default). The Wolof and mixed cases were written by a non-native speaker: a native speaker must check them before those scores count.
+
+## Speech to text
+
+`ASR_URL` points the agent at any HTTP service that takes the audio bytes and answers `{ text, confidence, language }` (`src/asr/index.ts`), for example a small server around Omnilingual ASR (F9). Before switching it on, measure it on labelled voice notes recorded by native speakers: `eval/asr/labels.json` and the audio files, then `pnpm --filter @selly/agent asr-eval` gives the word error rate per language. Without `ASR_URL`, voice notes get « pouvez-vous l'écrire ? ».
+
 ## Limits of this version
 
-- The SSE hub, the turn scheduler, the rate limits and the "pause all chats" switch are in memory: run **one** agent instance, and a restart forgets a pause. Before several instances: LISTEN/NOTIFY for the hub, `pg_advisory_xact_lock` per conversation for turns, and the pause stored in PostgreSQL.
-- No speech-to-text provider yet (Wolof must be measured first, F9): voice notes get « pouvez-vous l'écrire ? ».
-- The « Annuler » button for large price changes or stock set to 0 (§8.4) is not built yet; the assistant reminds the vendor they can correct it.
-- The PostgreSQL store is tested by `store.test.ts` on PGlite (every migration applied), and on a real PostgreSQL when `TEST_DATABASE_URL` is set.
+- Voice notes are kept in the instance that received the upload until the turn reads them: with several instances, the upload and the message must reach the same one (sticky routing on the chat token) until core's `/internal/v1/media` lets any instance read them back.
+- Rate limits are per instance: with n instances a customer gets n times the limit.
+- No speech-to-text service is chosen yet: there are no labelled Wolof voice notes to measure one on.
+- The PostgreSQL store is tested on PGlite (every migration applied) and on a real PostgreSQL when `TEST_DATABASE_URL` is set.

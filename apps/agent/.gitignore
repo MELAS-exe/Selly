@@ -1,0 +1,4 @@
+# Voice notes for asr-eval: personal data, never committed.
+eval/asr/
+# Evaluation reports (they contain model replies); share the summary instead.
+eval/results/

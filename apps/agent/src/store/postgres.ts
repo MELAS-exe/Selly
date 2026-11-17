@@ -32,7 +32,7 @@ import type {
   StoredMessage,
 } from './types';
 
-const { conversations, chatSessions, messages, llmCalls, processedEvents } = agent;
+const { conversations, chatSessions, messages, llmCalls, processedEvents, vendorSettings } = agent;
 
 type ConvRow = typeof conversations.$inferSelect;
 type MsgRow = typeof messages.$inferSelect;
@@ -50,15 +50,49 @@ const toMessage = (r: MsgRow): StoredMessage => ({
 
 type AnyPgDatabase = PgDatabase<any, any, any>;
 
+/** Holds a session-level advisory lock on a dedicated connection while `fn` runs. */
+export type ConversationLock = <T>(key: string, fn: () => Promise<T>) => Promise<T>;
+
+export function poolLock(pool: pg.Pool): ConversationLock {
+  return async (key, fn) => {
+    const client = await pool.connect();
+    try {
+      await client.query('select pg_advisory_lock(hashtextextended($1, 0))', [key]);
+      try {
+        return await fn();
+      } finally {
+        await client.query('select pg_advisory_unlock(hashtextextended($1, 0))', [key]);
+      }
+    } finally {
+      client.release();
+    }
+  };
+}
+
 export class PostgresStore implements AgentStore {
   constructor(
     private readonly db: AnyPgDatabase,
     private readonly onClose: () => Promise<void> = async () => {},
+    /** Without a lock (PGlite in tests: one process), turns are serialised in memory only. */
+    private readonly lock: ConversationLock | null = null,
+    /** The pool, for LISTEN/NOTIFY (chat/bus.ts). */
+    readonly pool: pg.Pool | null = null,
   ) {}
 
   static connect(url: string) {
     const pool = new pg.Pool({ connectionString: url, max: 10 });
-    return new PostgresStore(drizzle(pool), () => pool.end());
+    // Advisory locks live on their own pool. Each held lock pins a connection for the whole turn,
+    // and the turn's queries need the main pool: sharing one pool would deadlock once 10 turns hold
+    // a lock and wait for a free connection. A full lock pool only queues turns.
+    const lockPool = new pg.Pool({ connectionString: url, max: 20 });
+    return new PostgresStore(
+      drizzle(pool),
+      async () => {
+        await Promise.all([pool.end(), lockPool.end()]);
+      },
+      poolLock(lockPool),
+      pool,
+    );
   }
 
   /** Fails when the agent schema has not been migrated. */
@@ -289,6 +323,28 @@ export class PostgresStore implements AgentStore {
 
   async recordLlmCall(c: LlmCallRecord) {
     await this.db.insert(llmCalls).values({ ...c, id: uuidv7() });
+  }
+
+  async getVendorPause(vendorId: string) {
+    const [row] = await this.db
+      .select()
+      .from(vendorSettings)
+      .where(eq(vendorSettings.vendorId, vendorId));
+    return row?.botPaused ? { until: row.botPausedUntil } : null;
+  }
+
+  async setVendorPause(vendorId: string, paused: boolean, until: Date | null) {
+    await this.db
+      .insert(vendorSettings)
+      .values({ vendorId, botPaused: paused, botPausedUntil: until })
+      .onConflictDoUpdate({
+        target: vendorSettings.vendorId,
+        set: { botPaused: paused, botPausedUntil: until, updatedAt: new Date() },
+      });
+  }
+
+  withConversationLock<T>(conversationId: string, fn: () => Promise<T>) {
+    return this.lock ? this.lock(`conversation:${conversationId}`, fn) : fn();
   }
 
   async hasProcessedEvent(eventId: string) {

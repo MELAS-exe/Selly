@@ -46,7 +46,13 @@ export interface LlmResponse {
   providerContent?: unknown;
   stopReason: 'end_turn' | 'tool_use' | 'max_tokens' | 'refusal' | 'other';
   model: string;
-  usage: { inputTokens: number; outputTokens: number };
+  /** `inputTokens` counts every input token; the cache fields say how many of them were cached. */
+  usage: {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens?: number;
+    cacheWriteTokens?: number;
+  };
 }
 
 export interface LlmProvider {

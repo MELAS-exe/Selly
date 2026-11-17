@@ -24,6 +24,56 @@ export class NoAsr implements AsrProvider {
   }
 }
 
+/**
+ * Any speech-to-text service behind a small HTTP contract, so the team can try Omnilingual ASR (F9)
+ * or a commercial service without changing the agent:
+ *
+ *   POST <ASR_URL>   body: the audio bytes   content-type: audio/webm | audio/ogg | audio/mp4
+ *   200 { "text": "...", "confidence": 0.0-1.0, "language": "fr" | "wo" | "en" | "mixed" | "unknown" }
+ *
+ * `scripts/asr-eval.ts` measures a service on labelled voice notes before it is switched on.
+ */
+export class HttpAsr implements AsrProvider {
+  readonly name = 'http';
+  constructor(
+    private readonly url: string,
+    private readonly apiKey = '',
+    private readonly timeoutMs = 8_000,
+    private readonly fetchImpl: typeof fetch = fetch,
+  ) {}
+
+  async transcribe(
+    audio: Buffer,
+    contentType: string,
+    signal?: AbortSignal,
+  ): Promise<Transcript | null> {
+    const res = await this.fetchImpl(this.url, {
+      method: 'POST',
+      headers: {
+        'content-type': contentType,
+        ...(this.apiKey ? { authorization: `Bearer ${this.apiKey}` } : {}),
+      },
+      body: new Uint8Array(audio),
+      signal: signal ?? AbortSignal.timeout(this.timeoutMs),
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as Partial<Transcript>;
+    if (typeof body.text !== 'string' || typeof body.confidence !== 'number') return null;
+    const languages = ['fr', 'wo', 'en', 'mixed', 'unknown'] as const;
+    return {
+      text: body.text,
+      confidence: Math.max(0, Math.min(1, body.confidence)),
+      language: languages.includes(body.language as (typeof languages)[number])
+        ? (body.language as Transcript['language'])
+        : 'unknown',
+    };
+  }
+}
+
+export function asrFromEnv(env: NodeJS.ProcessEnv = process.env): AsrProvider {
+  return env.ASR_URL ? new HttpAsr(env.ASR_URL, env.ASR_API_KEY ?? '') : new NoAsr();
+}
+
 export class ScriptedAsr implements AsrProvider {
   readonly name = 'scripted';
   constructor(private readonly result: Transcript | null) {}

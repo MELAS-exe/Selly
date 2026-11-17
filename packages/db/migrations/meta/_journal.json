@@ -43,6 +43,13 @@
       "when": 1794924092913,
       "tag": "0005_vendor_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794928415267,
+      "tag": "0006_agent_vendor_settings",
+      "breakpoints": true
     }
   ]
 }
