@@ -40,9 +40,43 @@ These endpoints work, and their responses match `docs/api.json`:
 - Storefront: `GET /api/v1/stores/{slug}`, `/products`, `/products/{product_id}`, `POST /cart-quotes`.
 - Checkout: `POST /api/v1/orders`, `GET /api/v1/checkout/{token}`, `/status`, `/events` (SSE), `POST /invoice`.
 - `GET /api/v1/rates/btc-xof` and `GET /api/v1/plans`.
-- For the agent (service token): `POST /internal/v1/vendors/{id}/cart-quotes` and `/orders`.
+- Vendor sign-in with a Nostr key (cookie `selly_session`): `POST /api/v1/auth/nostr/challenges` and `/sessions`,
+  `/auth/logout`, `/auth/sessions`, `/vendors/me/keys`, step-up. Then `POST /api/v1/vendors`, `GET` and `PATCH /vendors/me`,
+  and the wallet: `PUT`, `GET` and `DELETE /vendors/me/wallet`. State-changing requests need `Origin: <APP_BASE_URL>`.
+- For the agent's inbox and assistant: `POST /internal/v1/sessions/introspect`.
+- The dashboard: products (`GET`, `POST /api/v1/inventory`, `PATCH /inventory/{product_id}`), stock
+  (`POST /inventory/variants/{variant_id}/adjustments`), orders (`GET /api/v1/orders`, `/orders/{id}`,
+  `PATCH /orders/{id}/fulfill`, `POST /orders/{id}/cancel`), `GET /vendors/dashboard/metrics`,
+  `POST /vendors/me/push-subscriptions`, and the live stream `GET /vendors/me/events` (SSE).
+- `POST /internal/v1/vendors/{id}/notifications`: the agent alerts the vendor (shown on the live stream).
+- For the agent (service token), every route of group G except drafts, media, notifications and session introspection:
+  `GET /internal/v1/stores/{slug}/vendor`, and under `/internal/v1/vendors/{id}/`: `agent-profile`, `entitlements`, `usage`,
+  `products/search`, `products/{product_id}` (GET and PATCH), `variants/{variant_id}/adjustments`, `cart-quotes`,
+  `orders` (GET and POST), `orders/{order_ref}`, `orders/{order_ref}/fulfill`, `metrics`. Core tests check every
+  answer against `docs/api.json`.
+- Events: core delivers `order.*` and `wallet.*` events to the agent's `POST /internal/v1/events`, signed with
+  `EVENTS_HMAC_SECRET`, in order per order, with retries.
 
-Lightning is simulated (`INVOICE_PROVIDER=fake`): invoices look real but cannot be paid. Vendor sign-in, the vendor dashboard API and subscriptions are not built yet; mock them from `docs/api.json`.
+A shop is open only with a plan that is trialing, active or in grace. The demo shop has a year of Pro.
+
+By default Lightning is simulated (`INVOICE_PROVIDER=fake`): invoices look real but cannot be paid. Not built yet: photos and drafts, sending Web Push, and paying for a subscription (a new shop has no plan, so it cannot add products yet); mock them from `docs/api.json`.
+
+## Taking real payments on a wallet (NWC)
+
+1. In a wallet that supports Nostr Wallet Connect, create a connection that can **only receive**: `make_invoice`, `lookup_invoice`, `get_info`, and `get_balance` if you want the balance shown. Selly refuses a connection that can pay. Copy its `nostr+walletconnect://` link.
+2. In `.env`, set `SECRETS_KEK_V1` (the command is in `.env.example`) and `INVOICE_PROVIDER=nwc`. Keep the same key afterwards: it decrypts the stored connections.
+3. Link the wallet to the demo shop. The command asks for the link without showing it; it is never taken from the command line.
+
+   ```
+   pnpm --filter @selly/core cli wallet:link --slug awa-style
+   # or, with Docker:
+   docker compose exec core node dist/cli.js wallet:link --slug awa-style
+   ```
+
+   Selly checks the connection first: its permissions, then a 1-sat test invoice that is never paid. `wallet:status` and `wallet:unlink` work the same way.
+4. Start core. Orders now get invoices from that wallet, and a payment shows as paid within seconds.
+
+The dashboard links a wallet with `PUT /api/v1/vendors/me/wallet`. This command stays for operators and for the platform wallet.
 
 ## Who owns what
 
@@ -53,6 +87,12 @@ Lightning is simulated (`INVOICE_PROVIDER=fake`): invoices look real but cannot 
 | Dev 3 | apps/core, packages/db, nwc, nostr, money, contracts, docs/api.json | M0 and M1 (orders, NWC gateway)                      |
 
 Nobody edits another owner's folder without their review (see `.github/CODEOWNERS`).
+
+## Testing against core from another package
+
+Add `"@selly/core": "workspace:*"` to `devDependencies` and import from `@selly/core/testing`: `createTestApp`,
+`createShop`, `createVendorSession` (a session cookie for a vendor), `orderPayload`, `reconcileOnce`, `dispatchOnce`,
+`assertContract` and others. Core then runs in-process on PGlite with a fake wallet and a clock the test controls.
 
 ## Working agreements
 

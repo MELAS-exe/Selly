@@ -3,11 +3,14 @@ import { core } from '@selly/db';
 import { createTestDb } from '@selly/db/testing';
 import { buildApp } from './app';
 import { loadConfig } from './config';
-import type { Context, Database } from './context';
+import { type Context, type Database, silentLogger } from './context';
+import { MemoryObjectStore } from './modules/media/storage';
 import { FakeInvoiceProvider } from './modules/payments/fake';
 import { singleProvider } from './modules/payments/provider';
 import type { RateFeed } from './modules/rates/feeds';
 import { RateService } from './modules/rates/service';
+import { Keyring } from './secrets';
+import { PgliteSignals } from './signals';
 
 export const SERVICE_TOKEN = 'test-service-token';
 
@@ -19,8 +22,12 @@ export const feed = (name: string, cents: bigint | Error): RateFeed => ({
   },
 });
 
-export async function createTestApp() {
-  const { db: pg, close } = await createTestDb();
+/** env overrides the test configuration, for example a long SSE_POLL_MS to prove that a signal woke a stream. */
+export async function createTestApp(env: Record<string, string> = {}) {
+  const { db: pg, client, close } = await createTestDb();
+  // Real LISTEN/NOTIFY through PGlite: live streams wake on commit like in production.
+  const signals = new PgliteSignals(client);
+  await signals.start();
   const db = pg as unknown as Database;
   let time = new Date('2026-11-17T10:00:00Z');
   const clock = {
@@ -30,6 +37,7 @@ export async function createTestApp() {
     },
   };
   const provider = new FakeInvoiceProvider(clock.now);
+  const media = new MemoryObjectStore();
   // BTC = 90,000 EUR: 59,036,130 XOF per BTC, the example of architecture.md section 4.5.
   const feeds = [feed('a', 9_000_000n), feed('b', 9_000_000n)];
   const ctx: Context = {
@@ -37,11 +45,22 @@ export async function createTestApp() {
       NODE_ENV: 'test',
       SERVICE_TOKEN_AGENT: SERVICE_TOKEN,
       SSE_POLL_MS: '30',
+      VENDOR_STREAM_SESSION_CHECK_MS: '50',
+      NWC_ALLOW_INSECURE_RELAYS: 'true',
+      NWC_MIN_INTERVAL_MS: '0',
+      NWC_MAKE_INVOICE_TIMEOUT_MS: '1500',
+      NWC_LOOKUP_TIMEOUT_MS: '1500',
+      NWC_GET_INFO_TIMEOUT_MS: '1500',
+      ...env,
     } as NodeJS.ProcessEnv),
     db,
     now: clock.now,
     rates: new RateService(db, feeds, clock.now),
     invoices: singleProvider(provider),
+    media,
+    signals,
+    keyring: Keyring.forTests(),
+    log: silentLogger,
   };
   const app = buildApp(ctx);
   await app.ready();
@@ -50,9 +69,11 @@ export async function createTestApp() {
     ctx,
     db,
     provider,
+    media,
     clock,
     close: async () => {
       await app.close();
+      signals.close();
       await close();
     },
   };
@@ -64,7 +85,7 @@ export type TestApp = Awaited<ReturnType<typeof createTestApp>>;
 export async function createShop(
   db: Database,
   slug: string,
-  opts: { stock?: number; negotiate?: boolean } = {},
+  opts: { stock?: number; negotiate?: boolean; plan?: 'starter' | 'pro' | 'business' | null } = {},
 ) {
   const [v] = await db
     .insert(core.vendors)
@@ -84,6 +105,16 @@ export async function createShop(
     })
     .returning();
   const vendorId = (v as { id: string }).id;
+  if (opts.plan !== null) {
+    // Far from the test clock (2026-11-17), so the shop stays open in every test.
+    await db.insert(core.subscriptions).values({
+      vendorId,
+      planId: opts.plan ?? 'pro',
+      status: 'active',
+      currentPeriodStart: new Date('2026-01-01T00:00:00Z'),
+      currentPeriodEnd: new Date('2030-01-01T00:00:00Z'),
+    });
+  }
   const [p] = await db
     .insert(core.products)
     .values({

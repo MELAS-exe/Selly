@@ -2,7 +2,7 @@
 // Paid means the wallet that received the money confirmed it with lookup_invoice (ADR-06). Subscription
 // invoices will follow the same path once the subscriptions module is built.
 import { core } from '@selly/db';
-import { and, eq, lte, ne } from 'drizzle-orm';
+import { and, eq, gt, inArray, lte, ne } from '@selly/db/orm';
 import type { Context, Database } from '../../context';
 import { sha256Hex } from '../../util';
 import { audit, publishEvent } from '../events/outbox';
@@ -12,7 +12,8 @@ const { invoices, orders, orderItems } = core;
 
 export type SettleResult = 'settled' | 'duplicate' | 'unknown';
 
-export async function orderEventData(tx: Database, order: typeof orders.$inferSelect) {
+/** The data of every order.* event. checkout_url lets the agent show the order card again. */
+export function orderEventData(appBaseUrl: string, order: typeof orders.$inferSelect) {
   return {
     order_id: order.id,
     number: order.number,
@@ -20,6 +21,7 @@ export async function orderEventData(tx: Database, order: typeof orders.$inferSe
     conversation_ref: order.conversationRef,
     total: { amount: order.totalXof, currency: order.pricingCurrency },
     total_sat: order.totalMsat / 1000,
+    checkout_url: `${appBaseUrl}/c/${order.publicToken}`,
   };
 }
 
@@ -100,7 +102,7 @@ export async function settleInvoice(
         type: 'order.paid',
         vendorId: order.vendorId,
         key: order.id,
-        data: await orderEventData(tx, order),
+        data: orderEventData(ctx.config.APP_BASE_URL, order),
         now,
       });
     }
@@ -128,12 +130,7 @@ export async function expireOrder(ctx: Context, orderId: string): Promise<boolea
       type: 'order.expired',
       vendorId: order.vendorId,
       key: order.id,
-      data: {
-        order_id: order.id,
-        number: order.number,
-        channel: order.channel,
-        conversation_ref: order.conversationRef,
-      },
+      data: orderEventData(ctx.config.APP_BASE_URL, order),
       now,
     });
     return true;
@@ -141,9 +138,47 @@ export async function expireOrder(ctx: Context, orderId: string): Promise<boolea
 }
 
 /**
+ * A wallet notification says an invoice was paid. The notification only triggers a direct lookup on the wallet
+ * that made the invoice (ADR-06); the order is paid only if that lookup says settled.
+ */
+export async function confirmPayment(
+  ctx: Context,
+  n: { vendorId: string; walletConnectionId: string; paymentHash: string },
+): Promise<SettleResult | 'pending'> {
+  const [inv] = await ctx.db
+    .select()
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.vendorId, n.vendorId),
+        eq(invoices.walletConnectionId, n.walletConnectionId),
+        eq(invoices.paymentHash, n.paymentHash),
+      ),
+    );
+  if (!inv) return 'unknown'; // a payment for something else, e.g. the vendor's own invoices
+  if (inv.status === 'settled') return 'duplicate';
+  const state = await ctx.invoices.forVendor(n.vendorId).lookupInvoice({
+    vendorId: n.vendorId,
+    walletConnectionId: n.walletConnectionId,
+    paymentHash: n.paymentHash,
+    verifyUrl: inv.verifyUrl,
+  });
+  if (!state.settled) return 'pending';
+  return settleInvoice(ctx, {
+    vendorId: n.vendorId,
+    paymentHash: n.paymentHash,
+    preimage: state.preimage,
+  });
+}
+
+/** How long past its deadline an order may wait for a wallet that cannot be reached, before it expires anyway. */
+const UNREACHABLE_WALLET_GRACE_MS = 30 * 60_000;
+
+/**
  * One reconciliation pass (architecture.md section 7.3). Asks the wallet about every open invoice, settles the paid
  * ones, then expires orders past their deadline after one last look. Notifications only make this faster.
- * Not yet covered: polling already-expired invoices for late payments.
+ * An order whose wallet cannot be asked waits up to 30 more minutes: a payment that comes later is still recorded
+ * as a late payment (architecture.md section 4.4).
  */
 export async function reconcileOnce(ctx: Context, log?: { warn: (o: object, m: string) => void }) {
   const now = ctx.now();
@@ -157,9 +192,12 @@ export async function reconcileOnce(ctx: Context, log?: { warn: (o: object, m: s
   const lookupFailed = new Set<string>();
   for (const { invoice } of open) {
     try {
-      const found = await ctx.invoices
-        .forVendor(invoice.vendorId)
-        .lookupInvoice({ vendorId: invoice.vendorId, paymentHash: invoice.paymentHash });
+      const found = await ctx.invoices.forVendor(invoice.vendorId).lookupInvoice({
+        vendorId: invoice.vendorId,
+        walletConnectionId: invoice.walletConnectionId,
+        paymentHash: invoice.paymentHash,
+        verifyUrl: invoice.verifyUrl,
+      });
       if (found.settled) {
         await settleInvoice(ctx, {
           vendorId: invoice.vendorId,
@@ -168,18 +206,70 @@ export async function reconcileOnce(ctx: Context, log?: { warn: (o: object, m: s
         });
       }
     } catch (err) {
-      // Never expire an order whose wallet we could not ask: it may have been paid.
       lookupFailed.add(invoice.orderId);
-      log?.warn({ err, invoice: invoice.id }, 'lookup_invoice failed');
+      log?.warn({ err: String(err), invoice: invoice.id }, 'lookup_invoice failed');
     }
   }
 
   const due = await ctx.db
-    .select({ id: orders.id })
+    .select({ id: orders.id, expiresAt: orders.expiresAt })
     .from(orders)
     .where(and(eq(orders.status, 'pending_payment'), lte(orders.expiresAt, now)));
   let expired = 0;
-  for (const o of due) if (!lookupFailed.has(o.id) && (await expireOrder(ctx, o.id))) expired++;
+  for (const o of due) {
+    const waitForWallet =
+      lookupFailed.has(o.id) && now.getTime() < o.expiresAt.getTime() + UNREACHABLE_WALLET_GRACE_MS;
+    if (!waitForWallet && (await expireOrder(ctx, o.id))) expired++;
+  }
 
   return { checked: open.length, expired };
+}
+
+/** How long after its expiry an invoice is still looked up: payers sometimes pay a stale invoice. */
+export const LATE_PAYMENT_WINDOW_MS = 24 * 60 * 60_000;
+
+/**
+ * Looks up invoices that expired or were cancelled in the last 24 hours (architecture.md section 4.4). A regular
+ * Lightning invoice cannot be withdrawn, so one paid late is still recorded: the order becomes paid if stock allows,
+ * or is flagged for a refund. Runs every few minutes on the job leader; wallet notifications catch most of these
+ * sooner.
+ */
+export async function reconcileLateOnce(
+  ctx: Context,
+  log?: { warn: (o: object, m: string) => void },
+) {
+  const now = ctx.now();
+  const stale = await ctx.db
+    .select()
+    .from(invoices)
+    .where(
+      and(
+        inArray(invoices.status, ['expired', 'cancelled']),
+        gt(invoices.expiresAt, new Date(now.getTime() - LATE_PAYMENT_WINDOW_MS)),
+      ),
+    )
+    .limit(500);
+  let settled = 0;
+  for (const inv of stale) {
+    try {
+      const found = await ctx.invoices.forVendor(inv.vendorId).lookupInvoice({
+        vendorId: inv.vendorId,
+        walletConnectionId: inv.walletConnectionId,
+        paymentHash: inv.paymentHash,
+        verifyUrl: inv.verifyUrl,
+      });
+      if (
+        found.settled &&
+        (await settleInvoice(ctx, {
+          vendorId: inv.vendorId,
+          paymentHash: inv.paymentHash,
+          preimage: found.preimage,
+        })) === 'settled'
+      )
+        settled++;
+    } catch (err) {
+      log?.warn({ err: String(err), invoice: inv.id }, 'late lookup_invoice failed');
+    }
+  }
+  return { checked: stale.length, settled };
 }

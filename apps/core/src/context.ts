@@ -1,8 +1,11 @@
 import type { core } from '@selly/db';
-import type { PgDatabase } from 'drizzle-orm/pg-core';
+import type { PgDatabase } from '@selly/db/orm';
 import type { Config } from './config';
+import type { ObjectStore } from './modules/media/storage';
 import type { InvoiceGateway } from './modules/payments/provider';
 import type { RateService } from './modules/rates/service';
+import type { Keyring } from './secrets';
+import type { Signals } from './signals';
 
 type Schema = { [K in keyof typeof core]: (typeof core)[K] };
 
@@ -15,7 +18,22 @@ export interface Context {
   now: () => Date;
   rates: RateService;
   invoices: InvoiceGateway;
+  /** Images and voice notes (S3-compatible storage, or memory in tests). */
+  media: ObjectStore;
+  /** Wake-ups for live streams (LISTEN/NOTIFY). */
+  signals: Signals;
+  /** Null when no SECRETS_KEK_V<n> is set: wallets cannot be linked or used. */
+  keyring: Keyring | null;
+  log: Logger;
 }
+
+export interface Logger {
+  info(obj: object, msg?: string): void;
+  warn(obj: object, msg?: string): void;
+  error(obj: object, msg?: string): void;
+}
+
+export const silentLogger: Logger = { info: () => {}, warn: () => {}, error: () => {} };
 
 declare module 'fastify' {
   interface FastifyInstance {

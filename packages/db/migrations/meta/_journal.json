@@ -29,6 +29,41 @@
       "when": 1794914209056,
       "tag": "0003_product_slug",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794917272067,
+      "tag": "0004_agent_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794924092913,
+      "tag": "0005_vendor_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794928415267,
+      "tag": "0006_agent_vendor_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794929613297,
+      "tag": "0007_subscription_billing",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794932629504,
+      "tag": "0008_wallet_pairings",
+      "breakpoints": true
     }
   ]
 }

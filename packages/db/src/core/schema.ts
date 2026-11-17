@@ -163,6 +163,32 @@ export const walletConnections = core.table(
   ],
 );
 
+/**
+ * Client-initiated pairing (Nostr Wallet Auth): Selly made the connection key and showed a nostr+walletauth:// link.
+ * When the wallet announces the connection, core links it with the usual checks. The secret is encrypted like a URI.
+ */
+export const walletPairings = core.table(
+  'wallet_pairings',
+  {
+    id: id(),
+    vendorId: uuid('vendor_id')
+      .notNull()
+      .references(() => vendors.id),
+    clientPubkey: text('client_pubkey').notNull().unique(),
+    secretCiphertext: bytea('secret_ciphertext'),
+    keyVersion: smallint('key_version').notNull(),
+    relays: text('relays').array().notNull(),
+    status: text('status', { enum: ['pending', 'linked', 'failed', 'expired'] })
+      .notNull()
+      .default('pending'),
+    error: text('error'),
+    walletConnectionId: uuid('wallet_connection_id').references(() => walletConnections.id),
+    expiresAt: ts('expires_at').notNull(),
+    createdAt: createdAt(),
+    completedAt: ts('completed_at'),
+  },
+  (t) => [index('wallet_pairings_pending').on(t.expiresAt).where(sql`${t.status} = 'pending'`)],
+);
 // ---------------------------------------------------------------- catalog and stock
 
 export const products = core.table(
@@ -414,8 +440,12 @@ export const subscriptions = core.table(
     planId: text('plan_id')
       .notNull()
       .references(() => plans.id),
+    // A plan bought to start later: after the trial, or a lower plan from the end of the period.
     nextPlanId: text('next_plan_id').references(() => plans.id),
+    nextPlanAt: ts('next_plan_at'),
     status: text('status', { enum: ['trialing', 'active', 'grace', 'suspended'] }).notNull(),
+    // Set once, when the vendor starts the free trial.
+    trialEndsAt: ts('trial_ends_at'),
     currentPeriodStart: ts('current_period_start').notNull(),
     currentPeriodEnd: ts('current_period_end').notNull(),
     graceEndsAt: ts('grace_ends_at'),
@@ -436,9 +466,8 @@ export const subscriptionInvoices = core.table(
     vendorId: uuid('vendor_id')
       .notNull()
       .references(() => vendors.id),
-    subscriptionId: uuid('subscription_id')
-      .notNull()
-      .references(() => subscriptions.id),
+    // Null until the first payment of a vendor who never had a subscription creates one.
+    subscriptionId: uuid('subscription_id').references(() => subscriptions.id),
     planId: text('plan_id')
       .notNull()
       .references(() => plans.id),
@@ -446,9 +475,8 @@ export const subscriptionInvoices = core.table(
     listPriceSat: num('list_price_sat').notNull(),
     creditSat: num('credit_sat').notNull().default(0),
     amountSat: num('amount_sat').notNull(),
-    walletConnectionId: uuid('wallet_connection_id')
-      .notNull()
-      .references(() => walletConnections.id),
+    // The platform wallet. Null for invoices of the fake provider (development and tests).
+    walletConnectionId: uuid('wallet_connection_id').references(() => walletConnections.id),
     source: text('source', { enum: ['nwc', 'lnurl'] }).notNull(),
     bolt11: text('bolt11').notNull(),
     paymentHash: text('payment_hash').notNull(),
@@ -459,6 +487,7 @@ export const subscriptionInvoices = core.table(
     expiresAt: ts('expires_at').notNull(),
     settledAt: ts('settled_at'),
     preimage: text('preimage'),
+    // The period this payment covers: projected when the invoice is made, final when it settles.
     periodStart: ts('period_start'),
     periodEnd: ts('period_end'),
     createdAt: createdAt(),
@@ -558,3 +587,45 @@ export const auditLog = core.table('audit_log', {
   details: jsonb('details').$type<Record<string, unknown>>().notNull().default({}),
   createdAt: createdAt(),
 });
+
+// ---------------------------------------------------------------- vendor notifications
+
+/**
+ * What the vendor's dashboard is told about: order and wallet events from core, chat handoffs from the agent.
+ * Read by the dashboard's SSE stream (and later sent as Web Push). Kept a few days. Separate from the outbox,
+ * whose every row is delivered to the agent.
+ */
+export const vendorNotifications = core.table(
+  'vendor_notifications',
+  {
+    id: id(),
+    vendorId: uuid('vendor_id')
+      .notNull()
+      .references(() => vendors.id),
+    type: text('type').notNull(),
+    data: jsonb('data').$type<Record<string, unknown>>().notNull().default({}),
+    /** Groups repeats (one per conversation every 5 minutes for handoffs). */
+    dedupeKey: text('dedupe_key'),
+    createdAt: createdAt(),
+  },
+  (t) => [index('vendor_notifications_stream').on(t.vendorId, t.id)],
+);
+
+/** A browser that allowed Web Push for a vendor (PushManager.subscribe). The endpoint is unique per browser. */
+export const pushSubscriptions = core.table(
+  'push_subscriptions',
+  {
+    id: id(),
+    vendorId: uuid('vendor_id')
+      .notNull()
+      .references(() => vendors.id),
+    endpoint: text('endpoint').notNull().unique(),
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    expirationTime: ts('expiration_time'),
+    createdAt: createdAt(),
+    lastError: text('last_error'),
+    revokedAt: ts('revoked_at'),
+  },
+  (t) => [index('push_subscriptions_by_vendor').on(t.vendorId)],
+);

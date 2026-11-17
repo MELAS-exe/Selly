@@ -42,7 +42,7 @@ services:
       timeout: 3s
       retries: 10
 
-  # Creates the two buckets, then exits.
+  # Creates the two buckets, then exits. Private uploads (originals, voice notes) expire after 30 days.
   minio-init:
     image: minio/mc
     depends_on:
@@ -52,7 +52,8 @@ services:
       /bin/sh -c "
       mc alias set local http://minio:9000 selly selly-secret-key &&
       mc mb --ignore-existing local/selly-public local/selly-private &&
-      mc anonymous set download local/selly-public
+      mc anonymous set download local/selly-public &&
+      (mc ilm rule ls local/selly-private | grep -q Expir || mc ilm rule add --expire-days 30 local/selly-private)
       "
     restart: "no"
 
@@ -72,19 +73,28 @@ services:
       APP_BASE_URL: http://localhost:3000
       DATABASE_URL: postgres://selly:selly@postgres:5432/selly
       DATABASE_DIRECT_URL: postgres://selly:selly@postgres:5432/selly
+      MEDIA_STORE: s3
       S3_ENDPOINT: http://minio:9000
+      # Browsers upload photos to MinIO directly: presigned URLs use the address they can reach.
+      S3_PRESIGN_ENDPOINT: http://localhost:9000
       S3_BUCKET_PUBLIC: selly-public
       S3_BUCKET_PRIVATE: selly-private
       S3_ACCESS_KEY_ID: selly
       S3_SECRET_ACCESS_KEY: selly-secret-key
       SERVICE_TOKEN_AGENT: ${SERVICE_TOKEN_AGENT:-dev-agent-token}
       EVENTS_HMAC_SECRET: ${EVENTS_HMAC_SECRET:-dev-events-secret}
+      # Core delivers its events (order paid, expired...) to the agent.
+      AGENT_URL: http://agent:4100
       SECRETS_KEK_V1: ${SECRETS_KEK_V1:-}
       SECRETS_PLATFORM_NWC_URI: ${SECRETS_PLATFORM_NWC_URI:-}
       # Local stack: apply migrations, load the demo shop (awa-style), simulate Lightning invoices.
+      # This stack is local: it runs the production build with the dev secrets above, on purpose.
+      ALLOW_DEV_SECRETS: "true"
       MIGRATE_ON_START: ${MIGRATE_ON_START:-true}
       SEED_DEMO: ${SEED_DEMO:-true}
+      # fake: simulated invoices. nwc: each vendor's own wallet; needs SECRETS_KEK_V1 and a linked wallet.
       INVOICE_PROVIDER: ${INVOICE_PROVIDER:-fake}
+      LIGHTNING_NETWORK: ${LIGHTNING_NETWORK:-mainnet}
     ports:
       - "4000:4000"
     depends_on:
@@ -113,8 +123,18 @@ services:
       DATABASE_URL: postgres://selly:selly@postgres:5432/selly
       SERVICE_TOKEN_AGENT: ${SERVICE_TOKEN_AGENT:-dev-agent-token}
       EVENTS_HMAC_SECRET: ${EVENTS_HMAC_SECRET:-dev-events-secret}
-      LLM_PRIMARY: ${LLM_PRIMARY:-scripted}
+      # Local stack only: lets production mode start with the development secrets above.
+      ALLOW_DEV_SECRETS: "true"
+      APP_BASE_URL: http://localhost:3000
+      LLM_PRIMARY: ${LLM_PRIMARY:-demo}
       LLM_FALLBACK: ${LLM_FALLBACK:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Real core (internal API, demo shop awa-style) and PostgreSQL: core applies every migration,
+      # the agent schema included, before it reports healthy. AGENT_CORE_MODE=fake or AGENT_STORE=memory
+      # switch back to the in-memory stand-ins.
+      AGENT_CORE_MODE: ${AGENT_CORE_MODE:-}
+      AGENT_STORE: ${AGENT_STORE:-}
+      MEDIA_BASE_URL: ${MEDIA_BASE_URL:-}
     ports:
       - "4100:4100"
     depends_on:

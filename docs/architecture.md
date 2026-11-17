@@ -271,7 +271,7 @@ One Next.js app, four surfaces, all React.
 | `rates`         | rate quotes                                                               | current BTC/XOF quote from the median of sources                                                                                                     |
 | `subscriptions` | plans, subscriptions, subscription invoices, usage counters, trial claims | start a trial, price and create a renewal or upgrade invoice, extend a period on settlement, grace and suspension, enforce plan limits, report usage |
 | `media`         | uploads                                                                   | presign, process with sharp, purge CDN URLs                                                                                                          |
-| `events`        | outbox, SSE, notifications                                                | publish after commit, dispatch to the agent, LISTEN/NOTIFY fan-out, Web Push                                                                         |
+| `events`        | outbox, vendor notifications, SSE                                         | publish after commit, dispatch to the agent, the vendor's live stream (7 days kept), Web Push registration; sending Web Push comes later             |
 
 Boundary rules:
 
@@ -304,6 +304,10 @@ Boundary rules:
 - Description: `"<shop name> commande <number>"` for orders, `"Selly Pro 1 mois"` for subscriptions. It appears in the payer's wallet, so it never contains customer data.
 - Expiry: 20 minutes for an order. 60 minutes for a subscription, because a vendor may have to buy sats first (§3.9).
 - Every returned BOLT11 is decoded locally, and its amount, payment hash and expiry MUST match the request. A wrong answer from a wallet must never become an order or a paid period.
+
+**Pairing without copy and paste.** For wallets that support Nostr Wallet Auth, `POST /vendors/me/wallet/pairing` returns a `nostr+walletauth://` link with a client key that core made (its secret is encrypted in `core.wallet_pairings` and never shown). The wallet creates a receive-only connection for that key and publishes its info event tagged with it on the pairing relay. A watcher in core sees the event, builds the `nostr+walletconnect://` URI itself and runs the five checks; the secret is then dropped from the pairing row. Links expire after 10 minutes.
+
+**Implementation status.** Built: URI parsing, the permission policy, the five link checks, encryption at rest (AES-256-GCM, bound to the vendor), the invoice check, the circuit breaker with `degraded` and restored states, notifications that trigger a lookup, and a per-wallet throttle. `packages/nwc/testkit` holds a test relay and a fake wallet that speak real NIP-47. Vendors link wallets from the dashboard (or by pairing); the operator can also use `pnpm --filter @selly/core cli wallet:link`. Background work (reconciler, outbox dispatcher, subscription job, wallet notification subscriptions, pairing watcher) runs on one process, the job leader, which holds a session advisory lock on a dedicated connection; another process takes over within 10 seconds when it stops. Invoices that expired or were cancelled in the last 24 hours are looked up again every 10 minutes for late payments. The Lightning Address fallback is built: when NWC fails (timeout, wallet error, open circuit breaker) and the connection has a `lud16` (from the URI, or `PLATFORM_LUD16` for the platform), core asks the address for an invoice, only if its server returns a LUD-21 `verify` URL; the invoice is checked like an NWC one, Selly keeps its own expiry when the server gives a longer one, and settlement is checked at the verify URL (the preimage must match the payment hash). Every request to an address goes through the outbound guard: https only, public addresses only (checked at DNS lookup), no redirects, 5-second timeout, 64 KB body. An order whose wallet cannot be reached waits up to 30 minutes past its deadline before it expires; a payment that arrives later is still recorded (§4.4).
 
 **Rates.** The median of at least two BTC/EUR sources, multiplied by 655.957 (F7), cached for 60 seconds. Each quote used by an order is stored. Subscriptions are priced in sats and need no rate. The pricing page uses the same quote to show an indicative FCFA amount.
 
@@ -353,9 +357,10 @@ Why these numbers: a Starter shop pays about the price of a few mobile data bund
 - Same plan, or a lapsed subscription (grace or suspended): the period starts at the later of now and the current end, and lasts the months paid.
 - Higher plan while active: the plan changes immediately and the period starts now. The unused time of the current plan is credited at issue time: `credit_sat = floor(current monthly price × remaining days ÷ 30)`, subtracted from the invoice (and shown on it).
 - During a trial: any plan can be bought, and it starts when the trial ends.
-- Lower plan: allowed only in the grace period, when suspended, or in the last 7 days of the current period. In the last 7 days, it starts when the current period ends (
-  ext_plan_id`). A downgrade is refused when current usage exceeds the lower plan's limits, for example more products than it allows (`PLAN_LIMIT_REACHED`).
-- Every settled invoice extends the period, even a duplicate payment of two invoices. No money is kept without service in return.
+- Lower plan: allowed only in the grace period, when suspended, or in the last 7 days of the current period. In the last 7 days, it starts when the current period ends (`next_plan_id`, `next_plan_at`). A downgrade is refused when current usage exceeds the lower plan's limits, for example more products than it allows (`PLAN_LIMIT_REACHED`).
+- A booked plan (bought during the trial, or a lower plan from the end of the period) can only be bought again until it starts: other plan changes wait until then (`VALIDATION_FAILED`). It becomes the plan at `next_plan_at`; reads apply it at once and the status job persists it.
+- Every settled invoice extends the period, even a duplicate payment of two invoices, or an invoice paid after it expired. No money is kept without service in return.
+- Free trial days are never credited on an upgrade. When the credit covers the whole price, the vendor is asked for a longer period.
 
 **Limits.** `subscriptions` answers limit questions for the other modules:
 
@@ -363,7 +368,9 @@ Why these numbers: a Starter shop pays about the price of a few mobile data bund
 - Agent replies and photo drafts: counted per calendar month in UTC (`core.usage_counters`). The agent asks for the entitlements before each turn (cached 60 seconds) and reports usage after it. At 80 % the dashboard shows a banner. At 100 % the agent stops: customers get the fixed reply « Je transmets votre message au vendeur » and the vendor is alerted. The storefront, checkout and orders are never limited. A customer can always pay.
 - Features such as voice notes are flags in `plans.limits`.
 
-**Platform wallet.** The wallet that receives subscriptions is a receive-only NWC connection owned by the platform (`SECRETS_PLATFORM_NWC_URI`), with a Lightning Address with LUD-21 as a fallback. If it is down, vendors cannot renew. The grace period covers short outages, and customer payments are unaffected because they never touch this wallet. The operator sweeps funds out of it from their own wallet app.
+**Platform wallet.** The wallet that receives subscriptions is a receive-only NWC connection owned by the platform, linked on first start from `SECRETS_PLATFORM_NWC_URI`, or by the operator with `pnpm --filter @selly/core cli wallet:link --platform` (same checks as a vendor wallet, encrypted at rest; a linked wallet is kept until replaced with the CLI), with a Lightning Address with LUD-21 as a fallback. If it is down, vendors cannot renew. The grace period covers short outages, and customer payments are unaffected because they never touch this wallet. The operator sweeps funds out of it from their own wallet app.
+
+**Implementation status.** Built: the trial and its claims, pricing with the upgrade credit and the downgrade window, invoices on the platform wallet (or the fake provider), settlement by lookup or notification with the period rules above, late payments, the status job (every 5 minutes: grace, suspension, booked plans, reminders 7, 3 and 1 days before the end on the dashboard stream), and `entitlements.changed` for the agent. The Lightning Address fallback works for the platform wallet too (`PLATFORM_LUD16`). Not built yet: the reminders by Web Push and Nostr direct message. Late payments on expired invoices are found by the late-payment check (every 10 minutes, for 24 hours).
 
 ### 3.8 Chat on the vendor's website
 
@@ -883,8 +890,10 @@ create table core.subscriptions (
   id                   uuid primary key default uuidv7(),
   vendor_id            uuid not null unique references core.vendors(id),
   plan_id              text not null references core.plans(id),
-  next_plan_id         text references core.plans(id),     -- a lower plan bought in the last 7 days of the period
+  next_plan_id         text references core.plans(id),     -- booked: bought during the trial, or a lower plan in the last 7 days
+  next_plan_at         timestamptz,                         -- when next_plan_id becomes the plan
   status               text not null check (status in ('trialing', 'active', 'grace', 'suspended')),
+  trial_ends_at        timestamptz,                         -- set once, when the trial starts
   current_period_start timestamptz not null,
   current_period_end   timestamptz not null,
   grace_ends_at        timestamptz,                         -- period end + 7 days, set when status = 'grace'
@@ -896,13 +905,13 @@ create index subscriptions_expiring on core.subscriptions(current_period_end) wh
 create table core.subscription_invoices (
   id                   uuid primary key default uuidv7(),
   vendor_id            uuid not null references core.vendors(id),
-  subscription_id      uuid not null references core.subscriptions(id),
+  subscription_id      uuid references core.subscriptions(id),   -- null until the first payment creates one
   plan_id              text not null references core.plans(id),
   months               smallint not null check (months in (1, 3, 12)),
   list_price_sat       bigint not null check (list_price_sat > 0),
   credit_sat           bigint not null default 0 check (credit_sat >= 0),   -- unused time of the current plan, on an upgrade
   amount_sat           bigint not null check (amount_sat > 0),              -- list_price_sat - credit_sat
-  wallet_connection_id uuid not null references core.wallet_connections(id),  -- the platform wallet
+  wallet_connection_id uuid references core.wallet_connections(id),  -- the platform wallet; null with the fake provider
   source               text not null check (source in ('nwc', 'lnurl')),
   bolt11               text not null,
   payment_hash         text not null check (payment_hash ~ '^[0-9a-f]{64}$'),
@@ -1191,13 +1200,13 @@ This section is the contract between web (Dev 1), agent (Dev 2) and core (Dev 3)
 - **Rate limits.** 429 with `Retry-After`. Per IP on the public API, per vendor on the vendor API, per chat token on the chat API, per service token on the internal API.
 - **Authentication.**
 
-  | Caller                            | Mechanism                                                                                                                                                                                                                                                                                      |
-  | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-  | Customer, storefront and checkout | None. Checkout endpoints are addressed by `public_token`.                                                                                                                                                                                                                                      |
-  | Customer, chat                    | `Authorization: Bearer <chat session token>`, issued by `POST /chat/sessions`.                                                                                                                                                                                                                 |
-  | Vendor                            | Session cookie `selly_session` (httpOnly, Secure, SameSite=Lax), with an Origin check on every state-changing request. The cookie is issued after a signed Nostr challenge. Replacing the wallet or the keys needs a step-up: a signature less than 10 minutes old.                            |
-  | Agent to core                     | `Authorization: Bearer <service token>` with scopes (`catalog:read`, `orders:write`, `drafts:write`, `inventory:write`, `entitlements:read`, `usage:write`, `notifications:write`, ...). Also `X-Request-Id`, and `X-Actor` (`customer:<conversation id>` or `vendor:<id>`) for the audit log. |
-  | Core to agent                     | HMAC-SHA256 over the timestamp and body: `X-Selly-Signature: t=<unix>,v1=<hex>`, 5-minute tolerance.                                                                                                                                                                                           |
+  | Caller                            | Mechanism                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+  | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | Customer, storefront and checkout | None. Checkout endpoints are addressed by `public_token`.                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+  | Customer, chat                    | `Authorization: Bearer <chat session token>`, issued by `POST /chat/sessions`.                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+  | Vendor                            | Session cookie `selly_session` (httpOnly, Secure, SameSite=Lax), with an Origin check on every state-changing request. The cookie is issued after a signed Nostr challenge. Replacing or unlinking the wallet, and adding or removing keys, need a step-up: a signature less than 10 minutes old. State-changing requests without the app's `Origin` get 403 `FORBIDDEN`. Sign-in routes allow 20 requests a minute per IP; `TRUST_PROXY` says how many proxies in front of core are believed for the client IP. |
+  | Agent to core                     | `Authorization: Bearer <service token>` with scopes (`catalog:read`, `orders:write`, `drafts:write`, `inventory:write`, `entitlements:read`, `usage:write`, `notifications:write`, ...). Also `X-Request-Id`, and `X-Actor` (`customer:<conversation id>` or `vendor:<id>`) for the audit log.                                                                                                                                                                                                                   |
+  | Core to agent                     | HMAC-SHA256 over the timestamp and body: `X-Selly-Signature: t=<unix>,v1=<hex>`, 5-minute tolerance.                                                                                                                                                                                                                                                                                                                                                                                                             |
 
 ### 5.2 Endpoint catalog
 
@@ -1251,7 +1260,7 @@ Every operation below has an entry in [`api.json`](api.json) with the same metho
 | PUT        | `/api/v1/vendors/me/wallet`                     | Link or replace the wallet (NWC URI, or a Lightning Address as a fallback source). Replacing needs a step-up                          |
 | GET        | `/api/v1/vendors/me/wallet`                     | Wallet status: methods, notifications, last check, balance if permitted                                                               |
 | DELETE     | `/api/v1/vendors/me/wallet`                     | Unlink, and remind the vendor to revoke the connection in the wallet app                                                              |
-| POST       | `/api/v1/vendors/me/wallet/pairing`             | Client-initiated NWC pairing (NWC spec 08) for wallets that support it: returns a link or QR the wallet approves. Optional            |
+| POST       | `/api/v1/vendors/me/wallet/pairing`             | Pairing by Nostr Wallet Auth: returns a `nostr+walletauth://` link or QR; the wallet approves, core links it                          |
 | GET        | `/api/v1/vendors/me/subscription`               | Plan, status, period end, usage against limits, and what the vendor can do next                                                       |
 | POST       | `/api/v1/vendors/me/subscription/trial`         | Start the 14-day Pro trial                                                                                                            |
 | POST       | `/api/v1/vendors/me/subscription/invoices`      | Create a subscription invoice for a plan and 1, 3 or 12 months                                                                        |
@@ -1269,7 +1278,7 @@ Every operation below has an entry in [`api.json`](api.json) with the same metho
 | POST   | `/api/v1/inventory`                                         | Add a product manually (`PLAN_LIMIT_REACHED` past the plan's limit)                                           |
 | PATCH  | `/api/v1/inventory/{product_id}`                            | Update title, description, price, status or images                                                            |
 | POST   | `/api/v1/inventory/variants/{variant_id}/adjustments`       | Stock change with a reason (`restock` or `adjustment`)                                                        |
-| POST   | `/api/v1/media/uploads`                                     | Presigned upload for one image (JPEG, PNG, WebP or HEIC, at most 8 MB)                                        |
+| POST   | `/api/v1/media/uploads`                                     | Presigned upload for one image (JPEG, PNG or WebP, at most 8 MB)                                              |
 | POST   | `/api/v1/inventory/restock-ai`                              | Create a product draft from image keys and text. Asynchronous: 202 now, `draft.ready` on the SSE stream later |
 | GET    | `/api/v1/inventory/drafts`, `/api/v1/inventory/drafts/{id}` | Drafts waiting for review                                                                                     |
 | POST   | `/api/v1/inventory/drafts/{id}/confirm`                     | Confirm with answers and edits: creates a product or restocks one                                             |
@@ -1302,9 +1311,9 @@ Vendor endpoints served by the agent check the session cookie through `POST /int
 | GET    | `/internal/v1/vendors/{id}/entitlements`                      | `entitlements:read`   | Plan, store status, limits and usage, before each turn                                                                |
 | POST   | `/internal/v1/vendors/{id}/usage`                             | `usage:write`         | Report one agent turn or draft. Returns remaining quota                                                               |
 | GET    | `/internal/v1/vendors/{id}/products/search`                   | `catalog:read`        | `q`, `size`, `color`, `max_price_xof`, `limit` (at most 5); full text and trigram; returns availability               |
-| GET    | `/internal/v1/products/{id}`                                  | `catalog:read`        | Product detail                                                                                                        |
+| GET    | `/internal/v1/vendors/{id}/products/{product_id}`             | `catalog:read`        | Product detail with exact stock, scoped to the vendor                                                                 |
 | POST   | `/internal/v1/vendors/{id}/cart-quotes`                       | `orders:write`        | Totals for items, delivery zone and a requested discount                                                              |
-| POST   | `/internal/v1/vendors/{id}/orders`                            | `orders:write`        | Create an order for a chat customer (`conversation_ref`)                                                              |
+| POST   | `/internal/v1/vendors/{id}/orders`                            | `orders:write`        | Create an order for a chat customer (`conversation_ref`, and the negotiated `discount_pct`, capped again by core)     |
 | GET    | `/internal/v1/vendors/{id}/orders/{order_ref}`                | `orders:read`         | Status by id or short number, for "où en est ma commande ?"                                                           |
 | GET    | `/internal/v1/vendors/{id}/orders`                            | `orders:read`         | The vendor's "commandes du jour"                                                                                      |
 | POST   | `/internal/v1/vendors/{id}/orders/{order_ref}/fulfill`        | `orders:write`        | The vendor's "A7K2 livrée"                                                                                            |
@@ -1383,6 +1392,7 @@ Server steps: parse the URI, read the info event, call `get_info`, apply the per
 | 422    | `NWC_PERMISSIONS_TOO_BROAD` | « Cette connexion peut dépenser vos fonds. Créez une connexion en réception seule. » |
 | 422    | `NWC_METHODS_MISSING`       | « Ce portefeuille ne permet pas de créer ou de vérifier des factures. »              |
 | 504    | `NWC_TIMEOUT`               | « Votre portefeuille ne répond pas. Est-il en ligne ? »                              |
+| 422    | `NWC_WALLET_ERROR`          | « Le portefeuille a refusé la demande, ou a renvoyé une facture incorrecte. »        |
 | 403    | `STEP_UP_REQUIRED`          | « Confirmez d'abord avec votre clé Nostr. »                                          |
 
 **5.3.5 `POST /api/v1/vendors/me/subscription/invoices`**
@@ -1393,6 +1403,7 @@ Request: a plan id and `months` (1, 3 or 12). Core prices it from `plans.period_
 | ------ | --------------------------- | --------------------------------------------------------------------------------------- |
 | 409    | `PLAN_LIMIT_REACHED`        | A lower plan was requested while usage exceeds its limits. `errors[]` says which limit. |
 | 409    | `DOWNGRADE_NOT_ALLOWED_YET` | A lower plan was requested with more than 7 days left in the period.                    |
+| 422    | `VALIDATION_FAILED`         | Wrong period, a booked plan is pending, or the upgrade credit covers the whole price.   |
 | 503    | `PAYMENT_UNAVAILABLE`       | The platform wallet did not answer. The vendor retries.                                 |
 
 **5.3.6 `POST /api/v1/inventory/restock-ai`**
@@ -1408,7 +1419,7 @@ Request: image keys and text. Response: 202 with a draft in `processing`. When e
 
 **5.3.8 Core → agent events**
 
-Signed, at least once, ordered per key (§7.1). Event types: `order.created`, `order.paid`, `order.expired`, `order.cancelled`, `order.fulfilled`, `draft.requested` (a dashboard upload the agent must extract), `wallet.degraded`, `wallet.restored`, `stock.low`, `entitlements.changed`. The agent ignores an `event_id` it has already seen. The body of each type is in `api.json`.
+Signed, at least once, ordered per key (§7.1). Event types: `order.created`, `order.paid`, `order.expired`, `order.cancelled`, `order.fulfilled`, `draft.requested` (a dashboard upload the agent must extract), `wallet.degraded`, `wallet.restored`, `stock.low`, `entitlements.changed`. The agent ignores an `event_id` it has already seen. Every `order.*` event carries `checkout_url`, so the agent can show the order card again. The body of each type is in `api.json`.
 
 ### 5.4 Contract source of truth
 
@@ -1521,7 +1532,7 @@ sequenceDiagram
   N->>P: lookup_invoice (payment_hash)
   P-->>N: settled, preimage
   N->>K: settle (platform wallet connection, payment_hash, preimage)
-  K->>K: one transaction settles the invoice, extends the period by 3 months, writes outbox subscription.updated
+  K->>K: one transaction settles the invoice, extends the period by 3 months, notifies subscription.updated, writes outbox entitlements.changed
   K-->>V: SSE subscription.updated and a receipt with the preimage
 ```
 
@@ -1670,7 +1681,7 @@ The agent's equivalent of a webhook is the chat message request.
 - A settlement is matched by wallet connection and payment hash together, never by hash alone. One vendor's wallet can never settle another vendor's order, and a vendor's wallet can never settle a subscription invoice, which belongs to the platform wallet's connection.
 - When a preimage is present, check that `sha256(preimage) = payment_hash`.
 - For an order invoice, one transaction: `update core.invoices set status = 'settled' ... where id = $1 and status <> 'settled'`; order to `paid` (or the `attention` flag of §4.4); stock commit; audit record; outbox `order.paid`.
-- For a subscription invoice, one transaction: the same conditional update on `core.subscription_invoices`; the subscription period and status per the rules of §3.7; audit record; outbox `subscription.updated`.
+- For a subscription invoice, one transaction: the same conditional update on `core.subscription_invoices`; the subscription period and status per the rules of §3.7; audit record; a `subscription.updated` notification for the dashboard and an outbox `entitlements.changed` for the agent.
 - After the commit: `NOTIFY` → SSE subscribers (checkout page, dashboard). The outbox dispatcher sends `order.paid` to the agent, which adds a system message to the customer's chat. Core sends a Web Push to the dashboard.
 - Idempotent: a second notification finds the invoice already settled and changes nothing.
 
@@ -1684,30 +1695,31 @@ Reconciliation, because notifications can be missed (F2):
 
 Every error is `application/problem+json` with a stable `code`. The catalog lives in `packages/contracts/errors.ts`: HTTP status, whether a retry can help, and message keys in French, English and Wolof for the web and the agent.
 
-| Code                                                                                 | Status             | Retry              | Web                                                                                    | Agent                                                  |
-| ------------------------------------------------------------------------------------ | ------------------ | ------------------ | -------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| `OUT_OF_STOCK`                                                                       | 409                | no                 | shows what is left                                                                     | suggests other sizes or colours                        |
-| `PRICE_CHANGED`                                                                      | 409                | no                 | shows the new total and asks to confirm                                                | gives the new total and asks to confirm                |
-| `PAYMENT_UNAVAILABLE`                                                                | 503                | yes, `Retry-After` | « Paiement momentanément indisponible » and the vendor's WhatsApp link if there is one | apologises, hands off to the vendor, alerts the vendor |
-| `RATE_UNAVAILABLE`                                                                   | 503                | yes                | same as above                                                                          | same as above                                          |
-| `INVOICE_EXPIRED`                                                                    | 410                | no                 | button « Nouveau lien de paiement »                                                    | offers a new link                                      |
-| `TOO_MANY_PENDING_ORDERS`                                                            | 429                | no                 | explains the limit                                                                     | explains the limit                                     |
-| `VALIDATION_FAILED`                                                                  | 422                | no                 | field errors                                                                           | asks for the missing information                       |
-| `UNAUTHORIZED`                                                                       | 401                | no                 | sign-in                                                                                | not applicable                                         |
-| `RATE_LIMITED`                                                                       | 429                | yes, `Retry-After` | « Trop de requêtes, réessayez dans un instant. »                                       | waits, then hands off                                  |
-| `STEP_UP_REQUIRED`                                                                   | 403                | no                 | asks for a new signature                                                               | not applicable                                         |
-| `CHALLENGE_INVALID`                                                                  | 401                | no                 | « La signature n'est pas valide, réessayez. » Asks for a new challenge                 | not applicable                                         |
-| `CHAT_SESSION_EXPIRED`                                                               | 401                | no                 | the widget opens a new session                                                         | not applicable                                         |
-| `STORE_PAUSED`                                                                       | 403                | no                 | « Boutique momentanément fermée »                                                      | not applicable                                         |
-| `CHAT_UNAVAILABLE`                                                                   | 403                | no                 | hides the chat                                                                         | not applicable                                         |
-| `PLAN_LIMIT_REACHED`                                                                 | 409                | no                 | shows the limit and the upgrade button                                                 | not applicable                                         |
-| `FEATURE_NOT_IN_PLAN`                                                                | 403                | no                 | shows what the next plan adds                                                          | « Écrivez-moi votre message » (voice notes)            |
-| `DOWNGRADE_NOT_ALLOWED_YET`                                                          | 409                | no                 | says when the lower plan can be bought                                                 | not applicable                                         |
-| `AGENT_QUOTA_EXCEEDED`                                                               | 429                | no                 | not shown to customers                                                                 | fixed reply and handoff; the vendor is alerted         |
-| `NWC_URI_INVALID`, `NWC_PERMISSIONS_TOO_BROAD`, `NWC_METHODS_MISSING`, `NWC_TIMEOUT` | 422, 422, 422, 504 | timeout only       | messages of §5.3.4                                                                     | not applicable                                         |
-| `PROVIDER_TIMEOUT`                                                                   | 504                | yes                | retries once                                                                           | retries once, then hands off                           |
-| `IDEMPOTENCY_MISMATCH`                                                               | 422                | no                 | bug report                                                                             | bug report                                             |
-| `NOT_FOUND`, `FORBIDDEN`                                                             | 404, 403           | no                 | error page                                                                             | not applicable                                         |
+| Code                                                                                                     | Status                  | Retry              | Web                                                                                    | Agent                                                  |
+| -------------------------------------------------------------------------------------------------------- | ----------------------- | ------------------ | -------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `OUT_OF_STOCK`                                                                                           | 409                     | no                 | shows what is left                                                                     | suggests other sizes or colours                        |
+| `PRICE_CHANGED`                                                                                          | 409                     | no                 | shows the new total and asks to confirm                                                | gives the new total and asks to confirm                |
+| `PAYMENT_UNAVAILABLE`                                                                                    | 503                     | yes, `Retry-After` | « Paiement momentanément indisponible » and the vendor's WhatsApp link if there is one | apologises, hands off to the vendor, alerts the vendor |
+| `RATE_UNAVAILABLE`                                                                                       | 503                     | yes                | same as above                                                                          | same as above                                          |
+| `INVOICE_EXPIRED`                                                                                        | 410                     | no                 | button « Nouveau lien de paiement »                                                    | offers a new link                                      |
+| `TOO_MANY_PENDING_ORDERS`                                                                                | 429                     | no                 | explains the limit                                                                     | explains the limit                                     |
+| `VALIDATION_FAILED`                                                                                      | 422                     | no                 | field errors                                                                           | asks for the missing information                       |
+| `UNAUTHORIZED`                                                                                           | 401                     | no                 | sign-in                                                                                | not applicable                                         |
+| `RATE_LIMITED`                                                                                           | 429                     | yes, `Retry-After` | « Trop de requêtes, réessayez dans un instant. »                                       | waits, then hands off                                  |
+| `STEP_UP_REQUIRED`                                                                                       | 403                     | no                 | asks for a new signature                                                               | not applicable                                         |
+| `CHALLENGE_INVALID`                                                                                      | 401                     | no                 | « La signature n'est pas valide, réessayez. » Asks for a new challenge                 | not applicable                                         |
+| `CHAT_SESSION_EXPIRED`                                                                                   | 401                     | no                 | the widget opens a new session                                                         | not applicable                                         |
+| `STORE_PAUSED`                                                                                           | 403                     | no                 | « Boutique momentanément fermée »                                                      | not applicable                                         |
+| `CHAT_UNAVAILABLE`                                                                                       | 403                     | no                 | hides the chat                                                                         | not applicable                                         |
+| `PLAN_LIMIT_REACHED`                                                                                     | 409                     | no                 | shows the limit and the upgrade button                                                 | not applicable                                         |
+| `FEATURE_NOT_IN_PLAN`                                                                                    | 403                     | no                 | shows what the next plan adds                                                          | « Écrivez-moi votre message » (voice notes)            |
+| `DOWNGRADE_NOT_ALLOWED_YET`                                                                              | 409                     | no                 | says when the lower plan can be bought                                                 | not applicable                                         |
+| `TRIAL_ALREADY_USED`                                                                                     | 409                     | no                 | says the trial was used by this key or wallet, offers the plans                        | not applicable                                         |
+| `AGENT_QUOTA_EXCEEDED`                                                                                   | 429                     | no                 | not shown to customers                                                                 | fixed reply and handoff; the vendor is alerted         |
+| `NWC_URI_INVALID`, `NWC_PERMISSIONS_TOO_BROAD`, `NWC_METHODS_MISSING`, `NWC_WALLET_ERROR`, `NWC_TIMEOUT` | 422, 422, 422, 422, 504 | timeout only       | messages of §5.3.4                                                                     | not applicable                                         |
+| `PROVIDER_TIMEOUT`                                                                                       | 504                     | yes                | retries once                                                                           | retries once, then hands off                           |
+| `IDEMPOTENCY_MISMATCH`                                                                                   | 422                     | no                 | bug report                                                                             | bug report                                             |
+| `NOT_FOUND`, `FORBIDDEN`                                                                                 | 404, 403                | no                 | error page                                                                             | not applicable                                         |
 
 ### 7.5 When a dependency fails
 
@@ -1828,7 +1840,9 @@ set_bot_mode(p: { scope: 'all' | 'conversation'; mode: 'bot' | 'paused'; minutes
 - **Where values come from.** Prices and quantities come from the vendor's words. A price read from a visible tag is flagged as such. Nothing is published before the vendor confirms (ADR-12).
 - **Ambiguities** become questions with buttons, for example « 5 au total ou 5 par pointure ? ».
 - **Matching.** When a similar product exists (trigram similarity on title and category), the agent asks « Réassort de "Baskets blanches" ? ». Image embeddings can come later.
-- **Images.** Core re-encodes every image with sharp, removes EXIF data (which can hold the shop's location), produces 320, 640 and 960 px widths in WebP and AVIF, and keeps the private original for 30 days.
+- **Images.** Core re-encodes every image with sharp, removes EXIF data (which can hold the shop's location), produces 320, 640 and 960 px widths in WebP and AVIF, and keeps the private original for 30 days (a lifecycle rule on the private bucket).
+- **Storage layout.** Uploads: `vendors/<vendor id>/uploads/<uuid>.<ext>` in the private bucket, written by the browser with a presigned PUT whose type and size are signed. Public images: `vendors/<vendor id>/images/<image id>/<width>.<webp|avif>`; `product_images.storage_key` names the 640 px WebP. Voice notes from the agent: `chat-audio/<yyyy-mm>/<uuid>.<ext>`, private. HEIC is not accepted: the prebuilt libvips cannot decode it, and iOS converts photos to JPEG when a page picks them.
+- **Implementation status.** Built: uploads, re-encoding on product create and edit, drafts from the dashboard (`draft.requested` carries one-hour private links for the vision model) and from the assistant, confirm as a new product or a restock, the plan's draft quota, and stale drafts failed after 10 minutes. Not built: CDN purge (images get new URLs, but cached store pages live up to 30 seconds), image embeddings for matching.
 
 ### 8.7 Model choice and cost
 
@@ -1855,7 +1869,7 @@ set_bot_mode(p: { scope: 'all' | 'conversation'; mode: 'bot' | 'paused'; minutes
 | The agent                            | Prompt injection, data leaks, runaway cost                                     | Tools chosen by role, context set by the server, output filter, rate limits, quota and budgets (§8.4).                                                                                                                                                                                                                                                                                                                                                                                                          |
 | Chat sessions                        | Token theft, spam, scraping                                                    | Bearer tokens of 128 bits, stored hashed, expiring after 30 days of inactivity. Rate limits per IP and per token, message size caps. The browser never sends a vendor id.                                                                                                                                                                                                                                                                                                                                       |
 | Customer data (name, phone, address) | Exposure to other vendors, logs                                                | Customers belong to one vendor. Every query is filtered by vendor. Phone numbers are masked in logs (`+221 77 *** ** 67`). Retention limits (§9.3). PostgreSQL row-level security as an extra layer after the MVP.                                                                                                                                                                                                                                                                                              |
-| Uploads                              | Malicious files, SSRF                                                          | Presigned uploads with type and size limits. Every image is re-encoded. The server never fetches a URL given by a user.                                                                                                                                                                                                                                                                                                                                                                                         |
+| Uploads                              | Malicious files, SSRF                                                          | Presigned uploads with type and size limits. Every image is re-encoded. The server never fetches a URL given by a user, with one exception: a wallet's Lightning Address (§3.6), fetched through a guard that allows https to public addresses only, checked when the socket resolves the name, with no redirects, a 5-second timeout and a 64 KB limit.                                                                                                                                                        |
 
 ### 9.2 Meta platform rules (when the channels return)
 
@@ -1927,9 +1941,9 @@ Targets for the pilot. Each one has a check.
 
 ### 11.3 Configuration
 
-Environment variables (examples): `DATABASE_URL`, `DATABASE_DIRECT_URL`, `APP_BASE_URL`, `CDN_PURGE_TOKEN`, `S3_ENDPOINT`, `S3_BUCKET_PUBLIC`, `S3_BUCKET_PRIVATE`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `SECRETS_KEK_V1` (32-byte key, base64), `SECRETS_PLATFORM_NWC_URI` (the receive-only platform wallet), `PLATFORM_LUD16` (optional fallback), `SERVICE_TOKEN_AGENT`, `EVENTS_HMAC_SECRET`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (Web Push), `NOSTR_NOTIFIER_NSEC` (optional, for Nostr direct messages to vendors), `NOSTR_NOTIFIER_RELAYS`, `LLM_PRIMARY`, `LLM_FALLBACK`, `LLM_API_KEY_*`, `ASR_PROVIDER`, `ASR_API_KEY`, `PRICE_SOURCES`, `SUBSCRIPTION_GRACE_DAYS` (7), `TRIAL_DAYS` (14).
+Environment variables (examples): `DATABASE_URL`, `DATABASE_DIRECT_URL`, `APP_BASE_URL`, `CDN_PURGE_TOKEN`, `S3_ENDPOINT`, `S3_BUCKET_PUBLIC`, `S3_BUCKET_PRIVATE`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `NWC_PAIRING_RELAYS` (where wallets announce a pairing), `MEDIA_STORE` (s3, or memory for development), `S3_PRESIGN_ENDPOINT` (the storage address browsers reach), `S3_REGION`, `S3_FORCE_PATH_STYLE`, `SECRETS_KEK_V1` (32-byte key, base64), `SECRETS_PLATFORM_NWC_URI` (the receive-only platform wallet, linked on first start), `SUBSCRIPTION_JOB_INTERVAL_MS` (300000), `PLATFORM_LUD16` (optional fallback), `SERVICE_TOKEN_AGENT`, `EVENTS_HMAC_SECRET`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (Web Push), `NOSTR_NOTIFIER_NSEC` (optional, for Nostr direct messages to vendors), `NOSTR_NOTIFIER_RELAYS`, `LLM_PRIMARY`, `LLM_FALLBACK`, `LLM_API_KEY_*`, `ASR_PROVIDER`, `ASR_API_KEY`, `PRICE_SOURCES`, `INVOICE_PROVIDER` (`fake` or `nwc`), `LIGHTNING_NETWORK`, `NWC_MIN_INTERVAL_MS`, `NWC_MAKE_INVOICE_TIMEOUT_MS`, `NWC_LOOKUP_TIMEOUT_MS`, `NWC_GET_INFO_TIMEOUT_MS`, `SUBSCRIPTION_GRACE_DAYS` (7), `TRIAL_DAYS` (14).
 
-Secrets come from the host's secret manager. `.env` files are for local development only and are git-ignored. Plan prices and limits are data (`core.plans`), not configuration.
+In production core refuses to start with a missing or dev `SERVICE_TOKEN_AGENT`. The local Docker stack runs the production build with dev values and says so with `ALLOW_DEV_SECRETS=true`; nothing else may set it. Secrets come from the host's secret manager. `.env` files are for local development only and are git-ignored. Plan prices and limits are data (`core.plans`), not configuration.
 
 ### 11.4 Observability
 

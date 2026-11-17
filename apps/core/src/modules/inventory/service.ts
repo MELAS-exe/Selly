@@ -1,7 +1,7 @@
 // The only writer of stock columns (architecture.md sections 3.5 and 4.6).
 // Every function takes a transaction so a stock change and its movement row commit together.
 import { core } from '@selly/db';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from '@selly/db/orm';
 import type { Database } from '../../context';
 import { AppError } from '../../errors';
 
@@ -109,6 +109,7 @@ export async function adjust(
   change: { delta: number } | { setTo: number },
   reason: 'restock' | 'adjustment',
   actor: string,
+  draftId?: string,
 ) {
   const [v] = await tx.select().from(pv).where(eq(pv.id, variantId));
   if (!v) throw new AppError('NOT_FOUND', 'No such variant.');
@@ -127,7 +128,7 @@ export async function adjust(
     .returning();
   const [movement] = await tx
     .insert(mv)
-    .values({ variantId, deltaOnHand: delta, reason, actor })
+    .values({ variantId, deltaOnHand: delta, reason, actor, draftId: draftId ?? null })
     .returning();
   return { variant: updated as typeof v, movement: movement as typeof mv.$inferSelect };
 }

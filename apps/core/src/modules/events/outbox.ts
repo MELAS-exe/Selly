@@ -1,7 +1,9 @@
 import { core } from '@selly/db';
 import { uuidv7 } from 'uuidv7';
 import type { Database } from '../../context';
+import { signal } from '../../signals';
 import { iso } from '../../util';
+import { notifyVendor, VENDOR_TOPICS, type VendorNotificationType } from './notifications';
 
 export type EventType =
   | 'order.created'
@@ -16,8 +18,9 @@ export type EventType =
   | 'entitlements.changed';
 
 /**
- * Write an event to the outbox, in the caller's transaction. A dispatcher (not built yet) delivers it to the agent
- * with a signature, at least once and in order per key (architecture.md section 7.1).
+ * Write an event to the outbox, in the caller's transaction. The dispatcher delivers it to the agent with a signature,
+ * at least once and in order per key (architecture.md section 7.1). Order and wallet events also go to the vendor's
+ * dashboard, in the same transaction.
  */
 export async function publishEvent(
   tx: Database,
@@ -27,6 +30,9 @@ export async function publishEvent(
   await tx.insert(core.outbox).values({
     topic: e.type,
     key: e.key,
+    // Due at the caller's clock, not the database's: the dispatcher compares with ctx.now().
+    createdAt: e.now,
+    nextAttemptAt: e.now,
     payload: {
       event_id: eventId,
       type: e.type,
@@ -35,6 +41,16 @@ export async function publishEvent(
       data: e.data,
     },
   });
+  // The checkout page of this order looks again.
+  if (e.type.startsWith('order.')) await signal(tx, 'order', e.key);
+  if (VENDOR_TOPICS.has(e.type)) {
+    await notifyVendor(tx, {
+      vendorId: e.vendorId,
+      type: e.type as VendorNotificationType,
+      data: e.data,
+      now: e.now,
+    });
+  }
   return eventId;
 }
 

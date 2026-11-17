@@ -1,4 +1,5 @@
 import { createHash, randomBytes, randomInt } from 'node:crypto';
+import { AppError } from './errors';
 
 export const sha256Hex = (input: string | Buffer): string =>
   createHash('sha256').update(input).digest('hex');
@@ -26,3 +27,18 @@ export function publicToken(): string {
 export const money = (amount: number, currency: 'XOF' | 'SAT') => ({ amount, currency });
 export const iso = (d: Date | null | undefined) =>
   d ? d.toISOString().replace(/\.\d{3}Z$/, 'Z') : null;
+
+/** An opaque page cursor: the (created_at, id) of the last row of a page, newest-first lists. */
+export const encodeCursor = (at: Date, id: string) =>
+  Buffer.from(`${at.toISOString()}|${id}`).toString('base64url');
+
+export function decodeCursor(c: string): { at: Date; id: string } {
+  const [at, id] = Buffer.from(c, 'base64url').toString().split('|');
+  const date = new Date(at ?? '');
+  if (!id || !/^[0-9a-f-]{36}$/i.test(id) || Number.isNaN(date.getTime())) {
+    throw new AppError('VALIDATION_FAILED', 'Invalid cursor.', {
+      errors: [{ field: 'cursor', message: 'Invalid' }],
+    });
+  }
+  return { at: date, id };
+}

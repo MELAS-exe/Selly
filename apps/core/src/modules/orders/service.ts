@@ -1,7 +1,7 @@
 // Cart quotes, order creation and the customer's view of an order (architecture.md sections 4.5, 4.6, 5.3.1, 6.2).
 import { core } from '@selly/db';
+import { and, desc, eq, inArray, sql } from '@selly/db/orm';
 import { satToMsat, xofToSat } from '@selly/money';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import QRCode from 'qrcode';
 import type { Context } from '../../context';
 import { AppError } from '../../errors';
@@ -310,7 +310,7 @@ export async function createOrder(ctx: Context, input: CreateOrderInput) {
         type: 'order.created',
         vendorId: vendor.id,
         key: o.id,
-        data: await orderEventData(tx, o),
+        data: orderEventData(ctx.config.APP_BASE_URL, o),
         now,
       });
       await audit(tx, { actor: input.actor, action: 'order.created', target: o.id });
@@ -328,7 +328,8 @@ async function makeInvoiceFor(ctx: Context, vendor: Vendor, number: string, amou
       description: `${vendor.displayName} commande ${number}`,
       expirySeconds: INVOICE_EXPIRY_SECONDS,
     });
-  } catch {
+  } catch (err) {
+    ctx.log.warn({ err: String(err), vendorId: vendor.id }, 'make_invoice failed');
     throw new AppError(
       'PAYMENT_UNAVAILABLE',
       "The vendor's wallet did not answer. No order was created and no stock is held.",
