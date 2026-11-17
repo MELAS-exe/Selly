@@ -131,3 +131,8 @@
       .theme-paper-vermilion [class*="bg-[#E3342F]"] { background-color: #8AAE4A !important; }
       .theme-paper-vermilion [class*="hover:text-[#E3342F]"]:hover { color: #719541 !important; }
       .theme-paper-vermilion header { color: #173B32; }
+
+/* Header over a dark section (toggled from Landing.tsx) */
+.theme-paper-vermilion header[data-dark='true'] { color: #F6F4F0; }
+.theme-paper-vermilion header[data-dark='true'] a:hover { color: #A3C651 !important; }
+

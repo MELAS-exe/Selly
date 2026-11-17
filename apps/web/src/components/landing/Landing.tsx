@@ -1,9 +1,31 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import './landing.css';
 
 export function Landing() {
+  const [onDark, setOnDark] = useState(false);
+
+  // Switch the header to its light variant while it overlaps a dark section.
+  useEffect(() => {
+    const update = () => {
+      const probe = 44;
+      const dark = Array.from(document.querySelectorAll<HTMLElement>('[data-dark-section]')).some(
+        (el) => {
+          const r = el.getBoundingClientRect();
+          return r.top <= probe && r.bottom >= probe;
+        },
+      );
+      setOnDark(dark);
+    };
+    update();
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, []);
   useEffect(() => {
     const els = Array.from(document.querySelectorAll<HTMLElement>('.reveal-on-scroll'));
     const hidden = 'opacity-0 translate-y-8'.split(' ');
@@ -29,10 +51,25 @@ export function Landing() {
 
   return (
     <div className="theme-paper-vermilion min-h-screen w-full overflow-hidden flex flex-col selection:bg-[#E3342F] selection:text-[#F6F4F0]">
-      <header className="fixed top-0 left-0 right-0 z-50 transition-all duration-500 py-8">
+      <header
+        data-dark={onDark}
+        className="fixed top-0 left-0 right-0 z-50 transition-all duration-500 py-8"
+      >
         <div className="max-w-7xl mx-auto px-6 md:px-12 flex justify-between items-center">
           <div className="pv-serif text-2xl font-bold tracking-widest uppercase flex items-center gap-2">
-            <img src="/brand/selly-wordmark.png" alt="Selly" className="h-7 md:h-8 w-auto" />
+            <span className="relative block">
+              <img
+                src="/brand/selly-wordmark.png"
+                alt="Selly"
+                className={`h-7 md:h-8 w-auto transition-opacity duration-500 ${onDark ? 'opacity-0' : 'opacity-100'}`}
+              />
+              <img
+                src="/brand/selly-wordmark-light.png"
+                alt=""
+                aria-hidden="true"
+                className={`absolute inset-0 h-7 md:h-8 w-auto transition-opacity duration-500 ${onDark ? 'opacity-100' : 'opacity-0'}`}
+              />
+            </span>
           </div>
           <a
             href="#signup"
@@ -81,35 +118,35 @@ export function Landing() {
             <img
               alt="Leather handbag"
               className="w-full h-full object-contain drop-shadow-[0_20px_25px_rgba(0,0,0,0.15)] -rotate-12 hover:-rotate-[6deg] hover:scale-[1.03] transition-transform duration-300 ease-out"
-              src="/landing/products/handbag.png"
+              src="/landing/products/handbag.webp"
             />
           </div>
           <div className="absolute top-[12%] right-[-5%] md:right-[15%] w-40 h-40 md:w-56 md:h-56 opacity-0 animate-pv-fade-up delay-150 z-20 pointer-events-auto">
             <img
               alt="Smartphone"
               className="w-full h-full object-contain drop-shadow-[0_25px_35px_rgba(0,0,0,0.2)] rotate-15 hover:rotate-[21deg] hover:scale-[1.03] transition-transform duration-300 ease-out"
-              src="/landing/products/smartphone.png"
+              src="/landing/products/smartphone.webp"
             />
           </div>
           <div className="absolute bottom-[20%] left-0 md:left-[15%] w-56 h-56 md:w-72 md:h-72 opacity-0 animate-pv-fade-up delay-200 z-20 pointer-events-auto">
             <img
               alt="Sneaker"
               className="w-full h-full object-contain drop-shadow-[0_30px_40px_rgba(0,0,0,0.25)] -rotate-[25deg] hover:-rotate-[19deg] hover:scale-[1.03] transition-transform duration-300 ease-out"
-              src="/landing/products/sneaker.png"
+              src="/landing/products/sneaker.webp"
             />
           </div>
           <div className="absolute bottom-[10%] right-[10%] w-32 h-32 md:w-48 md:h-48 opacity-0 animate-pv-fade-up delay-300 z-0 pointer-events-auto">
             <img
               alt="Folded shirt"
               className="w-full h-full object-contain drop-shadow-[0_15px_20px_rgba(0,0,0,0.1)] rotate-6 hover:rotate-[12deg] hover:scale-[1.03] transition-transform duration-300 ease-out"
-              src="/landing/products/garment.png"
+              src="/landing/products/garment.webp"
             />
           </div>
           <div className="absolute top-[45%] right-[-10%] md:right-[5%] w-32 h-32 md:w-40 md:h-40 opacity-0 animate-pv-fade-up delay-500 z-0 pointer-events-auto">
             <img
               alt="Perfume bottle"
               className="w-full h-full object-contain drop-shadow-[0_10px_15px_rgba(0,0,0,0.05)] rotate-[35deg] hover:rotate-[41deg] hover:scale-[1.03] transition-transform duration-300 ease-out"
-              src="/landing/products/perfume.png"
+              src="/landing/products/perfume.webp"
             />
           </div>
         </div>
@@ -210,7 +247,10 @@ export function Landing() {
           </div>
         </div>
       </section>
-      <section className="py-24 px-6 md:px-12 max-w-7xl mx-auto w-full border-x border-y border-[#1111111f] bg-[#111]">
+      <section
+        data-dark-section
+        className="py-24 px-6 md:px-12 max-w-7xl mx-auto w-full border-x border-y border-[#1111111f] bg-[#111]"
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
           <div className="order-2 md:order-1 reveal-on-scroll transition-all duration-500 ease-out opacity-100">
             <div className="pv-sans text-xs uppercase tracking-[0.3em] font-medium text-white/50 mb-8 flex items-center gap-4">
@@ -300,7 +340,6 @@ export function Landing() {
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]"
                     src="/landing/features/storefront.webp"
                   />
-                  <div className="absolute inset-0 bg-[#E3342F]/0 group-hover:bg-[#E3342F]/10 transition-colors duration-500 pointer-events-none mix-blend-multiply"></div>
                   <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
                 </div>
               </div>
@@ -334,7 +373,6 @@ export function Landing() {
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]"
                     src="/landing/features/catalog.webp"
                   />
-                  <div className="absolute inset-0 bg-[#E3342F]/0 group-hover:bg-[#E3342F]/10 transition-colors duration-500 pointer-events-none mix-blend-multiply"></div>
                   <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
                 </div>
               </div>
@@ -367,7 +405,6 @@ export function Landing() {
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]"
                     src="/landing/features/assistant.webp"
                   />
-                  <div className="absolute inset-0 bg-[#E3342F]/0 group-hover:bg-[#E3342F]/10 transition-colors duration-500 pointer-events-none mix-blend-multiply"></div>
                   <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
                 </div>
               </div>
@@ -400,7 +437,6 @@ export function Landing() {
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]"
                     src="/landing/features/ordering.webp"
                   />
-                  <div className="absolute inset-0 bg-[#E3342F]/0 group-hover:bg-[#E3342F]/10 transition-colors duration-500 pointer-events-none mix-blend-multiply"></div>
                   <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
                 </div>
               </div>
@@ -433,7 +469,6 @@ export function Landing() {
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]"
                     src="/landing/features/stock.webp"
                   />
-                  <div className="absolute inset-0 bg-[#E3342F]/0 group-hover:bg-[#E3342F]/10 transition-colors duration-500 pointer-events-none mix-blend-multiply"></div>
                   <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
                 </div>
               </div>
@@ -467,7 +502,6 @@ export function Landing() {
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]"
                     src="/landing/features/payments.webp"
                   />
-                  <div className="absolute inset-0 bg-[#E3342F]/0 group-hover:bg-[#E3342F]/10 transition-colors duration-500 pointer-events-none mix-blend-multiply"></div>
                   <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
                 </div>
               </div>
@@ -517,7 +551,6 @@ export function Landing() {
               className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
               src="/landing/gallery/boutique.jpg"
             />
-            <div className="absolute inset-0 bg-[#E3342F]/0 group-hover:bg-[#E3342F]/10 transition-colors duration-300 ease-out pointer-events-none mix-blend-multiply"></div>
             <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
             <div className="absolute bottom-6 left-6 bg-[#F6F4F0] p-5 pr-12 border border-[#1111111f] transition-transform duration-300 ease-out group-hover:translate-x-2">
               <h3 className="pv-serif text-3xl mb-1 group-hover:text-[#8AAE4A] transition-colors duration-500">
@@ -534,7 +567,6 @@ export function Landing() {
               className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
               src="/landing/gallery/packing.jpg"
             />
-            <div className="absolute inset-0 bg-[#E3342F]/0 group-hover:bg-[#E3342F]/10 transition-colors duration-300 ease-out pointer-events-none mix-blend-multiply"></div>
             <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
           </div>
           <div className="md:col-span-4 h-[350px] md:h-[450px] relative overflow-hidden group reveal-on-scroll transition-all duration-500 ease-out delay-75 opacity-100">
@@ -543,7 +575,6 @@ export function Landing() {
               className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
               src="/landing/gallery/market.jpg"
             />
-            <div className="absolute inset-0 bg-[#E3342F]/0 group-hover:bg-[#E3342F]/10 transition-colors duration-300 ease-out pointer-events-none mix-blend-multiply"></div>
             <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
           </div>
           <div className="md:col-span-4 h-[350px] md:h-[450px] relative overflow-hidden group reveal-on-scroll transition-all duration-500 ease-out delay-100 opacity-100">
@@ -552,7 +583,6 @@ export function Landing() {
               className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
               src="/landing/gallery/sneakers.jpg"
             />
-            <div className="absolute inset-0 bg-[#E3342F]/0 group-hover:bg-[#E3342F]/10 transition-colors duration-300 ease-out pointer-events-none mix-blend-multiply"></div>
             <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
           </div>
           <div className="md:col-span-4 h-[350px] md:h-[450px] relative overflow-hidden group reveal-on-scroll transition-all duration-500 ease-out delay-75 opacity-100">
@@ -574,7 +604,6 @@ export function Landing() {
               className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
               src="/landing/gallery/gallery.jpg"
             />
-            <div className="absolute inset-0 bg-[#E3342F]/0 group-hover:bg-[#E3342F]/10 transition-colors duration-300 ease-out pointer-events-none mix-blend-multiply"></div>
             <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
           </div>
         </div>
