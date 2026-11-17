@@ -17,6 +17,7 @@ import { AgentEngine } from './engine';
 import { ClaudeProvider } from './engine/anthropic';
 import { DemoProvider } from './engine/demo';
 import { FallbackProvider, type LlmProvider } from './engine/llm';
+import { openAiCompatibleFor } from './engine/openai-compatible';
 import { ScriptedProvider } from './engine/scripted';
 import { AppError, CoreError } from './errors';
 import { EntitlementsCache, ProfileCache, RateLimiter, UsageReporter } from './quota';
@@ -73,7 +74,11 @@ export function providerFor(name: string): LlmProvider {
       model: name,
       effort: (process.env.LLM_EFFORT as 'low' | 'medium' | 'high' | undefined) || 'low',
     });
-  throw new Error(`Unknown LLM provider "${name}". Use scripted, demo or a Claude model id.`);
+  const compatible = openAiCompatibleFor(name);
+  if (compatible) return compatible;
+  throw new Error(
+    `Unknown LLM provider "${name}". Use scripted, demo, a Claude model id, or groq:, ollama:, openai:<model>.`,
+  );
 }
 
 export function buildApp(opts: BuildOptions = {}): FastifyInstance & { services: AgentServices } {
