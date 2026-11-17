@@ -14,6 +14,7 @@ export type VendorNotificationType =
   | 'order.fulfilled'
   | 'wallet.degraded'
   | 'wallet.restored'
+  | 'wallet.paired'
   | 'conversation.handoff'
   | 'conversation.new'
   | 'usage.warning'

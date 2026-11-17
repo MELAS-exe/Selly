@@ -3409,7 +3409,7 @@
         ],
         "operationId": "startWalletPairing",
         "summary": "Client-initiated NWC pairing (optional)",
-        "description": "For wallets that support NWC client-initiated connection creation (NWC spec 08). Returns a link the vendor opens in the wallet, which approves a receive-only connection. The pairing completes through the gateway; poll `GET /vendors/me/wallet`.",
+        "description": "One-tap pairing for wallets that support Nostr Wallet Auth (NIP-47 proposal; Alby Go, Alby Hub and others). Core makes the connection key and returns `open_uri`, a `nostr+walletauth://` link (open it, or show it as a QR code) asking for a receive-only connection: `get_info get_balance make_invoice lookup_invoice` and `payment_received` notifications. When the wallet announces the connection on the pairing relay, core runs the same checks as a pasted URI and links it. The link is valid 10 minutes; a new pairing replaces a pending one. The dashboard hears `wallet.paired` (`{pairing_id, status: linked | failed, error}`) and can poll `GET /vendors/me/wallet`. Replacing a linked wallet needs a step-up.",
         "security": [
           {
             "vendorSession": []
@@ -3437,7 +3437,7 @@
                 },
                 "example": {
                   "pairing_id": "0193a930-0000-7000-8000-00000000f001",
-                  "open_uri": "nostr+walletconnect://pair?client=0bb222eba0308e54228667895e35893c74d509a4f00d2e9defd05d3cb21b220e&relay=wss%3A%2F%2Frelay.example&methods=make_invoice%20lookup_invoice%20get_info",
+                  "open_uri": "nostr+walletauth://b889ff5b1513b641e2a139f661a661364979c5beee91842f8f0ef42ab558e9d4?request_methods=get_info%20get_balance%20make_invoice%20lookup_invoice&notification_types=payment_received&name=Selly&return_to=https%3A%2F%2Fapp.selly.example%2Fdashboard%2Fwallet&relay=wss%3A%2F%2Frelay.getalby.com%2Fv1",
                   "expires_at": "2026-11-17T09:50:00Z"
                 }
               }
@@ -4352,7 +4352,7 @@
         ],
         "operationId": "streamVendorEvents",
         "summary": "Server-Sent Events for the dashboard",
-        "description": "Server-Sent Events for the dashboard, from now on (or from `Last-Event-ID`). Event names: `order.created`, `order.paid`, `order.expired`, `order.cancelled`, `order.fulfilled`, `wallet.degraded`, `wallet.restored`, `conversation.handoff`, `conversation.new`, `usage.warning`, `subscription.updated`, `draft.ready` (`{draft_id, status}`, status `needs_review` or `failed`). `subscription.updated` carries `reason`: `trial_started`, `paid` (with `invoice_id`), `status` (grace or suspended), `plan_started` (a booked plan began) or `reminder` (with `days_left`: 7, 3 or 1). Each event id is a UUIDv7; data is JSON with an `at` time. A `: ping` every 20 seconds. The session is checked again every minute: a signed-out device stops receiving. Notifications are kept 7 days.",
+        "description": "Server-Sent Events for the dashboard, from now on (or from `Last-Event-ID`). Event names: `order.created`, `order.paid`, `order.expired`, `order.cancelled`, `order.fulfilled`, `wallet.degraded`, `wallet.restored`, `wallet.paired`, `conversation.handoff`, `conversation.new`, `usage.warning`, `subscription.updated`, `draft.ready` (`{draft_id, status}`, status `needs_review` or `failed`). `subscription.updated` carries `reason`: `trial_started`, `paid` (with `invoice_id`), `status` (grace or suspended), `plan_started` (a booked plan began) or `reminder` (with `days_left`: 7, 3 or 1). Each event id is a UUIDv7; data is JSON with an `at` time. A `: ping` every 20 seconds. The session is checked again every minute: a signed-out device stops receiving. Notifications are kept 7 days.",
         "security": [
           {
             "vendorSession": []
@@ -12351,7 +12351,7 @@
           },
           "open_uri": {
             "type": "string",
-            "description": "A `nostr+walletconnect://` link the vendor opens in a wallet that supports client-initiated pairing."
+            "description": "A `nostr+walletauth://<client pubkey>?relay=...&request_methods=...` link for a wallet that supports Nostr Wallet Auth. It holds no secret."
           },
           "expires_at": {
             "type": "string",

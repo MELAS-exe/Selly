@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { AppError } from '../../errors';
 import { requireVendor } from '../auth/http';
 import { requireStepUp } from '../auth/service';
+import { startPairing } from './pairing';
 import { linkWallet, liveWallet, unlinkWallet, walletView } from './service';
 
 const linkBody = z.strictObject({
@@ -44,6 +45,18 @@ export const walletModule: FastifyPluginAsync = async (app) => {
         uri: body.uri,
         actor: `vendor:${s.vendorId}`,
       });
+    },
+  );
+
+  // One-tap pairing for wallets that support Nostr Wallet Auth. Replacing a linked wallet needs a step-up, as above.
+  app.post(
+    '/api/v1/vendors/me/wallet/pairing',
+    { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
+    async (req, reply) => {
+      const s = await requireVendor(ctx(), req);
+      if (await liveWallet(ctx().db, { owner: 'vendor', vendorId: s.vendorId }))
+        requireStepUp(ctx(), s);
+      return reply.code(201).send(await startPairing(ctx(), s.vendorId));
     },
   );
 

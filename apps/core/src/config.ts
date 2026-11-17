@@ -38,6 +38,8 @@ const schema = z.object({
   LIGHTNING_NETWORK: z.enum(['mainnet', 'testnet', 'signet', 'regtest']).default('mainnet'),
   // ws:// relays in NWC URIs. Local tests only: real wallets use wss://.
   NWC_ALLOW_INSECURE_RELAYS: flag,
+  // Relays where wallets announce a pairing (nostr+walletauth links), comma separated.
+  NWC_PAIRING_RELAYS: z.string().default('wss://relay.getalby.com/v1'),
   // At most 2 requests per second per wallet (architecture.md section 7.3).
   NWC_MIN_INTERVAL_MS: z.coerce.number().int().min(0).default(500),
   NWC_MAKE_INVOICE_TIMEOUT_MS: z.coerce.number().int().default(10_000),
