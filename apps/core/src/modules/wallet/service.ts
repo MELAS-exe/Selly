@@ -2,8 +2,8 @@
 // parse the URI, read the info event, call get_info, apply the permission policy, create and look up a 1-sat test
 // invoice. The URI is then encrypted; it is never returned, logged or sent to a browser again.
 import { core } from '@selly/db';
+import { and, eq, ne } from '@selly/db/orm';
 import { checkPermissions, NwcConnection, NwcError, parseNwcUri } from '@selly/nwc';
-import { and, eq, ne } from 'drizzle-orm';
 import type { Config } from '../../config';
 import type { Context, Database, Logger } from '../../context';
 import { AppError } from '../../errors';

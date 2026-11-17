@@ -6,6 +6,7 @@
   "description": "Drizzle schemas for the core and agent schemas, migrations and seed data (architecture.md section 4.3)",
   "exports": {
     ".": "./src/index.ts",
+    "./orm": "./src/orm.ts",
     "./testing": "./src/testing.ts"
   },
   "scripts": {

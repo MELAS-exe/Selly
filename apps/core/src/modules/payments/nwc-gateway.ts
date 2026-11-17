@@ -6,8 +6,8 @@
 // - payment_received notifications only trigger a lookup (ADR-06); onPaymentNotice does that.
 // Runs as a single instance today. With several core instances, elect one with a PostgreSQL advisory lock.
 import { core } from '@selly/db';
+import { and, eq, ne } from '@selly/db/orm';
 import { NwcConnection, NwcError, parseNwcUri } from '@selly/nwc';
-import { and, eq, ne } from 'drizzle-orm';
 import type { Context } from '../../context';
 import { walletAad } from '../../secrets';
 import { audit, publishEvent } from '../events/outbox';

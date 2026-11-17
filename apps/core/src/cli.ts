@@ -8,7 +8,7 @@
 // end up in shell history or the process list.
 import { createInterface } from 'node:readline';
 import { core, createDb } from '@selly/db';
-import { eq } from 'drizzle-orm';
+import { eq } from '@selly/db/orm';
 import { loadConfig } from './config';
 import type { Database } from './context';
 import { AppError } from './errors';

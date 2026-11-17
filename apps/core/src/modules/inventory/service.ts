@@ -1,7 +1,7 @@
 // The only writer of stock columns (architecture.md sections 3.5 and 4.6).
 // Every function takes a transaction so a stock change and its movement row commit together.
 import { core } from '@selly/db';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from '@selly/db/orm';
 import type { Database } from '../../context';
 import { AppError } from '../../errors';
 

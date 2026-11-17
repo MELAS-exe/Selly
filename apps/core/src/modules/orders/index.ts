@@ -1,11 +1,13 @@
 import { core } from '@selly/db';
-import { eq } from 'drizzle-orm';
+import { eq } from '@selly/db/orm';
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { AppError } from '../../errors';
 import { withIdempotency } from '../../idempotency';
 import { iso, money } from '../../util';
-import { findVendorBySlug } from '../catalog/store';
+import { actorOf } from '../catalog';
+import { findVendorById, findVendorBySlug } from '../catalog/store';
+import { findOrder, fulfillOrder, listOrders, metrics, statusView } from './internal';
 import {
   checkoutStatus,
   checkoutView,
@@ -176,7 +178,7 @@ export const ordersModule: FastifyPluginAsync = async (app) => {
 
   app.post<{ Params: { id: string } }>('/internal/v1/vendors/:id/cart-quotes', async (req) => {
     const body = internalQuoteBody.parse(req.body);
-    const vendor = await internalVendor(req.params.id);
+    const vendor = await findVendorById(ctx(), req.params.id);
     const q = await quoteCart(ctx(), vendor, body, { discountPct: body.discount_pct ?? 0 });
     return {
       lines: q.lines.map((l) => lineMoney(q, l)),
@@ -191,7 +193,7 @@ export const ordersModule: FastifyPluginAsync = async (app) => {
 
   app.post<{ Params: { id: string } }>('/internal/v1/vendors/:id/orders', async (req, reply) => {
     const body = internalOrderBody.parse(req.body);
-    const vendor = await internalVendor(req.params.id);
+    const vendor = await findVendorById(ctx(), req.params.id);
     const res = await withIdempotency(
       ctx(),
       'svc:agent',
@@ -224,9 +226,43 @@ export const ordersModule: FastifyPluginAsync = async (app) => {
     return reply.code(res.status).send(res.body);
   });
 
-  async function internalVendor(id: string) {
-    const [v] = await ctx().db.select().from(core.vendors).where(eq(core.vendors.id, id));
-    if (!v) throw new AppError('NOT_FOUND', 'No such vendor.');
-    return v;
-  }
+  app.get<{ Params: { id: string } }>('/internal/v1/vendors/:id/orders', async (req) => {
+    const q = z
+      .object({
+        status: z.enum(['pending_payment', 'paid', 'fulfilled', 'cancelled', 'expired']).optional(),
+        period: z.enum(['today', '7d']).optional(),
+      })
+      .parse(req.query);
+    return listOrders(ctx(), await findVendorById(ctx(), req.params.id), q);
+  });
+
+  app.get<{ Params: { id: string; order_ref: string } }>(
+    '/internal/v1/vendors/:id/orders/:order_ref',
+    async (req) => {
+      const vendor = await findVendorById(ctx(), req.params.id);
+      return statusView(await findOrder(ctx(), vendor, req.params.order_ref));
+    },
+  );
+
+  app.post<{ Params: { id: string; order_ref: string } }>(
+    '/internal/v1/vendors/:id/orders/:order_ref/fulfill',
+    async (req) => {
+      const { note } = z.object({ note: z.string().max(300).optional() }).parse(req.body ?? {});
+      const vendor = await findVendorById(ctx(), req.params.id);
+      return fulfillOrder(
+        ctx(),
+        vendor,
+        req.params.order_ref,
+        actorOf(req.headers['x-actor'], vendor.id),
+        note,
+      );
+    },
+  );
+
+  app.get<{ Params: { id: string } }>('/internal/v1/vendors/:id/metrics', async (req) => {
+    const { period } = z
+      .object({ period: z.enum(['today', '7d', '30d']).default('today') })
+      .parse(req.query);
+    return metrics(ctx(), await findVendorById(ctx(), req.params.id), period);
+  });
 };

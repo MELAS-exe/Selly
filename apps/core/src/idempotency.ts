@@ -1,5 +1,5 @@
 import { core } from '@selly/db';
-import { and, eq } from 'drizzle-orm';
+import { and, eq } from '@selly/db/orm';
 import type { Context } from './context';
 import { AppError } from './errors';
 import { sha256Hex } from './util';

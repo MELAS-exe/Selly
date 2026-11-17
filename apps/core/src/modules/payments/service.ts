@@ -2,7 +2,7 @@
 // Paid means the wallet that received the money confirmed it with lookup_invoice (ADR-06). Subscription
 // invoices will follow the same path once the subscriptions module is built.
 import { core } from '@selly/db';
-import { and, eq, lte, ne } from 'drizzle-orm';
+import { and, eq, lte, ne } from '@selly/db/orm';
 import type { Context, Database } from '../../context';
 import { sha256Hex } from '../../util';
 import { audit, publishEvent } from '../events/outbox';

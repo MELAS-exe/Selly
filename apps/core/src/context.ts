@@ -1,5 +1,5 @@
 import type { core } from '@selly/db';
-import type { PgDatabase } from 'drizzle-orm/pg-core';
+import type { PgDatabase } from '@selly/db/orm';
 import type { Config } from './config';
 import type { InvoiceGateway } from './modules/payments/provider';
 import type { RateService } from './modules/rates/service';
