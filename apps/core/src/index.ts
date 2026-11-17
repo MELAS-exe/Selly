@@ -2,16 +2,28 @@ import { createDb } from '@selly/db';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { buildApp } from './app';
 import { loadConfig } from './config';
-import type { Context, Database } from './context';
+import { type Context, type Database, silentLogger } from './context';
 import { seedDemo } from './dev/seed';
 import { FakeInvoiceProvider } from './modules/payments/fake';
+import { NwcGateway } from './modules/payments/nwc-gateway';
 import { singleProvider } from './modules/payments/provider';
-import { reconcileOnce } from './modules/payments/service';
+import { confirmPayment, reconcileOnce } from './modules/payments/service';
 import { feedsFromConfig } from './modules/rates/feeds';
 import { RateService } from './modules/rates/service';
+import { Keyring } from './secrets';
+
+const WALLET_REFRESH_MS = 60_000;
 
 async function main() {
   const config = loadConfig();
+  const keyring = Keyring.fromEnv(process.env);
+  if (config.INVOICE_PROVIDER === 'nwc' && !keyring) {
+    throw new Error(
+      'INVOICE_PROVIDER=nwc needs SECRETS_KEK_V1 (32 random bytes, base64) to decrypt wallet connections. ' +
+        `Generate one with: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`,
+    );
+  }
+
   const { db: pgDb, close } = createDb(config.DATABASE_URL);
   const db = pgDb as unknown as Database;
   const now = () => new Date();
@@ -21,32 +33,41 @@ async function main() {
   }
   if (config.SEED_DEMO) await seedDemo(db);
 
-  if (config.INVOICE_PROVIDER === 'nwc') {
-    throw new Error(
-      'INVOICE_PROVIDER=nwc: the NWC gateway is not built yet. Use INVOICE_PROVIDER=fake for now.',
-    );
-  }
-  const provider = new FakeInvoiceProvider(now);
-
+  // The context is completed below: the gateway and the logger need the context and the app in turn.
   const ctx: Context = {
     config,
     db,
     now,
     rates: new RateService(db, feedsFromConfig(config.RATE_SOURCES), now),
-    invoices: singleProvider(provider),
+    invoices: singleProvider(new FakeInvoiceProvider(now)),
+    keyring,
+    log: silentLogger,
   };
   const app = buildApp(ctx);
+  ctx.log = app.log;
 
-  if (config.INVOICE_PROVIDER === 'fake') {
+  let gateway: NwcGateway | null = null;
+  if (config.INVOICE_PROVIDER === 'nwc') {
+    gateway = new NwcGateway(ctx, (n) => {
+      confirmPayment(ctx, n).catch((err) =>
+        app.log.warn({ err: String(err), ...n }, 'payment notification not confirmed'),
+      );
+    });
+    ctx.invoices = gateway;
+    await gateway
+      .refresh()
+      .catch((err) => app.log.warn({ err: String(err) }, 'wallet refresh failed'));
+    app.log.info({ network: config.LIGHTNING_NETWORK }, 'NWC gateway ready');
+  } else {
     app.log.warn(
       'INVOICE_PROVIDER=fake: invoices are simulated and cannot be paid. Development only.',
     );
   }
 
   // Reconciler: asks wallets about open invoices and expires unpaid orders (architecture.md 7.3).
-  // pg-boss will replace this timer when more than one instance runs.
+  // pg-boss will replace these timers when more than one instance runs.
   let running = false;
-  const timer = setInterval(async () => {
+  const reconciler = setInterval(async () => {
     if (running) return;
     running = true;
     try {
@@ -57,9 +78,18 @@ async function main() {
       running = false;
     }
   }, config.RECONCILE_INTERVAL_MS);
+  const walletRefresh = gateway
+    ? setInterval(() => {
+        gateway
+          ?.refresh()
+          .catch((err) => app.log.warn({ err: String(err) }, 'wallet refresh failed'));
+      }, WALLET_REFRESH_MS)
+    : null;
 
   const shutdown = async () => {
-    clearInterval(timer);
+    clearInterval(reconciler);
+    if (walletRefresh) clearInterval(walletRefresh);
+    gateway?.close();
     await app.close();
     await close();
     process.exit(0);
