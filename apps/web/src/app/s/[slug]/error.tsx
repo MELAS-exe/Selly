@@ -4,7 +4,9 @@
 export default function ShopError({ reset }: { error: Error; reset: () => void }) {
   return (
     <main className="mx-auto max-w-xl px-4 pt-16">
-      <h1 className="text-[1.75rem] leading-tight font-bold">Boutique momentanément indisponible</h1>
+      <h1 className="text-[1.75rem] leading-tight font-bold">
+        Boutique momentanément indisponible
+      </h1>
       <p className="mt-3 text-muted">
         La page n'a pas pu se charger. Vérifiez votre connexion, puis réessayez.
       </p>
