@@ -40,6 +40,10 @@ These endpoints work, and their responses match `docs/api.json`:
 - Storefront: `GET /api/v1/stores/{slug}`, `/products`, `/products/{product_id}`, `POST /cart-quotes`.
 - Checkout: `POST /api/v1/orders`, `GET /api/v1/checkout/{token}`, `/status`, `/events` (SSE), `POST /invoice`.
 - `GET /api/v1/rates/btc-xof` and `GET /api/v1/plans`.
+- Vendor sign-in with a Nostr key (cookie `selly_session`): `POST /api/v1/auth/nostr/challenges` and `/sessions`,
+  `/auth/logout`, `/auth/sessions`, `/vendors/me/keys`, step-up. Then `POST /api/v1/vendors`, `GET` and `PATCH /vendors/me`,
+  and the wallet: `PUT`, `GET` and `DELETE /vendors/me/wallet`. State-changing requests need `Origin: <APP_BASE_URL>`.
+- For the agent's inbox and assistant: `POST /internal/v1/sessions/introspect`.
 - For the agent (service token), every route of group G except drafts, media, notifications and session introspection:
   `GET /internal/v1/stores/{slug}/vendor`, and under `/internal/v1/vendors/{id}/`: `agent-profile`, `entitlements`, `usage`,
   `products/search`, `products/{product_id}` (GET and PATCH), `variants/{variant_id}/adjustments`, `cart-quotes`,
@@ -50,7 +54,7 @@ These endpoints work, and their responses match `docs/api.json`:
 
 A shop is open only with a plan that is trialing, active or in grace. The demo shop has a year of Pro.
 
-By default Lightning is simulated (`INVOICE_PROVIDER=fake`): invoices look real but cannot be paid. Vendor sign-in, the vendor dashboard API and paying for subscriptions are not built yet; mock them from `docs/api.json`.
+By default Lightning is simulated (`INVOICE_PROVIDER=fake`): invoices look real but cannot be paid. Not built yet: the catalog, stock and order routes of the dashboard, photos and drafts, and paying for a subscription; mock them from `docs/api.json`.
 
 ## Taking real payments on a wallet (NWC)
 
@@ -67,7 +71,7 @@ By default Lightning is simulated (`INVOICE_PROVIDER=fake`): invoices look real 
    Selly checks the connection first: its permissions, then a 1-sat test invoice that is never paid. `wallet:status` and `wallet:unlink` work the same way.
 4. Start core. Orders now get invoices from that wallet, and a payment shows as paid within seconds.
 
-Until vendor sign-in exists, this command replaces `PUT /api/v1/vendors/me/wallet`.
+The dashboard links a wallet with `PUT /api/v1/vendors/me/wallet`. This command stays for operators and for the platform wallet.
 
 ## Who owns what
 

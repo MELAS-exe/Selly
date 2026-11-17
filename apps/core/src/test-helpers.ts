@@ -8,6 +8,7 @@ import { FakeInvoiceProvider } from './modules/payments/fake';
 import { singleProvider } from './modules/payments/provider';
 import type { RateFeed } from './modules/rates/feeds';
 import { RateService } from './modules/rates/service';
+import { Keyring } from './secrets';
 
 export const SERVICE_TOKEN = 'test-service-token';
 
@@ -37,12 +38,17 @@ export async function createTestApp() {
       NODE_ENV: 'test',
       SERVICE_TOKEN_AGENT: SERVICE_TOKEN,
       SSE_POLL_MS: '30',
+      NWC_ALLOW_INSECURE_RELAYS: 'true',
+      NWC_MIN_INTERVAL_MS: '0',
+      NWC_MAKE_INVOICE_TIMEOUT_MS: '1500',
+      NWC_LOOKUP_TIMEOUT_MS: '1500',
+      NWC_GET_INFO_TIMEOUT_MS: '1500',
     } as NodeJS.ProcessEnv),
     db,
     now: clock.now,
     rates: new RateService(db, feeds, clock.now),
     invoices: singleProvider(provider),
-    keyring: null,
+    keyring: Keyring.forTests(),
     log: silentLogger,
   };
   const app = buildApp(ctx);
