@@ -8,6 +8,7 @@ import type { Config } from '../../config';
 import type { Context, Database, Logger } from '../../context';
 import { AppError } from '../../errors';
 import { type Keyring, walletAad } from '../../secrets';
+import { signal } from '../../signals';
 import { iso } from '../../util';
 import { audit } from '../events/outbox';
 
@@ -179,6 +180,8 @@ export async function linkWallet(deps: WalletDeps, input: LinkInput) {
         methods: checked.methods,
       },
     });
+    // The job leader subscribes to its payment notifications now, not at its next refresh (index.ts).
+    await signal(tx, 'wallet', 'linked');
     return created as WalletRow;
   });
 
