@@ -3,7 +3,7 @@
 import { useEffect, useId, useState } from 'react';
 import './landing.css';
 
-/** Text on a circle. Each instance gets its own path id: copies used to share id="circlePath". */
+/** Text on a circle. Each instance gets its own path id: three copies used to share id="circlePath". */
 function CircleText({ className, d, text }: { className: string; d: string; text: string }) {
   const id = useId();
   return (
@@ -172,14 +172,14 @@ export function Landing() {
               src="/landing/products/smartphone.webp"
             />
           </div>
-          <div className="absolute top-[636px] md:top-[60%] lg:top-[56%] left-0 md:left-[2%] w-36 h-28 md:w-40 md:h-40 lg:w-56 lg:h-56 hero-prop [--side:-1] [--d:460ms] [--float:8s] z-0 pointer-events-auto">
+          <div className="absolute bottom-6 md:bottom-auto md:top-[60%] lg:top-[56%] left-0 md:left-[2%] w-36 h-28 md:w-40 md:h-40 lg:w-56 lg:h-56 hero-prop [--side:-1] [--d:460ms] [--float:8s] z-0 pointer-events-auto">
             <img
               alt="Sneaker"
               className="w-full h-full object-contain drop-shadow-[0_30px_40px_rgba(0,0,0,0.25)] -rotate-[25deg] hover:-rotate-[19deg] hover:scale-[1.03] transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
               src="/landing/products/sneaker.webp"
             />
           </div>
-          <div className="absolute top-[630px] md:top-[59%] lg:top-[52%] right-3 md:right-[5%] w-20 h-20 md:w-28 md:h-28 lg:w-36 lg:h-36 hero-prop [--side:1] [--d:540ms] [--float:7.5s] z-0 pointer-events-auto">
+          <div className="absolute bottom-8 md:bottom-auto md:top-[59%] lg:top-[52%] right-3 md:right-[5%] w-20 h-20 md:w-28 md:h-28 lg:w-36 lg:h-36 hero-prop [--side:1] [--d:620ms] [--float:7.5s] z-0 pointer-events-auto">
             <img
               alt="Perfume bottle"
               className="w-full h-full object-contain drop-shadow-[0_10px_15px_rgba(0,0,0,0.05)] rotate-[35deg] hover:rotate-[41deg] hover:scale-[1.03] transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
@@ -348,7 +348,7 @@ export function Landing() {
                 <div className="kit-media relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
                   <img
                     alt="Your storefront"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-(--ease-out-expo)-expo)"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
                     src="/landing/features/storefront.webp"
                   />
                   <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
@@ -381,7 +381,7 @@ export function Landing() {
                 <div className="kit-media relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
                   <img
                     alt="Live catalog"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-(--ease-out-expo)-expo)"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
                     src="/landing/features/catalog.webp"
                   />
                   <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
@@ -413,7 +413,7 @@ export function Landing() {
                 <div className="kit-media relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
                   <img
                     alt="Sales assistant"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-(--ease-out-expo)-expo)"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
                     src="/landing/features/assistant.webp"
                   />
                   <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
@@ -445,7 +445,7 @@ export function Landing() {
                 <div className="kit-media relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
                   <img
                     alt="Easy ordering"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-(--ease-out-expo)-expo)"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
                     src="/landing/features/ordering.webp"
                   />
                   <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
@@ -477,7 +477,7 @@ export function Landing() {
                 <div className="kit-media relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
                   <img
                     alt="Stock-aware"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-(--ease-out-expo)-expo)"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
                     src="/landing/features/stock.webp"
                   />
                   <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
@@ -510,7 +510,7 @@ export function Landing() {
                 <div className="kit-media relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
                   <img
                     alt="Direct payments"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-(--ease-out-expo)-expo)"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
                     src="/landing/features/payments.webp"
                   />
                   <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
@@ -772,7 +772,7 @@ export function Landing() {
                     <path d="m12 5 7 7-7 7"></path>
                   </svg>
                 </span>
-                <div className="absolute inset-0 bg-[#173B32] translate-y-[100%] group-hover:translate-y-0 transition-transform duration-(--dur-ui) ease-(--ease-(--ease-out-expo)-expo) z-0"></div>
+                <div className="absolute inset-0 bg-[#173B32] translate-y-[100%] group-hover:translate-y-0 transition-transform duration-(--dur-ui) ease-(--ease-out-expo) z-0"></div>
               </button>
             </form>
           </div>

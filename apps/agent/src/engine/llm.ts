@@ -39,6 +39,11 @@ export interface LlmRequest {
   jsonSchema?: Record<string, unknown>;
   maxTokens: number;
   signal?: AbortSignal;
+  /**
+   * When `signal` aborts (epoch ms). A provider that would wait past it (a rate-limit retry) fails at once instead,
+   * so the fallback provider still has time to answer.
+   */
+  deadlineAt?: number;
 }
 
 export interface LlmResponse {

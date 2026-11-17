@@ -71,6 +71,7 @@ export class AgentEngine {
     const { conversation: conv, profile } = req;
     const role = conv.role;
     const controller = new AbortController();
+    const deadlineAt = Date.now() + this.deps.deadlineMs;
     const timer = setTimeout(() => controller.abort(new TurnTimeoutError()), this.deps.deadlineMs);
 
     const state: ConversationState = structuredClone(conv.state);
@@ -119,6 +120,7 @@ export class AgentEngine {
           tools,
           maxTokens: 2048,
           signal: controller.signal,
+          deadlineAt,
         });
         inputTokens += res.usage.inputTokens;
         outputTokens += res.usage.outputTokens;
@@ -290,6 +292,7 @@ export class AgentEngine {
         ],
         maxTokens: 400,
         signal: AbortSignal.timeout(this.deps.deadlineMs),
+        deadlineAt: Date.now() + this.deps.deadlineMs,
       });
       await this.deps.store.recordLlmCall({
         conversationId: conv.id,
