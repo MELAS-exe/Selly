@@ -990,6 +990,12 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundNoShop"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
           }
         }
       }
@@ -1106,6 +1112,9 @@
                 }
               }
             }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
           }
         }
       }
@@ -1218,6 +1227,9 @@
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           },
+          "403": {
+            "$ref": "#/components/responses/OriginRejected"
+          },
           "404": {
             "description": "Not found",
             "content": {
@@ -1264,7 +1276,7 @@
         ],
         "operationId": "cancelOrder",
         "summary": "Cancel an order",
-        "description": "Releases the reservation. For a `paid` order the refund is the vendor's to make from their own wallet; Selly holds no funds. The invoice cannot be withdrawn from the payer's wallet, so a payment that arrives later is recorded (architecture.md §4.4).",
+        "description": "Unpaid: releases the stock and cancels the open invoices; a payment that still arrives is recorded as a late payment (architecture.md §4.4). Paid: cancelled without touching stock; the vendor refunds from their own wallet and adjusts stock by hand. Fulfilled: 422. Cancelling twice returns the order as it is.",
         "security": [
           {
             "vendorSession": []
@@ -1364,6 +1376,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/OriginRejected"
           },
           "404": {
             "description": "Not found",
@@ -4174,7 +4189,7 @@
         ],
         "operationId": "registerPushSubscription",
         "summary": "Register a browser for Web Push",
-        "description": "Called after the vendor allows notifications in the installed PWA. The endpoint and keys come from `PushManager.subscribe` with the VAPID public key.",
+        "description": "Called after the vendor allows notifications in the installed PWA. The endpoint and keys come from `PushManager.subscribe` with the VAPID public key. Re-registering the same endpoint moves it to this vendor. At most 20 browsers per vendor. Sending comes with the notification worker.",
         "security": [
           {
             "vendorSession": []
@@ -4216,6 +4231,12 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/OriginRejected"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundNoShop"
           },
           "422": {
             "description": "Validation failed",
@@ -4313,6 +4334,12 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundNoShop"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
           }
         }
       }
@@ -4324,7 +4351,7 @@
         ],
         "operationId": "streamVendorEvents",
         "summary": "Server-Sent Events for the dashboard",
-        "description": "Event names: `order.created`, `order.paid`, `draft.ready`, `wallet.degraded`, `conversation.handoff`, `subscription.updated`, `usage.warning`. Data is JSON. Resume with `Last-Event-ID`.",
+        "description": "Server-Sent Events for the dashboard, from now on (or from `Last-Event-ID`). Event names: `order.created`, `order.paid`, `order.expired`, `order.cancelled`, `order.fulfilled`, `wallet.degraded`, `wallet.restored`, `conversation.handoff`, `conversation.new`, `usage.warning`; later `draft.ready` and `subscription.updated`. Each event id is a UUIDv7; data is JSON with an `at` time. A `: ping` every 20 seconds. The session is checked again every minute: a signed-out device stops receiving. Notifications are kept 7 days.",
         "security": [
           {
             "vendorSession": []
@@ -4344,6 +4371,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundNoShop"
           }
         }
       }
@@ -4454,8 +4484,15 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundNoShop"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
           }
-        }
+        },
+        "description": "Every product that is not archived, newest first; `status` filters, `archived` included. `q` searches titles without accents."
       },
       "post": {
         "tags": [
@@ -4463,7 +4500,7 @@
         ],
         "operationId": "createProduct",
         "summary": "Add a product manually",
-        "description": "Counts against the plan's product limit. Image keys come from `POST /media/uploads`. Purges the store's CDN URLs.",
+        "description": "Counts against the plan's product limit (`PLAN_LIMIT_REACHED`, with `upgrade_to`). The slug is made from the title and kept unique in the shop. Initial stock is recorded as a restock. `image_keys` must be empty until the media pipeline exists. Needs an `Idempotency-Key`.",
         "security": [
           {
             "vendorSession": []
@@ -4572,6 +4609,12 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/OriginRejected"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundNoShop"
           },
           "409": {
             "description": "Plan limit reached",
@@ -4730,6 +4773,9 @@
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           },
+          "403": {
+            "$ref": "#/components/responses/OriginRejected"
+          },
           "404": {
             "description": "Not found",
             "content": {
@@ -4848,6 +4894,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/OriginRejected"
           },
           "404": {
             "description": "Not found",
@@ -9574,7 +9623,7 @@
         ],
         "operationId": "internalNotifyVendor",
         "summary": "Alert the vendor",
-        "description": "Scope `notifications:write`. Core sends a Web Push, shows a dashboard banner and publishes the matching event on the vendor stream. A Nostr direct message is added when the vendor turned it on and the plan includes it. At most one push per conversation every 5 minutes.",
+        "description": "Scope `notifications:write`. Shown on the vendor's live stream (`GET /api/v1/vendors/me/events`), and later sent as Web Push. At most one per conversation and type every 5 minutes. `url` is a dashboard path (`/app/...`).",
         "parameters": [
           {
             "name": "X-Request-Id",
@@ -9648,6 +9697,9 @@
                 }
               }
             }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
           }
         },
         "tags": [

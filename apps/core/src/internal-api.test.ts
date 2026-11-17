@@ -477,15 +477,18 @@ describe('event dispatcher', () => {
     agentUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
     // Start from an empty outbox: earlier tests wrote events.
     await t.db.update(core.outbox).set({ publishedAt: new Date() });
+    // Events belong to a real vendor (the vendor_notifications foreign key checks it).
+    eventVendorId = (await createShop(t.db, 'ia-dispatch')).vendorId;
   });
   afterAll(() => new Promise<void>((r) => server.close(() => r())));
 
+  let eventVendorId = '';
   const deps = () => ({ agentUrl, secret: SECRET });
   const emit = (key: string, type: 'order.paid' | 'order.expired' | 'order.created') =>
     t.db.transaction((tx) =>
       publishEvent(tx, {
         type,
-        vendorId: '0193a000-0000-7000-8000-000000000001',
+        vendorId: eventVendorId,
         key,
         data: { order_id: key },
         now: t.ctx.now(),

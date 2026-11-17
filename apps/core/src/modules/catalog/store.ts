@@ -3,7 +3,7 @@ import { core } from '@selly/db';
 import { and, asc, desc, eq, inArray, lt, or, sql } from '@selly/db/orm';
 import type { Context } from '../../context';
 import { AppError } from '../../errors';
-import { iso, money } from '../../util';
+import { decodeCursor, encodeCursor, iso, money } from '../../util';
 import { currentSubscription, isServing } from '../subscriptions/service';
 
 const { vendors, products, productVariants: pv, productImages } = core;
@@ -89,16 +89,6 @@ export async function storeStatus(ctx: Context, v: Vendor): Promise<'active' | '
 export const availabilityOf = (available: number): 'in_stock' | 'low' | 'out_of_stock' =>
   available <= 0 ? 'out_of_stock' : available <= 3 ? 'low' : 'in_stock';
 
-const encodeCursor = (p: Pick<Product, 'createdAt' | 'id'>) =>
-  Buffer.from(`${p.createdAt.toISOString()}|${p.id}`).toString('base64url');
-function decodeCursor(c: string): { at: Date; id: string } {
-  const [at, id] = Buffer.from(c, 'base64url').toString().split('|');
-  const date = new Date(at ?? '');
-  if (!id || Number.isNaN(date.getTime()))
-    throw new AppError('VALIDATION_FAILED', 'Invalid cursor.');
-  return { at: date, id };
-}
-
 export function imageView(ctx: Context, img: typeof productImages.$inferSelect | undefined) {
   if (!img) return null;
   return {
@@ -178,7 +168,7 @@ export async function listProducts(
   const last = page[page.length - 1];
   return {
     data: await productSummaries(ctx, page),
-    next_cursor: rows.length > q.limit && last ? encodeCursor(last) : null,
+    next_cursor: rows.length > q.limit && last ? encodeCursor(last.createdAt, last.id) : null,
   };
 }
 

@@ -1,6 +1,8 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { AppError } from '../../errors';
+import { withIdempotency } from '../../idempotency';
+import { requireVendor } from '../auth/http';
 import { findVendorProduct, patchProduct, searchProducts } from './internal';
 import {
   findVendorById,
@@ -11,6 +13,7 @@ import {
   storeProfile,
   storeStatus,
 } from './store';
+import { createVendorProduct, listVendorProducts } from './vendor';
 
 const PUBLIC_CACHE = 'public, max-age=30, stale-while-revalidate=300';
 const searchQuery = z.object({
@@ -39,6 +42,34 @@ const page = z.object({
 });
 
 // Public storefront reads: store profile, catalog pages, product detail (architecture.md 3.4, 5.2 group A).
+const moneyStrict = z.strictObject({
+  amount: z.number().int().positive(),
+  currency: z.enum(['XOF', 'SAT']),
+});
+const productCreate = z.strictObject({
+  title: z.string().trim().min(2).max(120),
+  description: z.string().max(2000).optional(),
+  category: z.string().trim().min(1).max(60).optional(),
+  price: moneyStrict,
+  image_keys: z.array(z.string()).max(8).optional(),
+  variants: z
+    .array(
+      z.strictObject({
+        options: z.record(z.string().regex(/^[a-z_]{1,20}$/), z.string().trim().min(1).max(40)),
+        price_override: moneyStrict.optional(),
+        on_hand: z.number().int().min(0).max(100_000),
+      }),
+    )
+    .min(1)
+    .max(50),
+});
+const inventoryQuery = z.object({
+  status: z.enum(['active', 'hidden', 'archived']).optional(),
+  q: z.string().trim().min(1).max(100).optional(),
+  cursor: z.string().max(200).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
 export const catalogModule: FastifyPluginAsync = async (app) => {
   const ctx = () => app.ctx;
 
@@ -120,6 +151,50 @@ export const catalogModule: FastifyPluginAsync = async (app) => {
       );
     },
   );
+
+  // ----------------------------------------------------------------------------------- the vendor's dashboard
+
+  app.get('/api/v1/inventory', async (req) => {
+    const s = await requireVendor(ctx(), req);
+    return listVendorProducts(
+      ctx(),
+      await findVendorById(ctx(), s.vendorId),
+      inventoryQuery.parse(req.query),
+    );
+  });
+
+  app.post('/api/v1/inventory', async (req, reply) => {
+    const s = await requireVendor(ctx(), req);
+    const body = productCreate.parse(req.body);
+    const vendor = await findVendorById(ctx(), s.vendorId);
+    const res = await withIdempotency(
+      ctx(),
+      `vendor:${vendor.id}`,
+      req.headers['idempotency-key'] as string | undefined,
+      body,
+      async () => ({
+        status: 201,
+        body: await createVendorProduct(ctx(), vendor, body),
+      }),
+    );
+    return reply.code(res.status).send(res.body);
+  });
+
+  app.patch<{ Params: { product_id: string } }>('/api/v1/inventory/:product_id', async (req) => {
+    const s = await requireVendor(ctx(), req);
+    const body = productPatch.parse(req.body);
+    if (body.image_keys) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'Images cannot be changed yet: the media pipeline is not built.',
+        {
+          errors: [{ field: 'image_keys', message: 'Not supported yet' }],
+        },
+      );
+    }
+    const vendor = await findVendorById(ctx(), s.vendorId);
+    return patchProduct(ctx(), vendor, req.params.product_id, body, `vendor:${vendor.id}`);
+  });
 };
 
 /** X-Actor from the agent, for the audit log. Only a vendor actor of this vendor is believed. */

@@ -3,7 +3,9 @@ import { buildApp } from './app';
 import { loadConfig } from './config';
 import { type Context, type Database, silentLogger } from './context';
 import { seedDemo } from './dev/seed';
+import { purgeOldChallenges } from './modules/auth/service';
 import { dispatchOnce } from './modules/events/dispatcher';
+import { purgeOldNotifications } from './modules/events/notifications';
 import { FakeInvoiceProvider } from './modules/payments/fake';
 import { NwcGateway } from './modules/payments/nwc-gateway';
 import { singleProvider } from './modules/payments/provider';
@@ -97,6 +99,15 @@ async function main() {
           }
         }, config.EVENTS_DISPATCH_INTERVAL_MS)
       : null;
+  // Housekeeping: old dashboard notifications and sign-in challenges.
+  const cleanup = setInterval(async () => {
+    try {
+      await purgeOldNotifications(db, now());
+      await purgeOldChallenges(db, now());
+    } catch (err) {
+      app.log.warn({ err: String(err) }, 'cleanup failed');
+    }
+  }, 3_600_000);
   const walletRefresh = gateway
     ? setInterval(() => {
         gateway
@@ -107,6 +118,7 @@ async function main() {
 
   const shutdown = async () => {
     clearInterval(reconciler);
+    clearInterval(cleanup);
     if (dispatcher) clearInterval(dispatcher);
     if (walletRefresh) clearInterval(walletRefresh);
     gateway?.close();

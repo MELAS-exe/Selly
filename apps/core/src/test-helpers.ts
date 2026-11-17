@@ -38,6 +38,7 @@ export async function createTestApp() {
       NODE_ENV: 'test',
       SERVICE_TOKEN_AGENT: SERVICE_TOKEN,
       SSE_POLL_MS: '30',
+      VENDOR_STREAM_SESSION_CHECK_MS: '50',
       NWC_ALLOW_INSECURE_RELAYS: 'true',
       NWC_MIN_INTERVAL_MS: '0',
       NWC_MAKE_INVOICE_TIMEOUT_MS: '1500',
