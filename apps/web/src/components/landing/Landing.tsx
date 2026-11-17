@@ -297,8 +297,8 @@ export function Landing() {
                 <div className="relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
                   <img
                     alt="Your storefront"
-                    className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]"
-                    src="/landing/features/storefront.png"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]"
+                    src="/landing/features/storefront.webp"
                   />
                   <div className="absolute inset-0 bg-[#E3342F]/0 group-hover:bg-[#E3342F]/10 transition-colors duration-500 pointer-events-none mix-blend-multiply"></div>
                   <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
@@ -331,8 +331,8 @@ export function Landing() {
                 <div className="relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
                   <img
                     alt="Live catalog"
-                    className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]"
-                    src="/landing/features/catalog.png"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]"
+                    src="/landing/features/catalog.webp"
                   />
                   <div className="absolute inset-0 bg-[#E3342F]/0 group-hover:bg-[#E3342F]/10 transition-colors duration-500 pointer-events-none mix-blend-multiply"></div>
                   <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
@@ -364,8 +364,8 @@ export function Landing() {
                 <div className="relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
                   <img
                     alt="Sales assistant"
-                    className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]"
-                    src="/landing/features/assistant.png"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]"
+                    src="/landing/features/assistant.webp"
                   />
                   <div className="absolute inset-0 bg-[#E3342F]/0 group-hover:bg-[#E3342F]/10 transition-colors duration-500 pointer-events-none mix-blend-multiply"></div>
                   <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
@@ -397,8 +397,8 @@ export function Landing() {
                 <div className="relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
                   <img
                     alt="Easy ordering"
-                    className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]"
-                    src="/landing/features/ordering.png"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]"
+                    src="/landing/features/ordering.webp"
                   />
                   <div className="absolute inset-0 bg-[#E3342F]/0 group-hover:bg-[#E3342F]/10 transition-colors duration-500 pointer-events-none mix-blend-multiply"></div>
                   <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
@@ -430,8 +430,8 @@ export function Landing() {
                 <div className="relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
                   <img
                     alt="Stock-aware"
-                    className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]"
-                    src="/landing/features/stock.png"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]"
+                    src="/landing/features/stock.webp"
                   />
                   <div className="absolute inset-0 bg-[#E3342F]/0 group-hover:bg-[#E3342F]/10 transition-colors duration-500 pointer-events-none mix-blend-multiply"></div>
                   <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
@@ -464,8 +464,8 @@ export function Landing() {
                 <div className="relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
                   <img
                     alt="Direct payments"
-                    className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]"
-                    src="/landing/features/payments.png"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]"
+                    src="/landing/features/payments.webp"
                   />
                   <div className="absolute inset-0 bg-[#E3342F]/0 group-hover:bg-[#E3342F]/10 transition-colors duration-500 pointer-events-none mix-blend-multiply"></div>
                   <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
