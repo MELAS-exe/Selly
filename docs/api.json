@@ -3459,7 +3459,7 @@
         ],
         "operationId": "getSubscription",
         "summary": "Plan, status, period and usage",
-        "description": "`actions` lists what the vendor may do now: `start_trial` (never had one), `renew`, `upgrade`, `downgrade` (only in the last 7 days, in grace or when suspended), `resume` (suspended).",
+        "description": "`actions` lists what the vendor may do now: `start_trial` (no subscription, and neither the keys nor the wallet had a trial), `renew` (buy the plan in force, or any plan when there is no subscription), `resume` (suspended: any plan, from now), `upgrade`, and `downgrade` (in the last 7 days, in grace, when suspended, or during an unpaid trial). While a plan is booked (`next_plan_id`), only `renew` or `resume` is offered. `trial` stays true until the trial ends, even once the vendor has paid for what follows.",
         "security": [
           {
             "vendorSession": []
@@ -3645,6 +3645,7 @@
                       },
                       "actions": [
                         "renew",
+                        "upgrade",
                         "downgrade"
                       ]
                     }
@@ -3666,7 +3667,7 @@
         ],
         "operationId": "startTrial",
         "summary": "Start the 14-day Pro trial",
-        "description": "Needs a working wallet. One trial per Nostr key and per wallet service key (`core.trial_claims`).",
+        "description": "Needs a working wallet (status active). One trial per Nostr key and per wallet service key (`core.trial_claims`): `errors[].claim` is `key`, `wallet` or `subscription` (this shop already has one). The trial plan is always `pro`.",
         "security": [
           {
             "vendorSession": []
@@ -3777,10 +3778,10 @@
                   "$ref": "#/components/schemas/Problem"
                 },
                 "example": {
-                  "type": "https://app.selly.example/problems/validation-failed",
+                  "type": "https://app.selly.example/problems/trial-already-used",
                   "title": "Trial already used",
                   "status": 409,
-                  "code": "VALIDATION_FAILED",
+                  "code": "TRIAL_ALREADY_USED",
                   "detail": "A trial was already used by this key or by this wallet.",
                   "errors": [
                     {
@@ -3826,7 +3827,7 @@
         ],
         "operationId": "createSubscriptionInvoice",
         "summary": "Create a subscription invoice",
-        "description": "Prices from the plan table. On an upgrade while active, `credit_sat = floor(current monthly price x remaining days / 30)` is subtracted. A lower plan is allowed only in the grace period, when suspended, or in the last 7 days (then it starts when the period ends). The invoice is on the platform wallet and valid for 60 minutes. A repeat with the same `Idempotency-Key` returns the same invoice.",
+        "description": "Prices from the plan table. On an upgrade while active, `credit_sat = floor(current monthly price x remaining paid days / 30)` is subtracted; free trial days are not credited. A lower plan is allowed only in the grace period, when suspended, or in the last 7 days (then it starts when the period ends), and only if the shop fits in it (`PLAN_LIMIT_REACHED`). During an unpaid trial any plan can be bought and starts when the trial ends. While a plan is booked, only that plan can be bought (422). The invoice is on the platform wallet and valid for 60 minutes. A repeat with the same `Idempotency-Key` returns the same invoice.",
         "security": [
           {
             "vendorSession": []
@@ -3918,7 +3919,7 @@
             "$ref": "#/components/responses/Unauthorized"
           },
           "409": {
-            "description": "Downgrade not allowed yet",
+            "description": "Downgrade not allowed yet, or the shop does not fit in the lower plan",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4351,7 +4352,7 @@
         ],
         "operationId": "streamVendorEvents",
         "summary": "Server-Sent Events for the dashboard",
-        "description": "Server-Sent Events for the dashboard, from now on (or from `Last-Event-ID`). Event names: `order.created`, `order.paid`, `order.expired`, `order.cancelled`, `order.fulfilled`, `wallet.degraded`, `wallet.restored`, `conversation.handoff`, `conversation.new`, `usage.warning`; later `draft.ready` and `subscription.updated`. Each event id is a UUIDv7; data is JSON with an `at` time. A `: ping` every 20 seconds. The session is checked again every minute: a signed-out device stops receiving. Notifications are kept 7 days.",
+        "description": "Server-Sent Events for the dashboard, from now on (or from `Last-Event-ID`). Event names: `order.created`, `order.paid`, `order.expired`, `order.cancelled`, `order.fulfilled`, `wallet.degraded`, `wallet.restored`, `conversation.handoff`, `conversation.new`, `usage.warning`, `subscription.updated`; later `draft.ready`. `subscription.updated` carries `reason`: `trial_started`, `paid` (with `invoice_id`), `status` (grace or suspended), `plan_started` (a booked plan began) or `reminder` (with `days_left`: 7, 3 or 1). Each event id is a UUIDv7; data is JSON with an `at` time. A `: ping` every 20 seconds. The session is checked again every minute: a signed-out device stops receiving. Notifications are kept 7 days.",
         "security": [
           {
             "vendorSession": []
@@ -4365,7 +4366,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "example": "event: order.paid\nid: 41\ndata: {\"order_id\":\"0193a8f1-2c3d-7e4f-8a9b-0c1d2e3f4a5b\",\"number\":\"A7K2\",\"total\":{\"amount\":16000,\"currency\":\"XOF\"},\"total_sat\":27103}\n\nevent: subscription.updated\nid: 42\ndata: {\"status\":\"active\",\"plan_id\":\"pro\",\"current_period_end\":\"2027-02-24T09:00:00Z\",\"invoice_id\":\"0193a911-aaaa-7bbb-8ccc-ddddeeee0001\"}\n\nevent: usage.warning\nid: 43\ndata: {\"metric\":\"agent_turns\",\"used\":1200,\"limit\":1500}\n\nevent: conversation.handoff\nid: 44\ndata: {\"conversation_id\":\"0193a8f4-6f7a-7b8c-9d0e-1f2a3b4c5d6e\",\"customer_label\":\"Fatou\",\"summary\":\"Demande le dernier prix pour la robe wax noire.\"}\n\n"
+                "example": "event: order.paid\nid: 41\ndata: {\"order_id\":\"0193a8f1-2c3d-7e4f-8a9b-0c1d2e3f4a5b\",\"number\":\"A7K2\",\"total\":{\"amount\":16000,\"currency\":\"XOF\"},\"total_sat\":27103}\n\nevent: subscription.updated\nid: 42\ndata: {\"reason\":\"paid\",\"status\":\"active\",\"plan_id\":\"pro\",\"next_plan_id\":null,\"current_period_end\":\"2027-02-24T09:00:00Z\",\"invoice_id\":\"0193a911-aaaa-7bbb-8ccc-ddddeeee0001\"}\n\nevent: usage.warning\nid: 43\ndata: {\"metric\":\"agent_turns\",\"used\":1200,\"limit\":1500}\n\nevent: conversation.handoff\nid: 44\ndata: {\"conversation_id\":\"0193a8f4-6f7a-7b8c-9d0e-1f2a3b4c5d6e\",\"customer_label\":\"Fatou\",\"summary\":\"Demande le dernier prix pour la robe wax noire.\"}\n\n"
               }
             }
           },

@@ -355,9 +355,10 @@ Why these numbers: a Starter shop pays about the price of a few mobile data bund
 - Same plan, or a lapsed subscription (grace or suspended): the period starts at the later of now and the current end, and lasts the months paid.
 - Higher plan while active: the plan changes immediately and the period starts now. The unused time of the current plan is credited at issue time: `credit_sat = floor(current monthly price × remaining days ÷ 30)`, subtracted from the invoice (and shown on it).
 - During a trial: any plan can be bought, and it starts when the trial ends.
-- Lower plan: allowed only in the grace period, when suspended, or in the last 7 days of the current period. In the last 7 days, it starts when the current period ends (
-  ext_plan_id`). A downgrade is refused when current usage exceeds the lower plan's limits, for example more products than it allows (`PLAN_LIMIT_REACHED`).
-- Every settled invoice extends the period, even a duplicate payment of two invoices. No money is kept without service in return.
+- Lower plan: allowed only in the grace period, when suspended, or in the last 7 days of the current period. In the last 7 days, it starts when the current period ends (`next_plan_id`, `next_plan_at`). A downgrade is refused when current usage exceeds the lower plan's limits, for example more products than it allows (`PLAN_LIMIT_REACHED`).
+- A booked plan (bought during the trial, or a lower plan from the end of the period) can only be bought again until it starts: other plan changes wait until then (`VALIDATION_FAILED`). It becomes the plan at `next_plan_at`; reads apply it at once and the status job persists it.
+- Every settled invoice extends the period, even a duplicate payment of two invoices, or an invoice paid after it expired. No money is kept without service in return.
+- Free trial days are never credited on an upgrade. When the credit covers the whole price, the vendor is asked for a longer period.
 
 **Limits.** `subscriptions` answers limit questions for the other modules:
 
@@ -365,7 +366,9 @@ Why these numbers: a Starter shop pays about the price of a few mobile data bund
 - Agent replies and photo drafts: counted per calendar month in UTC (`core.usage_counters`). The agent asks for the entitlements before each turn (cached 60 seconds) and reports usage after it. At 80 % the dashboard shows a banner. At 100 % the agent stops: customers get the fixed reply « Je transmets votre message au vendeur » and the vendor is alerted. The storefront, checkout and orders are never limited. A customer can always pay.
 - Features such as voice notes are flags in `plans.limits`.
 
-**Platform wallet.** The wallet that receives subscriptions is a receive-only NWC connection owned by the platform (`SECRETS_PLATFORM_NWC_URI`), with a Lightning Address with LUD-21 as a fallback. If it is down, vendors cannot renew. The grace period covers short outages, and customer payments are unaffected because they never touch this wallet. The operator sweeps funds out of it from their own wallet app.
+**Platform wallet.** The wallet that receives subscriptions is a receive-only NWC connection owned by the platform, linked on first start from `SECRETS_PLATFORM_NWC_URI`, or by the operator with `pnpm --filter @selly/core cli wallet:link --platform` (same checks as a vendor wallet, encrypted at rest; a linked wallet is kept until replaced with the CLI), with a Lightning Address with LUD-21 as a fallback. If it is down, vendors cannot renew. The grace period covers short outages, and customer payments are unaffected because they never touch this wallet. The operator sweeps funds out of it from their own wallet app.
+
+**Implementation status.** Built: the trial and its claims, pricing with the upgrade credit and the downgrade window, invoices on the platform wallet (or the fake provider), settlement by lookup or notification with the period rules above, late payments, the status job (every 5 minutes: grace, suspension, booked plans, reminders 7, 3 and 1 days before the end on the dashboard stream), and `entitlements.changed` for the agent. Not built yet: the reminders by Web Push and Nostr direct message, the Lightning Address fallback, and polling expired invoices for late payments (a wallet notification still settles them).
 
 ### 3.8 Chat on the vendor's website
 
@@ -885,8 +888,10 @@ create table core.subscriptions (
   id                   uuid primary key default uuidv7(),
   vendor_id            uuid not null unique references core.vendors(id),
   plan_id              text not null references core.plans(id),
-  next_plan_id         text references core.plans(id),     -- a lower plan bought in the last 7 days of the period
+  next_plan_id         text references core.plans(id),     -- booked: bought during the trial, or a lower plan in the last 7 days
+  next_plan_at         timestamptz,                         -- when next_plan_id becomes the plan
   status               text not null check (status in ('trialing', 'active', 'grace', 'suspended')),
+  trial_ends_at        timestamptz,                         -- set once, when the trial starts
   current_period_start timestamptz not null,
   current_period_end   timestamptz not null,
   grace_ends_at        timestamptz,                         -- period end + 7 days, set when status = 'grace'
@@ -898,13 +903,13 @@ create index subscriptions_expiring on core.subscriptions(current_period_end) wh
 create table core.subscription_invoices (
   id                   uuid primary key default uuidv7(),
   vendor_id            uuid not null references core.vendors(id),
-  subscription_id      uuid not null references core.subscriptions(id),
+  subscription_id      uuid references core.subscriptions(id),   -- null until the first payment creates one
   plan_id              text not null references core.plans(id),
   months               smallint not null check (months in (1, 3, 12)),
   list_price_sat       bigint not null check (list_price_sat > 0),
   credit_sat           bigint not null default 0 check (credit_sat >= 0),   -- unused time of the current plan, on an upgrade
   amount_sat           bigint not null check (amount_sat > 0),              -- list_price_sat - credit_sat
-  wallet_connection_id uuid not null references core.wallet_connections(id),  -- the platform wallet
+  wallet_connection_id uuid references core.wallet_connections(id),  -- the platform wallet; null with the fake provider
   source               text not null check (source in ('nwc', 'lnurl')),
   bolt11               text not null,
   payment_hash         text not null check (payment_hash ~ '^[0-9a-f]{64}$'),
@@ -1396,6 +1401,7 @@ Request: a plan id and `months` (1, 3 or 12). Core prices it from `plans.period_
 | ------ | --------------------------- | --------------------------------------------------------------------------------------- |
 | 409    | `PLAN_LIMIT_REACHED`        | A lower plan was requested while usage exceeds its limits. `errors[]` says which limit. |
 | 409    | `DOWNGRADE_NOT_ALLOWED_YET` | A lower plan was requested with more than 7 days left in the period.                    |
+| 422    | `VALIDATION_FAILED`         | Wrong period, a booked plan is pending, or the upgrade credit covers the whole price.   |
 | 503    | `PAYMENT_UNAVAILABLE`       | The platform wallet did not answer. The vendor retries.                                 |
 
 **5.3.6 `POST /api/v1/inventory/restock-ai`**
@@ -1524,7 +1530,7 @@ sequenceDiagram
   N->>P: lookup_invoice (payment_hash)
   P-->>N: settled, preimage
   N->>K: settle (platform wallet connection, payment_hash, preimage)
-  K->>K: one transaction settles the invoice, extends the period by 3 months, writes outbox subscription.updated
+  K->>K: one transaction settles the invoice, extends the period by 3 months, notifies subscription.updated, writes outbox entitlements.changed
   K-->>V: SSE subscription.updated and a receipt with the preimage
 ```
 
@@ -1673,7 +1679,7 @@ The agent's equivalent of a webhook is the chat message request.
 - A settlement is matched by wallet connection and payment hash together, never by hash alone. One vendor's wallet can never settle another vendor's order, and a vendor's wallet can never settle a subscription invoice, which belongs to the platform wallet's connection.
 - When a preimage is present, check that `sha256(preimage) = payment_hash`.
 - For an order invoice, one transaction: `update core.invoices set status = 'settled' ... where id = $1 and status <> 'settled'`; order to `paid` (or the `attention` flag of §4.4); stock commit; audit record; outbox `order.paid`.
-- For a subscription invoice, one transaction: the same conditional update on `core.subscription_invoices`; the subscription period and status per the rules of §3.7; audit record; outbox `subscription.updated`.
+- For a subscription invoice, one transaction: the same conditional update on `core.subscription_invoices`; the subscription period and status per the rules of §3.7; audit record; a `subscription.updated` notification for the dashboard and an outbox `entitlements.changed` for the agent.
 - After the commit: `NOTIFY` → SSE subscribers (checkout page, dashboard). The outbox dispatcher sends `order.paid` to the agent, which adds a system message to the customer's chat. Core sends a Web Push to the dashboard.
 - Idempotent: a second notification finds the invoice already settled and changes nothing.
 
@@ -1706,6 +1712,7 @@ Every error is `application/problem+json` with a stable `code`. The catalog live
 | `PLAN_LIMIT_REACHED`                                                                                     | 409                     | no                 | shows the limit and the upgrade button                                                 | not applicable                                         |
 | `FEATURE_NOT_IN_PLAN`                                                                                    | 403                     | no                 | shows what the next plan adds                                                          | « Écrivez-moi votre message » (voice notes)            |
 | `DOWNGRADE_NOT_ALLOWED_YET`                                                                              | 409                     | no                 | says when the lower plan can be bought                                                 | not applicable                                         |
+| `TRIAL_ALREADY_USED`                                                                                     | 409                     | no                 | says the trial was used by this key or wallet, offers the plans                        | not applicable                                         |
 | `AGENT_QUOTA_EXCEEDED`                                                                                   | 429                     | no                 | not shown to customers                                                                 | fixed reply and handoff; the vendor is alerted         |
 | `NWC_URI_INVALID`, `NWC_PERMISSIONS_TOO_BROAD`, `NWC_METHODS_MISSING`, `NWC_WALLET_ERROR`, `NWC_TIMEOUT` | 422, 422, 422, 422, 504 | timeout only       | messages of §5.3.4                                                                     | not applicable                                         |
 | `PROVIDER_TIMEOUT`                                                                                       | 504                     | yes                | retries once                                                                           | retries once, then hands off                           |
@@ -1930,7 +1937,7 @@ Targets for the pilot. Each one has a check.
 
 ### 11.3 Configuration
 
-Environment variables (examples): `DATABASE_URL`, `DATABASE_DIRECT_URL`, `APP_BASE_URL`, `CDN_PURGE_TOKEN`, `S3_ENDPOINT`, `S3_BUCKET_PUBLIC`, `S3_BUCKET_PRIVATE`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `SECRETS_KEK_V1` (32-byte key, base64), `SECRETS_PLATFORM_NWC_URI` (the receive-only platform wallet), `PLATFORM_LUD16` (optional fallback), `SERVICE_TOKEN_AGENT`, `EVENTS_HMAC_SECRET`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (Web Push), `NOSTR_NOTIFIER_NSEC` (optional, for Nostr direct messages to vendors), `NOSTR_NOTIFIER_RELAYS`, `LLM_PRIMARY`, `LLM_FALLBACK`, `LLM_API_KEY_*`, `ASR_PROVIDER`, `ASR_API_KEY`, `PRICE_SOURCES`, `INVOICE_PROVIDER` (`fake` or `nwc`), `LIGHTNING_NETWORK`, `NWC_MIN_INTERVAL_MS`, `NWC_MAKE_INVOICE_TIMEOUT_MS`, `NWC_LOOKUP_TIMEOUT_MS`, `NWC_GET_INFO_TIMEOUT_MS`, `SUBSCRIPTION_GRACE_DAYS` (7), `TRIAL_DAYS` (14).
+Environment variables (examples): `DATABASE_URL`, `DATABASE_DIRECT_URL`, `APP_BASE_URL`, `CDN_PURGE_TOKEN`, `S3_ENDPOINT`, `S3_BUCKET_PUBLIC`, `S3_BUCKET_PRIVATE`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `SECRETS_KEK_V1` (32-byte key, base64), `SECRETS_PLATFORM_NWC_URI` (the receive-only platform wallet, linked on first start), `SUBSCRIPTION_JOB_INTERVAL_MS` (300000), `PLATFORM_LUD16` (optional fallback), `SERVICE_TOKEN_AGENT`, `EVENTS_HMAC_SECRET`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (Web Push), `NOSTR_NOTIFIER_NSEC` (optional, for Nostr direct messages to vendors), `NOSTR_NOTIFIER_RELAYS`, `LLM_PRIMARY`, `LLM_FALLBACK`, `LLM_API_KEY_*`, `ASR_PROVIDER`, `ASR_API_KEY`, `PRICE_SOURCES`, `INVOICE_PROVIDER` (`fake` or `nwc`), `LIGHTNING_NETWORK`, `NWC_MIN_INTERVAL_MS`, `NWC_MAKE_INVOICE_TIMEOUT_MS`, `NWC_LOOKUP_TIMEOUT_MS`, `NWC_GET_INFO_TIMEOUT_MS`, `SUBSCRIPTION_GRACE_DAYS` (7), `TRIAL_DAYS` (14).
 
 In production core refuses to start with a missing or dev `SERVICE_TOKEN_AGENT`. The local Docker stack runs the production build with dev values and says so with `ALLOW_DEV_SECRETS=true`; nothing else may set it. Secrets come from the host's secret manager. `.env` files are for local development only and are git-ignored. Plan prices and limits are data (`core.plans`), not configuration.
 

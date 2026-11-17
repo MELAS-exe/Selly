@@ -33,9 +33,17 @@ export interface InvoiceProvider {
   }): Promise<InvoiceLookup>;
 }
 
-/** Picks the provider for a vendor. Today every vendor shares one provider. */
+/**
+ * Picks the wallet: the vendor's own for orders, the platform's for subscription invoices (architecture.md 3.7).
+ * With the platform provider, `vendorId` names the payer; the invoice is made on the platform wallet.
+ */
 export interface InvoiceGateway {
   forVendor(vendorId: string): InvoiceProvider;
+  forPlatform(): InvoiceProvider;
 }
 
-export const singleProvider = (p: InvoiceProvider): InvoiceGateway => ({ forVendor: () => p });
+/** One provider for every wallet: the fake provider in development and tests. */
+export const singleProvider = (p: InvoiceProvider): InvoiceGateway => ({
+  forVendor: () => p,
+  forPlatform: () => p,
+});

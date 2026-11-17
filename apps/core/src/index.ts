@@ -12,6 +12,12 @@ import { singleProvider } from './modules/payments/provider';
 import { confirmPayment, reconcileOnce } from './modules/payments/service';
 import { feedsFromConfig } from './modules/rates/feeds';
 import { RateService } from './modules/rates/service';
+import {
+  confirmSubscriptionPayment,
+  reconcileSubscriptionInvoices,
+  runSubscriptionJob,
+} from './modules/subscriptions/billing';
+import { linkWallet, liveWallet } from './modules/wallet/service';
 import { Keyring } from './secrets';
 
 const WALLET_REFRESH_MS = 60_000;
@@ -50,12 +56,30 @@ async function main() {
 
   let gateway: NwcGateway | null = null;
   if (config.INVOICE_PROVIDER === 'nwc') {
-    gateway = new NwcGateway(ctx, (n) => {
-      confirmPayment(ctx, n).catch((err) =>
-        app.log.warn({ err: String(err), ...n }, 'payment notification not confirmed'),
-      );
-    });
+    gateway = new NwcGateway(
+      ctx,
+      (n) => {
+        confirmPayment(ctx, n).catch((err) =>
+          app.log.warn({ err: String(err), ...n }, 'payment notification not confirmed'),
+        );
+      },
+      (n) => {
+        confirmSubscriptionPayment(ctx, n).catch((err) =>
+          app.log.warn({ err: String(err), ...n }, 'subscription payment not confirmed'),
+        );
+      },
+    );
     ctx.invoices = gateway;
+    // The platform wallet that receives subscriptions: linked from the environment on first start, with the same
+    // checks as the CLI. A wallet already linked is kept; replace it with `cli wallet:link --platform`.
+    const platformUri = process.env.SECRETS_PLATFORM_NWC_URI;
+    if (platformUri && !(await liveWallet(db, { owner: 'platform' }))) {
+      await linkWallet(ctx, { owner: 'platform', uri: platformUri, actor: 'operator:env' })
+        .then(() => app.log.info('platform wallet linked from SECRETS_PLATFORM_NWC_URI'))
+        .catch((err) =>
+          app.log.error({ err: String(err) }, 'SECRETS_PLATFORM_NWC_URI could not be linked'),
+        );
+    }
     await gateway
       .refresh()
       .catch((err) => app.log.warn({ err: String(err) }, 'wallet refresh failed'));
@@ -74,6 +98,7 @@ async function main() {
     running = true;
     try {
       await reconcileOnce(ctx, app.log);
+      await reconcileSubscriptionInvoices(ctx, app.log);
     } catch (err) {
       app.log.error({ err }, 'reconciler failed');
     } finally {
@@ -99,6 +124,22 @@ async function main() {
           }
         }, config.EVENTS_DISPATCH_INTERVAL_MS)
       : null;
+  // Subscription status job: grace, suspension, booked plans, reminders.
+  let subscriptionJobRunning = false;
+  const subscriptionJob =
+    config.SUBSCRIPTION_JOB_INTERVAL_MS > 0
+      ? setInterval(async () => {
+          if (subscriptionJobRunning) return;
+          subscriptionJobRunning = true;
+          try {
+            await runSubscriptionJob(ctx);
+          } catch (err) {
+            app.log.error({ err }, 'subscription job failed');
+          } finally {
+            subscriptionJobRunning = false;
+          }
+        }, config.SUBSCRIPTION_JOB_INTERVAL_MS)
+      : null;
   // Housekeeping: old dashboard notifications and sign-in challenges.
   const cleanup = setInterval(async () => {
     try {
@@ -120,6 +161,7 @@ async function main() {
     clearInterval(reconciler);
     clearInterval(cleanup);
     if (dispatcher) clearInterval(dispatcher);
+    if (subscriptionJob) clearInterval(subscriptionJob);
     if (walletRefresh) clearInterval(walletRefresh);
     gateway?.close();
     await app.close();

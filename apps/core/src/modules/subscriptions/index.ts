@@ -1,10 +1,22 @@
 import { core } from '@selly/db';
 import { asc, eq } from '@selly/db/orm';
-import { satToXofIndicative } from '@selly/money';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
+import { withIdempotency } from '../../idempotency';
 import { iso } from '../../util';
+import { requireVendor } from '../auth/http';
 import { findVendorById, storeStatus, vendorSettings } from '../catalog/store';
+import {
+  createSubscriptionInvoice,
+  currentRate,
+  findInvoice,
+  listInvoices,
+  planView,
+  startTrial,
+  subscriptionView,
+  TRIAL_DAYS,
+  TRIAL_PLAN,
+} from './billing';
 import {
   currentSubscription,
   ENTITLEMENTS_TTL_SECONDS,
@@ -21,12 +33,18 @@ const usageBody = z.strictObject({
   reference: z.string().min(1).max(64),
 });
 
-export const TRIAL_DAYS = 14;
-export { GRACE_DAYS };
+const planId = z.enum(['starter', 'pro', 'business']);
+const trialBody = z.strictObject({ plan_id: planId });
+const invoiceBody = z.strictObject({ plan_id: planId, months: z.number().int() });
+const listQuery = z.object({
+  cursor: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export { GRACE_DAYS, TRIAL_DAYS };
 
 // Plans, trial, subscription invoices, periods, limits, grace (architecture.md 3.7).
-// Built so far: the public plan list, and the agent's entitlements and usage reports.
-// TODO (Dev 3): trial, invoices on the platform wallet, the status job, the dashboard routes.
+// The rules live in billing.ts (trial, invoices, settlement, status job) and service.ts (status, limits, usage).
 export const subscriptionsModule: FastifyPluginAsync = async (app) => {
   // Before each turn the agent asks: is the shop open, may the agent answer, how much quota is left?
   app.get<{ Params: { id: string } }>('/internal/v1/vendors/:id/entitlements', async (req) => {
@@ -73,33 +91,16 @@ export const subscriptionsModule: FastifyPluginAsync = async (app) => {
   });
   app.get('/api/v1/plans', async (_req, reply) => {
     const ctx = app.ctx;
-    const plans = await ctx.db
+    const rows = await ctx.db
       .select()
       .from(core.plans)
       .where(eq(core.plans.active, true))
       .orderBy(asc(core.plans.sort));
-    // The pricing page must load even when no rate is available: FCFA amounts are then left out.
-    const rate = await ctx.rates.current().catch(() => null);
-    const xof = (sat: number) =>
-      rate ? Number(satToXofIndicative(BigInt(sat), BigInt(rate.xofPerBtcCents))) : null;
-
+    const rate = await currentRate(ctx);
     reply.header('Cache-Control', 'public, max-age=300');
     return {
-      data: plans.map((p) => ({
-        id: p.id,
-        name: p.name,
-        monthly_price_sat: p.monthlyPriceSat,
-        periods: Object.entries(p.periodPrices)
-          .map(([months, price]) => ({
-            months: Number(months),
-            price_sat: price,
-            discount_pct: Math.round((1 - price / (p.monthlyPriceSat * Number(months))) * 100),
-            indicative_xof: xof(price),
-          }))
-          .sort((a, b) => a.months - b.months),
-        limits: p.limits,
-      })),
-      trial: { plan_id: 'pro', days: TRIAL_DAYS },
+      data: rows.map((p) => planView(p, rate)),
+      trial: { plan_id: TRIAL_PLAN, days: TRIAL_DAYS },
       grace_days: GRACE_DAYS,
       rate: rate
         ? {
@@ -110,4 +111,52 @@ export const subscriptionsModule: FastifyPluginAsync = async (app) => {
         : null,
     };
   });
+
+  // ------------------------------------------------------------------------------- the vendor's subscription
+
+  app.get('/api/v1/vendors/me/subscription', async (req) => {
+    const s = await requireVendor(app.ctx, req);
+    return subscriptionView(app.ctx, s.vendorId);
+  });
+
+  app.post('/api/v1/vendors/me/subscription/trial', async (req, reply) => {
+    const s = await requireVendor(app.ctx, req);
+    const body = trialBody.parse(req.body);
+    return reply.code(201).send(await startTrial(app.ctx, s.vendorId, body.plan_id));
+  });
+
+  // Each call asks the platform wallet for an invoice: a tighter limit than other routes.
+  app.post(
+    '/api/v1/vendors/me/subscription/invoices',
+    { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
+    async (req, reply) => {
+      const s = await requireVendor(app.ctx, req);
+      const body = invoiceBody.parse(req.body);
+      const res = await withIdempotency(
+        app.ctx,
+        `subscription-invoice:${s.vendorId}`,
+        req.headers['idempotency-key'] as string | undefined,
+        body,
+        async () => ({
+          status: 201,
+          body: await createSubscriptionInvoice(app.ctx, s.vendorId, body),
+        }),
+      );
+      return reply.code(res.status).send(res.body);
+    },
+  );
+
+  app.get('/api/v1/vendors/me/subscription/invoices', async (req) => {
+    const s = await requireVendor(app.ctx, req);
+    const q = listQuery.parse(req.query);
+    return listInvoices(app.ctx, s.vendorId, q);
+  });
+
+  app.get<{ Params: { id: string } }>(
+    '/api/v1/vendors/me/subscription/invoices/:id',
+    async (req) => {
+      const s = await requireVendor(app.ctx, req);
+      return findInvoice(app.ctx, s.vendorId, req.params.id);
+    },
+  );
 };

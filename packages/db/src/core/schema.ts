@@ -414,8 +414,12 @@ export const subscriptions = core.table(
     planId: text('plan_id')
       .notNull()
       .references(() => plans.id),
+    // A plan bought to start later: after the trial, or a lower plan from the end of the period.
     nextPlanId: text('next_plan_id').references(() => plans.id),
+    nextPlanAt: ts('next_plan_at'),
     status: text('status', { enum: ['trialing', 'active', 'grace', 'suspended'] }).notNull(),
+    // Set once, when the vendor starts the free trial.
+    trialEndsAt: ts('trial_ends_at'),
     currentPeriodStart: ts('current_period_start').notNull(),
     currentPeriodEnd: ts('current_period_end').notNull(),
     graceEndsAt: ts('grace_ends_at'),
@@ -436,9 +440,8 @@ export const subscriptionInvoices = core.table(
     vendorId: uuid('vendor_id')
       .notNull()
       .references(() => vendors.id),
-    subscriptionId: uuid('subscription_id')
-      .notNull()
-      .references(() => subscriptions.id),
+    // Null until the first payment of a vendor who never had a subscription creates one.
+    subscriptionId: uuid('subscription_id').references(() => subscriptions.id),
     planId: text('plan_id')
       .notNull()
       .references(() => plans.id),
@@ -446,9 +449,8 @@ export const subscriptionInvoices = core.table(
     listPriceSat: num('list_price_sat').notNull(),
     creditSat: num('credit_sat').notNull().default(0),
     amountSat: num('amount_sat').notNull(),
-    walletConnectionId: uuid('wallet_connection_id')
-      .notNull()
-      .references(() => walletConnections.id),
+    // The platform wallet. Null for invoices of the fake provider (development and tests).
+    walletConnectionId: uuid('wallet_connection_id').references(() => walletConnections.id),
     source: text('source', { enum: ['nwc', 'lnurl'] }).notNull(),
     bolt11: text('bolt11').notNull(),
     paymentHash: text('payment_hash').notNull(),
@@ -459,6 +461,7 @@ export const subscriptionInvoices = core.table(
     expiresAt: ts('expires_at').notNull(),
     settledAt: ts('settled_at'),
     preimage: text('preimage'),
+    // The period this payment covers: projected when the invoice is made, final when it settles.
     periodStart: ts('period_start'),
     periodEnd: ts('period_end'),
     createdAt: createdAt(),
