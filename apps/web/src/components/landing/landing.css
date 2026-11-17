@@ -353,3 +353,13 @@
 .theme-paper-vermilion header[data-dark="true"] a:hover {
   color: #a3c651 !important;
 }
+
+/* In-page links */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+.theme-paper-vermilion [id] {
+  scroll-margin-top: 5rem;
+}
