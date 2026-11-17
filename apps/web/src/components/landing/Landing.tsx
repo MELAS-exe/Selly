@@ -118,35 +118,35 @@ export function Landing() {
             <img
               alt="Leather handbag"
               className="w-full h-full object-contain drop-shadow-[0_20px_25px_rgba(0,0,0,0.15)] -rotate-12 hover:-rotate-[6deg] hover:scale-[1.03] transition-transform duration-300 ease-out"
-              src="/landing/products/handbag.png"
+              src="/landing/products/handbag.webp"
             />
           </div>
           <div className="absolute top-[12%] right-[-5%] md:right-[15%] w-40 h-40 md:w-56 md:h-56 opacity-0 animate-pv-fade-up delay-150 z-20 pointer-events-auto">
             <img
               alt="Smartphone"
               className="w-full h-full object-contain drop-shadow-[0_25px_35px_rgba(0,0,0,0.2)] rotate-15 hover:rotate-[21deg] hover:scale-[1.03] transition-transform duration-300 ease-out"
-              src="/landing/products/smartphone.png"
+              src="/landing/products/smartphone.webp"
             />
           </div>
           <div className="absolute bottom-[20%] left-0 md:left-[15%] w-56 h-56 md:w-72 md:h-72 opacity-0 animate-pv-fade-up delay-200 z-20 pointer-events-auto">
             <img
               alt="Sneaker"
               className="w-full h-full object-contain drop-shadow-[0_30px_40px_rgba(0,0,0,0.25)] -rotate-[25deg] hover:-rotate-[19deg] hover:scale-[1.03] transition-transform duration-300 ease-out"
-              src="/landing/products/sneaker.png"
+              src="/landing/products/sneaker.webp"
             />
           </div>
           <div className="absolute bottom-[10%] right-[10%] w-32 h-32 md:w-48 md:h-48 opacity-0 animate-pv-fade-up delay-300 z-0 pointer-events-auto">
             <img
               alt="Folded shirt"
               className="w-full h-full object-contain drop-shadow-[0_15px_20px_rgba(0,0,0,0.1)] rotate-6 hover:rotate-[12deg] hover:scale-[1.03] transition-transform duration-300 ease-out"
-              src="/landing/products/garment.png"
+              src="/landing/products/garment.webp"
             />
           </div>
           <div className="absolute top-[45%] right-[-10%] md:right-[5%] w-32 h-32 md:w-40 md:h-40 opacity-0 animate-pv-fade-up delay-500 z-0 pointer-events-auto">
             <img
               alt="Perfume bottle"
               className="w-full h-full object-contain drop-shadow-[0_10px_15px_rgba(0,0,0,0.05)] rotate-[35deg] hover:rotate-[41deg] hover:scale-[1.03] transition-transform duration-300 ease-out"
-              src="/landing/products/perfume.png"
+              src="/landing/products/perfume.webp"
             />
           </div>
         </div>
