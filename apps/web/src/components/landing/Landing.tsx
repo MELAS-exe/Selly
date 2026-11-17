@@ -41,7 +41,36 @@ export function Landing() {
       window.removeEventListener('resize', update);
     };
   }, []);
+  // Hero products start their entrance once their picture has arrived (no pop-in on slow networks).
   useEffect(() => {
+    const cleanups: (() => void)[] = [];
+    for (const img of document.querySelectorAll<HTMLImageElement>('.hero-prop img')) {
+      const ready = () => img.parentElement?.setAttribute('data-loaded', '');
+      if (img.complete) ready();
+      else {
+        img.addEventListener('load', ready, { once: true });
+        img.addEventListener('error', ready, { once: true });
+        cleanups.push(() => img.removeEventListener('load', ready));
+      }
+    }
+    return () => {
+      for (const c of cleanups) c();
+    };
+  }, []);
+
+  // Circular texts only turn while on screen.
+  useEffect(() => {
+    const spinners = Array.from(document.querySelectorAll<HTMLElement>('.pv-spin'));
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) e.target.toggleAttribute('data-offscreen', !e.isIntersecting);
+    });
+    for (const el of spinners) io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  // Scroll reveals: CSS scroll-driven animations where supported (landing.css), else this.
+  useEffect(() => {
+    if (CSS.supports('animation-timeline: view()')) return;
     const els = Array.from(document.querySelectorAll<HTMLElement>('.reveal-on-scroll'));
     const hidden = 'opacity-0 translate-y-8'.split(' ');
     const observer = new IntersectionObserver(
@@ -129,35 +158,35 @@ export function Landing() {
           <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-[#F6F4F0] to-transparent"></div>
         </div>
         <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden md:overflow-visible">
-          <div className="absolute top-[6%] left-[-5%] md:left-[10%] w-48 h-48 md:w-64 md:h-64 opacity-0 animate-pv-fade-up [--d:75ms] z-0 pointer-events-auto">
+          <div className="absolute top-[6%] left-[-5%] md:left-[10%] w-48 h-48 md:w-64 md:h-64 hero-prop [--d:300ms] [--float:7s] z-0 pointer-events-auto">
             <img
               alt="Leather handbag"
               className="w-full h-full object-contain drop-shadow-[0_20px_25px_rgba(0,0,0,0.15)] -rotate-12 hover:-rotate-[6deg] hover:scale-[1.03] transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
               src="/landing/products/handbag.webp"
             />
           </div>
-          <div className="absolute top-[12%] right-[-5%] md:right-[15%] w-40 h-40 md:w-56 md:h-56 opacity-0 animate-pv-fade-up [--d:150ms] z-20 pointer-events-auto">
+          <div className="absolute top-[12%] right-[-5%] md:right-[15%] w-40 h-40 md:w-56 md:h-56 hero-prop [--d:380ms] [--float:6s] z-20 pointer-events-auto">
             <img
               alt="Smartphone"
               className="w-full h-full object-contain drop-shadow-[0_25px_35px_rgba(0,0,0,0.2)] rotate-15 hover:rotate-[21deg] hover:scale-[1.03] transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
               src="/landing/products/smartphone.webp"
             />
           </div>
-          <div className="absolute bottom-[20%] left-0 md:left-[15%] w-56 h-56 md:w-72 md:h-72 opacity-0 animate-pv-fade-up [--d:200ms] z-20 pointer-events-auto">
+          <div className="absolute bottom-[20%] left-0 md:left-[15%] w-56 h-56 md:w-72 md:h-72 hero-prop [--d:460ms] [--float:8s] z-20 pointer-events-auto">
             <img
               alt="Sneaker"
               className="w-full h-full object-contain drop-shadow-[0_30px_40px_rgba(0,0,0,0.25)] -rotate-[25deg] hover:-rotate-[19deg] hover:scale-[1.03] transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
               src="/landing/products/sneaker.webp"
             />
           </div>
-          <div className="absolute bottom-[10%] right-[10%] w-32 h-32 md:w-48 md:h-48 opacity-0 animate-pv-fade-up [--d:300ms] z-0 pointer-events-auto">
+          <div className="absolute bottom-[10%] right-[10%] w-32 h-32 md:w-48 md:h-48 hero-prop [--d:540ms] [--float:6.5s] z-0 pointer-events-auto">
             <img
               alt="Folded shirt"
               className="w-full h-full object-contain drop-shadow-[0_15px_20px_rgba(0,0,0,0.1)] rotate-6 hover:rotate-[12deg] hover:scale-[1.03] transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
               src="/landing/products/garment.webp"
             />
           </div>
-          <div className="absolute top-[45%] right-[-10%] md:right-[5%] w-32 h-32 md:w-40 md:h-40 opacity-0 animate-pv-fade-up [--d:500ms] z-0 pointer-events-auto">
+          <div className="absolute top-[45%] right-[-10%] md:right-[5%] w-32 h-32 md:w-40 md:h-40 hero-prop [--d:620ms] [--float:7.5s] z-0 pointer-events-auto">
             <img
               alt="Perfume bottle"
               className="w-full h-full object-contain drop-shadow-[0_10px_15px_rgba(0,0,0,0.05)] rotate-[35deg] hover:rotate-[41deg] hover:scale-[1.03] transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
@@ -165,11 +194,8 @@ export function Landing() {
             />
           </div>
         </div>
-        <div className="relative z-10 w-full flex flex-col items-center text-center animate-pv-fade-up -mt-8 md:-mt-16 pointer-events-none">
-          <div
-            className="mb-8 relative w-24 h-24 md:w-32 md:h-32 opacity-0 animate-pv-fade-up [--d:50ms]"
-            style={{ animationFillMode: 'forwards' }}
-          >
+        <div className="relative z-10 w-full flex flex-col items-center text-center -mt-8 md:-mt-16 pointer-events-none">
+          <div className="mb-8 relative w-24 h-24 md:w-32 md:h-32 animate-pv-fade-up">
             <CircleText
               className="w-full h-full pv-spin motion-loop"
               d="M 60, 60 m -45, 0 a 45,45 0 1,1 90,0 a 45,45 0 1,1 -90,0"
@@ -179,28 +205,19 @@ export function Landing() {
               <img
                 src="/brand/selly-s.png"
                 alt=""
-                className="w-9 md:w-12 h-auto opacity-0 animate-pv-stamp [--d:150ms]"
-                style={{ animationFillMode: 'forwards' }}
+                className="w-9 md:w-12 h-auto animate-pv-stamp [--d:1000ms]"
               />
             </div>
           </div>
           <h1 className="pv-serif text-6xl md:text-8xl lg:text-[11rem] leading-[0.9] font-light tracking-[-0.02em] mb-8 mix-blend-normal">
-            Your shop.
-            <br />
-            <span className="italic">Your assistant.</span>
-            <br />
-            More sales.
+            <span className="hero-line [--i:0]">Your shop.</span>
+            <span className="hero-line italic [--i:1]">Your assistant.</span>
+            <span className="hero-line [--i:2]">More sales.</span>
           </h1>
-          <p
-            className="pv-sans text-sm md:text-base max-w-md leading-relaxed text-black/70 uppercase tracking-widest mb-16 opacity-0 animate-pv-fade-up [--d:150ms]"
-            style={{ animationFillMode: 'forwards' }}
-          >
+          <p className="pv-sans text-sm md:text-base max-w-md leading-relaxed text-black/70 uppercase tracking-widest mb-16 animate-pv-fade-up [--d:420ms]">
             Selly puts your catalog, a sales assistant, and direct payments in one simple link.
           </p>
-          <div
-            className="flex flex-col items-center gap-4 opacity-0 animate-pv-fade-up [--d:300ms]"
-            style={{ animationFillMode: 'forwards' }}
-          >
+          <div className="flex flex-col items-center gap-4 animate-pv-fade-up [--d:520ms]">
             <div className="w-px h-16 bg-[#111]"></div>
             <a
               href="#signup"
@@ -332,11 +349,11 @@ export function Landing() {
             <div className="group flex flex-col md:flex-row gap-6 md:gap-10 items-start reveal-on-scroll border-b border-[#1111111f] py-8 first:pt-0 last:border-0 last:pb-0 opacity-100">
               <div className="flex items-start gap-6 md:gap-8 shrink-0 w-full md:w-auto">
                 <div className="pt-2">
-                  <span className="pv-sans text-[10px] uppercase tracking-[0.2em] text-[#E3342F] font-medium opacity-40 group-hover:opacity-100 transition-opacity duration-(--dur-ui)">
+                  <span className="pv-sans text-[10px] uppercase tracking-[0.2em] kit-num inline-block text-[#E3342F] font-medium opacity-40 group-hover:opacity-100 transition-opacity duration-(--dur-ui)">
                     01
                   </span>
                 </div>
-                <div className="relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
+                <div className="kit-media relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
                   <img
                     alt="Your storefront"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-(--ease-out-expo)-expo)"
@@ -365,11 +382,11 @@ export function Landing() {
             <div className="group flex flex-col md:flex-row gap-6 md:gap-10 items-start reveal-on-scroll border-b border-[#1111111f] py-8 first:pt-0 last:border-0 last:pb-0 opacity-100">
               <div className="flex items-start gap-6 md:gap-8 shrink-0 w-full md:w-auto">
                 <div className="pt-2">
-                  <span className="pv-sans text-[10px] uppercase tracking-[0.2em] text-[#E3342F] font-medium opacity-40 group-hover:opacity-100 transition-opacity duration-(--dur-ui)">
+                  <span className="pv-sans text-[10px] uppercase tracking-[0.2em] kit-num inline-block text-[#E3342F] font-medium opacity-40 group-hover:opacity-100 transition-opacity duration-(--dur-ui)">
                     02
                   </span>
                 </div>
-                <div className="relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
+                <div className="kit-media relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
                   <img
                     alt="Live catalog"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-(--ease-out-expo)-expo)"
@@ -397,11 +414,11 @@ export function Landing() {
             <div className="group flex flex-col md:flex-row gap-6 md:gap-10 items-start reveal-on-scroll border-b border-[#1111111f] py-8 first:pt-0 last:border-0 last:pb-0 opacity-100">
               <div className="flex items-start gap-6 md:gap-8 shrink-0 w-full md:w-auto">
                 <div className="pt-2">
-                  <span className="pv-sans text-[10px] uppercase tracking-[0.2em] text-[#E3342F] font-medium opacity-40 group-hover:opacity-100 transition-opacity duration-(--dur-ui)">
+                  <span className="pv-sans text-[10px] uppercase tracking-[0.2em] kit-num inline-block text-[#E3342F] font-medium opacity-40 group-hover:opacity-100 transition-opacity duration-(--dur-ui)">
                     03
                   </span>
                 </div>
-                <div className="relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
+                <div className="kit-media relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
                   <img
                     alt="Sales assistant"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-(--ease-out-expo)-expo)"
@@ -429,11 +446,11 @@ export function Landing() {
             <div className="group flex flex-col md:flex-row gap-6 md:gap-10 items-start reveal-on-scroll border-b border-[#1111111f] py-8 first:pt-0 last:border-0 last:pb-0 opacity-100">
               <div className="flex items-start gap-6 md:gap-8 shrink-0 w-full md:w-auto">
                 <div className="pt-2">
-                  <span className="pv-sans text-[10px] uppercase tracking-[0.2em] text-[#E3342F] font-medium opacity-40 group-hover:opacity-100 transition-opacity duration-(--dur-ui)">
+                  <span className="pv-sans text-[10px] uppercase tracking-[0.2em] kit-num inline-block text-[#E3342F] font-medium opacity-40 group-hover:opacity-100 transition-opacity duration-(--dur-ui)">
                     04
                   </span>
                 </div>
-                <div className="relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
+                <div className="kit-media relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
                   <img
                     alt="Easy ordering"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-(--ease-out-expo)-expo)"
@@ -461,11 +478,11 @@ export function Landing() {
             <div className="group flex flex-col md:flex-row gap-6 md:gap-10 items-start reveal-on-scroll border-b border-[#1111111f] py-8 first:pt-0 last:border-0 last:pb-0 opacity-100">
               <div className="flex items-start gap-6 md:gap-8 shrink-0 w-full md:w-auto">
                 <div className="pt-2">
-                  <span className="pv-sans text-[10px] uppercase tracking-[0.2em] text-[#E3342F] font-medium opacity-40 group-hover:opacity-100 transition-opacity duration-(--dur-ui)">
+                  <span className="pv-sans text-[10px] uppercase tracking-[0.2em] kit-num inline-block text-[#E3342F] font-medium opacity-40 group-hover:opacity-100 transition-opacity duration-(--dur-ui)">
                     05
                   </span>
                 </div>
-                <div className="relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
+                <div className="kit-media relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
                   <img
                     alt="Stock-aware"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-(--ease-out-expo)-expo)"
@@ -494,11 +511,11 @@ export function Landing() {
             <div className="group flex flex-col md:flex-row gap-6 md:gap-10 items-start reveal-on-scroll border-b border-[#1111111f] py-8 first:pt-0 last:border-0 last:pb-0 opacity-100">
               <div className="flex items-start gap-6 md:gap-8 shrink-0 w-full md:w-auto">
                 <div className="pt-2">
-                  <span className="pv-sans text-[10px] uppercase tracking-[0.2em] text-[#E3342F] font-medium opacity-40 group-hover:opacity-100 transition-opacity duration-(--dur-ui)">
+                  <span className="pv-sans text-[10px] uppercase tracking-[0.2em] kit-num inline-block text-[#E3342F] font-medium opacity-40 group-hover:opacity-100 transition-opacity duration-(--dur-ui)">
                     06
                   </span>
                 </div>
-                <div className="relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
+                <div className="kit-media relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
                   <img
                     alt="Direct payments"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-(--ease-out-expo)-expo)"
@@ -550,7 +567,7 @@ export function Landing() {
           <div className="md:col-span-12 h-[50vh] md:h-[70vh] relative overflow-hidden group reveal-on-scroll opacity-100">
             <img
               alt="Boutique interior"
-              className="w-full h-full object-cover transition-transform duration-(--dur-ui) ease-(--ease-out-expo) group-hover:scale-105"
+              className="gal-par w-full h-full object-cover transition-transform duration-(--dur-ui) ease-(--ease-out-expo) group-hover:scale-105"
               src="/landing/gallery/boutique.jpg"
             />
             <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
@@ -566,7 +583,7 @@ export function Landing() {
           <div className="md:col-span-8 h-[350px] md:h-[450px] relative overflow-hidden group reveal-on-scroll [--d:100ms] opacity-100">
             <img
               alt="Seller packing an order"
-              className="w-full h-full object-cover transition-transform duration-(--dur-ui) ease-(--ease-out-expo) group-hover:scale-105"
+              className="gal-par w-full h-full object-cover transition-transform duration-(--dur-ui) ease-(--ease-out-expo) group-hover:scale-105"
               src="/landing/gallery/packing.jpg"
             />
             <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
@@ -574,7 +591,7 @@ export function Landing() {
           <div className="md:col-span-4 h-[350px] md:h-[450px] relative overflow-hidden group reveal-on-scroll [--d:75ms] opacity-100">
             <img
               alt="Market stall"
-              className="w-full h-full object-cover transition-transform duration-(--dur-ui) ease-(--ease-out-expo) group-hover:scale-105"
+              className="gal-par w-full h-full object-cover transition-transform duration-(--dur-ui) ease-(--ease-out-expo) group-hover:scale-105"
               src="/landing/gallery/market.jpg"
             />
             <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
@@ -582,7 +599,7 @@ export function Landing() {
           <div className="md:col-span-4 h-[350px] md:h-[450px] relative overflow-hidden group reveal-on-scroll [--d:100ms] opacity-100">
             <img
               alt="Sneaker store"
-              className="w-full h-full object-cover transition-transform duration-(--dur-ui) ease-(--ease-out-expo) group-hover:scale-105"
+              className="gal-par w-full h-full object-cover transition-transform duration-(--dur-ui) ease-(--ease-out-expo) group-hover:scale-105"
               src="/landing/gallery/sneakers.jpg"
             />
             <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
@@ -607,7 +624,7 @@ export function Landing() {
           <div className="md:col-span-4 h-[350px] md:h-[450px] relative overflow-hidden group reveal-on-scroll [--d:100ms] opacity-100">
             <img
               alt="Art gallery"
-              className="w-full h-full object-cover transition-transform duration-(--dur-ui) ease-(--ease-out-expo) group-hover:scale-105"
+              className="gal-par w-full h-full object-cover transition-transform duration-(--dur-ui) ease-(--ease-out-expo) group-hover:scale-105"
               src="/landing/gallery/gallery.jpg"
             />
             <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
