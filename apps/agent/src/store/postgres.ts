@@ -11,8 +11,8 @@ import {
   gt,
   inArray,
   isNull,
-  type NodePgDatabase,
   or,
+  type PgDatabase,
   sql,
 } from '@selly/db/orm';
 import pg from 'pg';
@@ -47,19 +47,26 @@ const toMessage = (r: MsgRow): StoredMessage => ({
   imageKeys: r.imageKeys ?? [],
 });
 
-export class PostgresStore implements AgentStore {
-  private readonly db: NodePgDatabase;
+type AnyPgDatabase = PgDatabase<any, any, any>;
 
-  constructor(readonly pool: pg.Pool) {
-    this.db = drizzle(pool);
-  }
+export class PostgresStore implements AgentStore {
+  constructor(
+    private readonly db: AnyPgDatabase,
+    private readonly onClose: () => Promise<void> = async () => {},
+  ) {}
 
   static connect(url: string) {
-    return new PostgresStore(new pg.Pool({ connectionString: url, max: 10 }));
+    const pool = new pg.Pool({ connectionString: url, max: 10 });
+    return new PostgresStore(drizzle(pool), () => pool.end());
+  }
+
+  /** Fails when the agent schema has not been migrated. */
+  async checkSchema() {
+    await this.db.execute(sql`select 1 from agent.conversations limit 0`);
   }
 
   close() {
-    return this.pool.end();
+    return this.onClose();
   }
 
   async upsertConversation(input: Parameters<AgentStore['upsertConversation']>[0]) {

@@ -7,7 +7,7 @@ const { config, store, llm } = app.services;
 async function main() {
   if (store instanceof PostgresStore) {
     try {
-      await store.pool.query('select 1 from agent.conversations limit 0');
+      await store.checkSchema();
     } catch (err) {
       app.log.error(
         { err },

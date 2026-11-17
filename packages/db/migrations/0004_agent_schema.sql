@@ -1,7 +1,7 @@
 CREATE SCHEMA "agent";
 --> statement-breakpoint
 CREATE TABLE "agent"."chat_sessions" (
-	"id" uuid PRIMARY KEY DEFAULT uuidv7() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"vendor_id" uuid NOT NULL,
 	"conversation_id" uuid NOT NULL,
 	"token_hash" "bytea" NOT NULL,
@@ -13,7 +13,7 @@ CREATE TABLE "agent"."chat_sessions" (
 );
 --> statement-breakpoint
 CREATE TABLE "agent"."conversations" (
-	"id" uuid PRIMARY KEY DEFAULT uuidv7() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"vendor_id" uuid NOT NULL,
 	"channel" text DEFAULT 'web' NOT NULL,
 	"role" text NOT NULL,
@@ -36,7 +36,7 @@ CREATE TABLE "agent"."conversations" (
 );
 --> statement-breakpoint
 CREATE TABLE "agent"."llm_calls" (
-	"id" uuid PRIMARY KEY DEFAULT uuidv7() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"conversation_id" uuid,
 	"vendor_id" uuid,
 	"purpose" text NOT NULL,
@@ -50,7 +50,7 @@ CREATE TABLE "agent"."llm_calls" (
 );
 --> statement-breakpoint
 CREATE TABLE "agent"."messages" (
-	"id" uuid PRIMARY KEY DEFAULT uuidv7() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"conversation_id" uuid NOT NULL,
 	"direction" text NOT NULL,
 	"author" text NOT NULL,

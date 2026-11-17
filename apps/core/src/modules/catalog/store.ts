@@ -1,0 +1,233 @@
+// Read side of the public storefront (architecture.md section 5.2, group A).
+import { core } from '@selly/db';
+import { and, asc, desc, eq, inArray, lt, or, sql } from 'drizzle-orm';
+import type { Context } from '../../context';
+import { AppError } from '../../errors';
+import { iso, money } from '../../util';
+
+const { vendors, products, productVariants: pv, productImages } = core;
+
+export type Vendor = typeof vendors.$inferSelect;
+export type Product = typeof products.$inferSelect;
+export type Variant = typeof pv.$inferSelect;
+type Cur = 'XOF' | 'SAT';
+
+export interface DeliveryZone {
+  id: string;
+  label: string;
+  fee: { amount: number; currency: Cur };
+}
+export interface DeliverySettings {
+  zones: DeliveryZone[];
+  pickup: { available: boolean; address_text: string | null };
+}
+
+/** The customer-facing parts of vendors.settings. Everything has a safe default. */
+export function vendorSettings(v: Vendor) {
+  const s = v.settings as {
+    pricing_currency?: Cur;
+    delivery?: Partial<DeliverySettings>;
+    hours?: unknown[];
+    agent?: {
+      enabled?: boolean;
+      negotiation?: { mode?: 'fixed' | 'allow'; max_discount_pct?: number };
+    };
+  };
+  return {
+    pricingCurrency: (s.pricing_currency ?? 'XOF') as Cur,
+    delivery: {
+      zones: s.delivery?.zones ?? [],
+      pickup: s.delivery?.pickup ?? { available: false, address_text: null },
+    } satisfies DeliverySettings,
+    hours: s.hours ?? [],
+    agentEnabled: s.agent?.enabled ?? true,
+    negotiation: {
+      mode: s.agent?.negotiation?.mode ?? 'fixed',
+      maxDiscountPct: s.agent?.negotiation?.max_discount_pct ?? 0,
+    },
+  };
+}
+
+export async function findVendorBySlug(ctx: Context, slug: string): Promise<Vendor> {
+  const [v] = await ctx.db.select().from(vendors).where(eq(vendors.slug, slug));
+  if (!v) throw new AppError('NOT_FOUND', `No shop has the slug "${slug}".`);
+  return v;
+}
+
+/**
+ * Is the shop open for orders? TODO (subscriptions): also require a working wallet and a plan that is not suspended
+ * (architecture.md section 3.7). Today only an operator suspension closes a shop.
+ */
+export async function storeStatus(_ctx: Context, v: Vendor): Promise<'active' | 'paused'> {
+  return v.status === 'active' ? 'active' : 'paused';
+}
+
+export const availabilityOf = (available: number): 'in_stock' | 'low' | 'out_of_stock' =>
+  available <= 0 ? 'out_of_stock' : available <= 3 ? 'low' : 'in_stock';
+
+const encodeCursor = (p: Pick<Product, 'createdAt' | 'id'>) =>
+  Buffer.from(`${p.createdAt.toISOString()}|${p.id}`).toString('base64url');
+function decodeCursor(c: string): { at: Date; id: string } {
+  const [at, id] = Buffer.from(c, 'base64url').toString().split('|');
+  const date = new Date(at ?? '');
+  if (!id || Number.isNaN(date.getTime()))
+    throw new AppError('VALIDATION_FAILED', 'Invalid cursor.');
+  return { at: date, id };
+}
+
+export function imageView(ctx: Context, img: typeof productImages.$inferSelect | undefined) {
+  if (!img) return null;
+  return {
+    url: `${ctx.config.CDN_BASE_URL}/${img.storageKey}`,
+    width: img.width,
+    height: img.height,
+    dominant: img.dominant ?? '#cccccc',
+  };
+}
+
+function optionsOf(variants: Variant[]): Record<string, string[]> {
+  const out: Record<string, Set<string>> = {};
+  for (const v of variants)
+    for (const [k, val] of Object.entries(v.options)) (out[k] ??= new Set()).add(val);
+  return Object.fromEntries(Object.entries(out).map(([k, s]) => [k, [...s]]));
+}
+
+export async function productSummaries(ctx: Context, rows: Product[]) {
+  if (rows.length === 0) return [];
+  const ids = rows.map((r) => r.id);
+  const variants = await ctx.db.select().from(pv).where(inArray(pv.productId, ids));
+  const images = await ctx.db
+    .select()
+    .from(productImages)
+    .where(inArray(productImages.productId, ids))
+    .orderBy(asc(productImages.position));
+  return rows.map((p) => {
+    const vs = variants.filter((v) => v.productId === p.id);
+    const available = vs.reduce((n, v) => n + (v.onHand - v.reserved), 0);
+    return {
+      id: p.id,
+      slug: p.slug,
+      title: p.title,
+      price: money(p.priceAmount, p.priceCurrency),
+      image: imageView(
+        ctx,
+        images.find((i) => i.productId === p.id),
+      ),
+      availability: availabilityOf(available),
+      options: optionsOf(vs),
+    };
+  });
+}
+
+export async function listProducts(
+  ctx: Context,
+  vendorId: string,
+  q: { q?: string; category?: string; cursor?: string; limit: number },
+) {
+  const conds = [eq(products.vendorId, vendorId), eq(products.status, 'active')];
+  if (q.category) conds.push(eq(products.category, q.category));
+  if (q.q) {
+    const like = `%${q.q.replace(/[%_\\]/g, '\\$&')}%`;
+    conds.push(
+      or(
+        sql`${products.search} @@ plainto_tsquery('simple', public.unaccent_i(${q.q}))`,
+        sql`public.unaccent_i(${products.title}) ilike public.unaccent_i(${like})`,
+      ) as ReturnType<typeof eq>,
+    );
+  }
+  if (q.cursor) {
+    const c = decodeCursor(q.cursor);
+    conds.push(
+      or(
+        lt(products.createdAt, c.at),
+        and(eq(products.createdAt, c.at), lt(products.id, c.id)),
+      ) as ReturnType<typeof eq>,
+    );
+  }
+  const rows = await ctx.db
+    .select()
+    .from(products)
+    .where(and(...conds))
+    .orderBy(desc(products.createdAt), desc(products.id))
+    .limit(q.limit + 1);
+  const page = rows.slice(0, q.limit);
+  const last = page[page.length - 1];
+  return {
+    data: await productSummaries(ctx, page),
+    next_cursor: rows.length > q.limit && last ? encodeCursor(last) : null,
+  };
+}
+
+export async function productDetail(
+  ctx: Context,
+  vendor: Vendor,
+  idOrSlug: string,
+  exactVariantId?: string,
+) {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
+  const [p] = await ctx.db
+    .select()
+    .from(products)
+    .where(
+      and(
+        eq(products.vendorId, vendor.id),
+        eq(products.status, 'active'),
+        isUuid ? eq(products.id, idOrSlug) : eq(products.slug, idOrSlug),
+      ),
+    );
+  if (!p) throw new AppError('NOT_FOUND', 'This product does not exist or is hidden.');
+  const variants = await ctx.db.select().from(pv).where(eq(pv.productId, p.id));
+  const images = await ctx.db
+    .select()
+    .from(productImages)
+    .where(eq(productImages.productId, p.id))
+    .orderBy(asc(productImages.position));
+  const total = variants.reduce((n, v) => n + (v.onHand - v.reserved), 0);
+  return {
+    id: p.id,
+    slug: p.slug,
+    title: p.title,
+    description: p.description,
+    category: p.category,
+    price: money(p.priceAmount, p.priceCurrency),
+    images: images.map((i) => imageView(ctx, i)),
+    availability: availabilityOf(total),
+    options: optionsOf(variants),
+    variants: variants.map((v) => {
+      const available = v.onHand - v.reserved;
+      return {
+        id: v.id,
+        options: v.options,
+        price: money(v.priceOverride ?? p.priceAmount, p.priceCurrency),
+        availability: availabilityOf(available),
+        available: exactVariantId === v.id ? Math.max(available, 0) : null,
+      };
+    }),
+    url: `${ctx.config.APP_BASE_URL}/s/${vendor.slug}/p/${p.slug}`,
+  };
+}
+
+export async function storeProfile(ctx: Context, v: Vendor) {
+  const s = vendorSettings(v);
+  const status = await storeStatus(ctx, v);
+  return {
+    slug: v.slug,
+    display_name: v.displayName,
+    status,
+    whatsapp_link: v.contactWhatsappE164
+      ? `https://wa.me/${v.contactWhatsappE164.replace('+', '')}`
+      : null,
+    locale: v.locale,
+    pricing_currency: s.pricingCurrency,
+    delivery: s.delivery,
+    hours: s.hours,
+    chat: {
+      enabled: status === 'active' && s.agentEnabled,
+      reason: status !== 'active' ? 'store_paused' : s.agentEnabled ? null : 'vendor_disabled',
+    },
+    payment_options: ['lightning'] as const,
+    powered_by_badge: false, // TODO (subscriptions): true on the Starter plan
+  };
+}
+
+export { iso };

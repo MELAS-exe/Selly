@@ -1,0 +1,126 @@
+// Shared setup for tests: in-process PostgreSQL, fake wallet, fixed price feeds and a clock the test controls.
+import { core } from '@selly/db';
+import { createTestDb } from '@selly/db/testing';
+import { buildApp } from './app';
+import { loadConfig } from './config';
+import type { Context, Database } from './context';
+import { FakeInvoiceProvider } from './modules/payments/fake';
+import { singleProvider } from './modules/payments/provider';
+import type { RateFeed } from './modules/rates/feeds';
+import { RateService } from './modules/rates/service';
+
+export const SERVICE_TOKEN = 'test-service-token';
+
+export const feed = (name: string, cents: bigint | Error): RateFeed => ({
+  name,
+  btcEurCents: async () => {
+    if (cents instanceof Error) throw cents;
+    return cents;
+  },
+});
+
+export async function createTestApp() {
+  const { db: pg, close } = await createTestDb();
+  const db = pg as unknown as Database;
+  let time = new Date('2026-11-17T10:00:00Z');
+  const clock = {
+    now: () => new Date(time),
+    advance: (ms: number) => {
+      time = new Date(time.getTime() + ms);
+    },
+  };
+  const provider = new FakeInvoiceProvider(clock.now);
+  // BTC = 90,000 EUR: 59,036,130 XOF per BTC, the example of architecture.md section 4.5.
+  const feeds = [feed('a', 9_000_000n), feed('b', 9_000_000n)];
+  const ctx: Context = {
+    config: loadConfig({
+      NODE_ENV: 'test',
+      SERVICE_TOKEN_AGENT: SERVICE_TOKEN,
+      SSE_POLL_MS: '30',
+    } as NodeJS.ProcessEnv),
+    db,
+    now: clock.now,
+    rates: new RateService(db, feeds, clock.now),
+    invoices: singleProvider(provider),
+  };
+  const app = buildApp(ctx);
+  await app.ready();
+  return {
+    app,
+    ctx,
+    db,
+    provider,
+    clock,
+    close: async () => {
+      await app.close();
+      await close();
+    },
+  };
+}
+
+export type TestApp = Awaited<ReturnType<typeof createTestApp>>;
+
+/** A shop with one product in two sizes and a delivery zone. Returns ids for the tests. */
+export async function createShop(
+  db: Database,
+  slug: string,
+  opts: { stock?: number; negotiate?: boolean } = {},
+) {
+  const [v] = await db
+    .insert(core.vendors)
+    .values({
+      displayName: `Shop ${slug}`,
+      slug,
+      settings: {
+        pricing_currency: 'XOF',
+        delivery: {
+          zones: [
+            { id: 'plateau', label: 'Dakar Plateau', fee: { amount: 1000, currency: 'XOF' } },
+          ],
+          pickup: { available: true, address_text: 'Marché HLM' },
+        },
+        agent: { negotiation: { mode: opts.negotiate ? 'allow' : 'fixed', max_discount_pct: 10 } },
+      },
+    })
+    .returning();
+  const vendorId = (v as { id: string }).id;
+  const [p] = await db
+    .insert(core.products)
+    .values({
+      vendorId,
+      title: 'Robe wax noire',
+      slug: 'robe-wax-noire',
+      category: 'robes',
+      description: 'Tissu élégant',
+      priceAmount: 15000,
+    })
+    .returning();
+  const productId = (p as { id: string }).id;
+  const [variant] = await db
+    .insert(core.productVariants)
+    .values({ productId, options: { size: '42', color: 'noir' }, onHand: opts.stock ?? 3 })
+    .returning();
+  return { vendorId, productId, variantId: (variant as { id: string }).id };
+}
+
+export const orderPayload = (
+  slug: string,
+  variantId: string,
+  over: Record<string, unknown> = {},
+) => ({
+  store_slug: slug,
+  channel: 'web',
+  customer: { display_name: 'Fatou', phone_e164: '+221771234567' },
+  items: [{ variant_id: variantId, quantity: 1 }],
+  delivery: {
+    method: 'delivery',
+    zone_id: 'plateau',
+    address_text: 'Rue 10',
+    note: 'Appeler avant',
+  },
+  expected_total: { amount: 16000, currency: 'XOF' },
+  ...over,
+});
+
+let n = 0;
+export const idemKey = () => `test-key-${String(++n).padStart(8, '0')}-abcdef`;

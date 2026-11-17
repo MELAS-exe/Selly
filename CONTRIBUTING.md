@@ -31,6 +31,19 @@ This starts PostgreSQL 18, MinIO (the buckets are created for you), a local Nost
 
 For day-to-day work, `pnpm infra:up` starts only the infrastructure, and `pnpm dev` runs the apps with hot reload.
 
+## What core already does
+
+Core applies the migrations and loads a demo shop at start (`MIGRATE_ON_START` and `SEED_DEMO`, on by default locally). The demo shop is `awa-style`, with three products and two delivery zones.
+
+These endpoints work, and their responses match `docs/api.json`:
+
+- Storefront: `GET /api/v1/stores/{slug}`, `/products`, `/products/{product_id}`, `POST /cart-quotes`.
+- Checkout: `POST /api/v1/orders`, `GET /api/v1/checkout/{token}`, `/status`, `/events` (SSE), `POST /invoice`.
+- `GET /api/v1/rates/btc-xof` and `GET /api/v1/plans`.
+- For the agent (service token): `POST /internal/v1/vendors/{id}/cart-quotes` and `/orders`.
+
+Lightning is simulated (`INVOICE_PROVIDER=fake`): invoices look real but cannot be paid. Vendor sign-in, the vendor dashboard API and subscriptions are not built yet; mock them from `docs/api.json`.
+
 ## Who owns what
 
 | Dev   | Owns                                                                | Start with                                           |

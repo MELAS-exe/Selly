@@ -81,6 +81,10 @@ services:
       EVENTS_HMAC_SECRET: ${EVENTS_HMAC_SECRET:-dev-events-secret}
       SECRETS_KEK_V1: ${SECRETS_KEK_V1:-}
       SECRETS_PLATFORM_NWC_URI: ${SECRETS_PLATFORM_NWC_URI:-}
+      # Local stack: apply migrations, load the demo shop (awa-style), simulate Lightning invoices.
+      MIGRATE_ON_START: ${MIGRATE_ON_START:-true}
+      SEED_DEMO: ${SEED_DEMO:-true}
+      INVOICE_PROVIDER: ${INVOICE_PROVIDER:-fake}
     ports:
       - "4000:4000"
     depends_on:

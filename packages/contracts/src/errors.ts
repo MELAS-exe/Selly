@@ -28,6 +28,8 @@ export const ERROR_CODES = {
   RATE_LIMITED: 429,
   NOT_FOUND: 404,
   FORBIDDEN: 403,
+  REQUEST_IN_PROGRESS: 409,
+  INTERNAL: 500,
 } as const;
 
 export type ErrorCode = keyof typeof ERROR_CODES;

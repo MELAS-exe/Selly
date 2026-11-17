@@ -1,16 +1,26 @@
-// One contract, two stores. The PostgreSQL run needs a migrated database:
+// One contract, three stores: memory, PostgreSQL in-process (PGlite, every migration applied),
+// and a real PostgreSQL 18 when TEST_DATABASE_URL points to a migrated database:
 //   pnpm infra:up && pnpm --filter @selly/db db:migrate
 //   TEST_DATABASE_URL=postgres://selly:selly@localhost:5432/selly pnpm --filter @selly/agent test
 import { randomUUID } from 'node:crypto';
-import { afterAll, describe, expect, it } from 'vitest';
+import { createTestDb } from '@selly/db/testing';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { sha256 } from '../ids';
 import { MemoryStore } from './memory';
 import { PostgresStore } from './postgres';
 import type { AgentStore } from './types';
 
+let pglite: Awaited<ReturnType<typeof createTestDb>>;
+beforeAll(async () => {
+  pglite = await createTestDb();
+}, 60_000);
+
 const pgUrl = process.env.TEST_DATABASE_URL;
-const stores: [string, () => AgentStore][] = [['memory', () => new MemoryStore()]];
 const opened: PostgresStore[] = [];
+const stores: [string, () => AgentStore][] = [
+  ['memory', () => new MemoryStore()],
+  ['pglite', () => new PostgresStore(pglite.db)],
+];
 if (pgUrl)
   stores.push([
     'postgres',
@@ -23,6 +33,7 @@ if (pgUrl)
 
 afterAll(async () => {
   await Promise.all(opened.map((s) => s.close()));
+  await pglite?.close();
 });
 
 describe.each(stores)('%s store', (_name, make) => {

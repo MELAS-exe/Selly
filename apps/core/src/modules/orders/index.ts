@@ -1,6 +1,228 @@
-import type { FastifyPluginAsync } from 'fastify';
+import { core } from '@selly/db';
+import { eq } from 'drizzle-orm';
+import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
+import { z } from 'zod';
+import { AppError } from '../../errors';
+import { withIdempotency } from '../../idempotency';
+import { iso, money } from '../../util';
+import { findVendorBySlug } from '../catalog/store';
+import {
+  checkoutStatus,
+  checkoutView,
+  createOrder,
+  findOrderByToken,
+  lineMoney,
+  quoteCart,
+  renewInvoice,
+  satsFor,
+} from './service';
 
-// quotes, orders, customers, expiry
-export const ordersModule: FastifyPluginAsync = async (_app) => {
-  // TODO (Dev 3): routes and services. Contract: docs/api.json.
+const cartItem = z.object({ variant_id: z.uuid(), quantity: z.number().int().min(1).max(50) });
+const delivery = z.object({
+  method: z.enum(['delivery', 'pickup']),
+  zone_id: z.string().max(60).optional(),
+  address_text: z.string().max(300).optional(),
+  note: z.string().max(300).optional(),
+});
+const moneySchema = z.object({ amount: z.number().int().min(0), currency: z.enum(['XOF', 'SAT']) });
+const customer = z.object({
+  display_name: z.string().min(2).max(60),
+  phone_e164: z
+    .string()
+    .regex(/^\+[1-9][0-9]{7,14}$/, 'Use the international format, e.g. +221771234567'),
+});
+const cartQuoteBody = z.strictObject({ items: z.array(cartItem).min(1).max(20), delivery });
+const orderBody = z.strictObject({
+  store_slug: z.string(),
+  channel: z.literal('web'),
+  customer,
+  items: z.array(cartItem).min(1).max(20),
+  delivery,
+  expected_total: moneySchema,
+});
+const internalQuoteBody = z.strictObject({
+  items: z.array(cartItem).min(1).max(20),
+  delivery,
+  discount_pct: z.number().int().min(0).max(100).optional(),
+});
+const internalOrderBody = z.strictObject({
+  conversation_ref: z.uuid(),
+  customer,
+  items: z.array(cartItem).min(1).max(20),
+  delivery,
+  expected_total: moneySchema,
+});
+
+const idemKey = (req: FastifyRequest) => req.headers['idempotency-key'] as string | undefined;
+
+// Cart quotes, orders and the checkout / order page (architecture.md sections 5.2 A, 5.3.1, 6.2).
+export const ordersModule: FastifyPluginAsync = async (app) => {
+  const ctx = () => app.ctx;
+
+  // ----------------------------------------------------------------------------------- public
+
+  app.post<{ Params: { slug: string } }>('/api/v1/stores/:slug/cart-quotes', async (req) => {
+    const body = cartQuoteBody.parse(req.body);
+    const vendor = await findVendorBySlug(ctx(), req.params.slug);
+    const q = await quoteCart(ctx(), vendor, body);
+    const { totalSat, quote } = await satsFor(ctx(), q.currency, q.total);
+    return {
+      lines: q.lines.map((l) => lineMoney(q, l)),
+      subtotal: money(q.subtotal, q.currency),
+      delivery_fee: money(q.deliveryFee, q.currency),
+      discount: money(q.discount, q.currency),
+      total: money(q.total, q.currency),
+      total_sat: totalSat,
+      rate: quote
+        ? {
+            xof_per_btc: Math.floor(quote.xofPerBtcCents / 100),
+            source: quote.source,
+            quoted_at: iso(quote.fetchedAt),
+          }
+        : null,
+    };
+  });
+
+  app.post('/api/v1/orders', async (req, reply) => {
+    const body = orderBody.parse(req.body);
+    const vendor = await findVendorBySlug(ctx(), body.store_slug);
+    const res = await withIdempotency(ctx(), `ip:${req.ip}`, idemKey(req), body, async () => ({
+      status: 201,
+      body: await createOrder(ctx(), {
+        vendor,
+        channel: body.channel,
+        customer: body.customer,
+        items: body.items,
+        delivery: body.delivery,
+        expectedTotal: body.expected_total,
+        actor: 'customer:web',
+      }),
+    }));
+    return reply.code(res.status).send(res.body);
+  });
+
+  app.get<{ Params: { token: string } }>('/api/v1/checkout/:token', async (req, reply) => {
+    reply.header('Cache-Control', 'no-store').header('X-Robots-Tag', 'noindex');
+    return checkoutView(ctx(), req.params.token);
+  });
+
+  app.get<{ Params: { token: string } }>('/api/v1/checkout/:token/status', async (req, reply) => {
+    reply.header('Cache-Control', 'no-store');
+    return checkoutStatus(ctx(), req.params.token);
+  });
+
+  app.post<{ Params: { token: string } }>('/api/v1/checkout/:token/invoice', async (req, reply) => {
+    const order = await findOrderByToken(ctx(), req.params.token);
+    const res = await withIdempotency(ctx(), `order:${order.id}`, idemKey(req), {}, async () => ({
+      status: 201,
+      body: await renewInvoice(ctx(), req.params.token),
+    }));
+    return reply.code(res.status).send(res.body);
+  });
+
+  // Server-Sent Events. Reads the database every SSE_POLL_MS; PostgreSQL LISTEN/NOTIFY will replace the polling.
+  app.get<{ Params: { token: string } }>('/api/v1/checkout/:token/events', async (req, reply) => {
+    await findOrderByToken(ctx(), req.params.token);
+    reply.hijack();
+    const res = reply.raw;
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-store',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+
+    let id = Number(req.headers['last-event-id'] ?? 0) || 0;
+    let lastSent = '';
+    let lastWrite = Date.now();
+    let closed = false;
+    const stop = () => {
+      closed = true;
+      clearInterval(timer);
+      if (!res.writableEnded) res.end();
+    };
+    const tick = async () => {
+      if (closed) return;
+      try {
+        const s = await checkoutStatus(ctx(), req.params.token);
+        const data = JSON.stringify({
+          status: s.status,
+          invoice: { status: s.invoice_status, expires_at: s.expires_at },
+          paid_at: s.paid_at,
+          fulfilled_at: s.fulfilled_at,
+        });
+        if (data !== lastSent) {
+          lastSent = data;
+          res.write(`event: status\nid: ${++id}\ndata: ${data}\n\n`);
+          lastWrite = Date.now();
+          if (s.status === 'cancelled' || s.status === 'fulfilled') stop();
+        } else if (Date.now() - lastWrite >= 20_000) {
+          res.write(': ping\n\n'); // keeps mobile networks and proxies from closing the stream
+          lastWrite = Date.now();
+        }
+      } catch {
+        stop();
+      }
+    };
+    const timer = setInterval(tick, ctx().config.SSE_POLL_MS);
+    req.raw.on('close', stop);
+    await tick();
+  });
+
+  // ----------------------------------------------------------------------------------- internal (agent)
+
+  app.post<{ Params: { id: string } }>('/internal/v1/vendors/:id/cart-quotes', async (req) => {
+    const body = internalQuoteBody.parse(req.body);
+    const vendor = await internalVendor(req.params.id);
+    const q = await quoteCart(ctx(), vendor, body, { discountPct: body.discount_pct ?? 0 });
+    return {
+      lines: q.lines.map((l) => lineMoney(q, l)),
+      subtotal: money(q.subtotal, q.currency),
+      delivery_fee: money(q.deliveryFee, q.currency),
+      discount: money(q.discount, q.currency),
+      total: money(q.total, q.currency),
+      max_discount_pct: q.maxDiscountPct,
+      applied_discount_pct: q.appliedDiscountPct,
+    };
+  });
+
+  app.post<{ Params: { id: string } }>('/internal/v1/vendors/:id/orders', async (req, reply) => {
+    const body = internalOrderBody.parse(req.body);
+    const vendor = await internalVendor(req.params.id);
+    const res = await withIdempotency(
+      ctx(),
+      'svc:agent',
+      idemKey(req),
+      { vendor: vendor.id, ...body },
+      async () => {
+        const created = await createOrder(ctx(), {
+          vendor,
+          channel: 'web',
+          conversationRef: body.conversation_ref,
+          customer: body.customer,
+          items: body.items,
+          delivery: body.delivery,
+          expectedTotal: body.expected_total,
+          actor: `customer:${body.conversation_ref}`,
+        });
+        return {
+          status: 201,
+          body: {
+            number: created.order.number,
+            checkout_url: created.checkout_url,
+            total: created.order.total,
+            total_sat: created.order.total_sat,
+            expires_at: created.order.expires_at,
+          },
+        };
+      },
+    );
+    return reply.code(res.status).send(res.body);
+  });
+
+  async function internalVendor(id: string) {
+    const [v] = await ctx().db.select().from(core.vendors).where(eq(core.vendors.id, id));
+    if (!v) throw new AppError('NOT_FOUND', 'No such vendor.');
+    return v;
+  }
 };
