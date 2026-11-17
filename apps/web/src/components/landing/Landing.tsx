@@ -53,7 +53,7 @@ export function Landing() {
     <div className="theme-paper-vermilion min-h-screen w-full overflow-hidden flex flex-col selection:bg-[#E3342F] selection:text-[#F6F4F0]">
       <header
         data-dark={onDark}
-        className="fixed top-0 left-0 right-0 z-50 transition-all duration-500 py-8"
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 py-5 backdrop-blur-xl backdrop-saturate-150 border-b ${onDark ? 'bg-[#111]/45 border-white/10' : 'bg-[#F6F4F0]/55 border-[#1111111f]'}`}
       >
         <div className="max-w-7xl mx-auto px-6 md:px-12 flex justify-between items-center">
           <div className="pv-serif text-2xl font-bold tracking-widest uppercase flex items-center gap-2">
@@ -133,13 +133,6 @@ export function Landing() {
               alt="Sneaker"
               className="w-full h-full object-contain drop-shadow-[0_30px_40px_rgba(0,0,0,0.25)] -rotate-[25deg] hover:-rotate-[19deg] hover:scale-[1.03] transition-transform duration-300 ease-out"
               src="/landing/products/sneaker.webp"
-            />
-          </div>
-          <div className="absolute bottom-[10%] right-[10%] w-32 h-32 md:w-48 md:h-48 opacity-0 animate-pv-fade-up delay-300 z-0 pointer-events-auto">
-            <img
-              alt="Folded shirt"
-              className="w-full h-full object-contain drop-shadow-[0_15px_20px_rgba(0,0,0,0.1)] rotate-6 hover:rotate-[12deg] hover:scale-[1.03] transition-transform duration-300 ease-out"
-              src="/landing/products/garment.webp"
             />
           </div>
           <div className="absolute top-[45%] right-[-10%] md:right-[5%] w-32 h-32 md:w-40 md:h-40 opacity-0 animate-pv-fade-up delay-500 z-0 pointer-events-auto">
