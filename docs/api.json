@@ -10905,7 +10905,15 @@
             "description": "Indicative, from the current rate. The order fixes its own."
           },
           "rate": {
-            "$ref": "#/components/schemas/RateQuote"
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RateQuote"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for shops that price in sats, which need no rate."
           }
         },
         "required": [
@@ -11427,8 +11435,15 @@
             "type": "integer"
           },
           "indicative_xof": {
-            "type": "integer",
-            "description": "At the current BTC/XOF rate. Display only."
+            "oneOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "At the current BTC/XOF rate. Display only. Null when no rate is available."
           }
         },
         "required": [
@@ -11499,7 +11514,15 @@
             "type": "integer"
           },
           "rate": {
-            "$ref": "#/components/schemas/RateQuote"
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RateQuote"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null when no BTC/XOF rate is available. Prices in sats are still valid."
           }
         },
         "required": [

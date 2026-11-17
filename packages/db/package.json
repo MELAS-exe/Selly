@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Drizzle schemas for the core and agent schemas, migrations and seed data (architecture.md section 4.3)",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -15,12 +16,14 @@
   },
   "dependencies": {
     "drizzle-orm": "^0.44.0",
-    "pg": "^8.13.0"
+    "pg": "^8.13.0",
+    "uuidv7": "^1.2.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.16",
     "@selly/config": "workspace:*",
-    "drizzle-kit": "^0.31.0",
+    "@types/node": "^24",
     "@types/pg": "^8.11.0",
-    "@types/node": "^24"
+    "drizzle-kit": "^0.31.0"
   }
 }

@@ -15,11 +15,13 @@ RUN pnpm --filter @selly/core build
 RUN pnpm --filter @selly/core --prod deploy --legacy /out
 
 FROM node:24-alpine AS runtime
-ENV NODE_ENV=production CORE_PORT=4000
+ENV NODE_ENV=production CORE_PORT=4000 MIGRATIONS_DIR=/app/migrations
 WORKDIR /app
 COPY --from=build /out/package.json ./package.json
 COPY --from=build /out/node_modules ./node_modules
 COPY --from=build /repo/apps/core/dist ./dist
+# SQL migrations, applied at start when MIGRATE_ON_START=true.
+COPY --from=build /repo/packages/db/migrations ./migrations
 USER node
 EXPOSE 4000
 CMD ["node", "dist/index.js"]
