@@ -19,6 +19,7 @@ import {
   reconcileSubscriptionInvoices,
   runSubscriptionJob,
 } from './modules/subscriptions/billing';
+import { PairingWatcher } from './modules/wallet/pairing';
 import { linkWallet, liveWallet } from './modules/wallet/service';
 import { Keyring } from './secrets';
 
@@ -97,6 +98,16 @@ async function main() {
     );
   }
 
+  // Wallet pairing (nostr+walletauth): needs the key that encrypts the pairing secrets.
+  const pairing = keyring ? new PairingWatcher(ctx) : null;
+  const pairingTimer = pairing
+    ? setInterval(() => {
+        pairing
+          .refresh()
+          .catch((err) => app.log.warn({ err: String(err) }, 'pairing refresh failed'));
+      }, 5_000)
+    : null;
+
   // Reconciler: asks wallets about open invoices and expires unpaid orders (architecture.md 7.3).
   // pg-boss will replace these timers when more than one instance runs.
   let running = false;
@@ -171,6 +182,8 @@ async function main() {
     if (dispatcher) clearInterval(dispatcher);
     if (subscriptionJob) clearInterval(subscriptionJob);
     if (walletRefresh) clearInterval(walletRefresh);
+    if (pairingTimer) clearInterval(pairingTimer);
+    pairing?.close();
     gateway?.close();
     await app.close();
     await close();

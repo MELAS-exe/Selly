@@ -596,3 +596,28 @@ describe('wallet over HTTP', () => {
     ).toMatchObject({ code: 'STEP_UP_REQUIRED' });
   }, 30_000);
 });
+
+describe('wallet pairing over HTTP', () => {
+  it('returns a nostr+walletauth link, and needs a step-up when a wallet is already linked', async () => {
+    const shop = await newShop();
+    const post = () =>
+      call('POST', '/api/v1/vendors/me/wallet/pairing', '/api/v1/vendors/me/wallet/pairing', {
+        body: {},
+        cookie: shop.cookie,
+      });
+    const first = await post();
+    expect(first.status, JSON.stringify(first.body)).toBe(201);
+    expect(first.body.open_uri).toMatch(/^nostr\+walletauth:\/\/[0-9a-f]{64}\?/);
+
+    const w = await FakeNwcWallet.start({ relayUrl: relay.url });
+    wallets.push(w);
+    await call('PUT', '/api/v1/vendors/me/wallet', '/api/v1/vendors/me/wallet', {
+      body: { kind: 'nwc', uri: w.uri },
+      cookie: shop.cookie,
+    });
+    t.clock.advance(11 * 60_000);
+    expect((await post()).body).toMatchObject({ code: 'STEP_UP_REQUIRED' });
+    await stepUp(shop.cookie, shop.sk);
+    expect((await post()).status).toBe(201);
+  }, 30_000);
+});

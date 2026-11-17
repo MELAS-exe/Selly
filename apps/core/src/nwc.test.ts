@@ -15,6 +15,7 @@ import {
   createSubscriptionInvoice,
   reconcileSubscriptionInvoices,
 } from './modules/subscriptions/billing';
+import { PairingWatcher, startPairing } from './modules/wallet/pairing';
 import { linkWallet, liveWallet, unlinkWallet } from './modules/wallet/service';
 import { Keyring, walletAad } from './secrets';
 import { createShop, feed, idemKey, orderPayload } from './test-helpers';
@@ -44,6 +45,7 @@ beforeAll(async () => {
       NODE_ENV: 'test',
       SERVICE_TOKEN_AGENT: 'test-service-token',
       NWC_ALLOW_INSECURE_RELAYS: 'true',
+      NWC_PAIRING_RELAYS: relay.url,
       NWC_MIN_INTERVAL_MS: '0',
       NWC_MAKE_INVOICE_TIMEOUT_MS: '1500',
       NWC_LOOKUP_TIMEOUT_MS: '1500',
@@ -386,5 +388,99 @@ describe('subscription invoices on the platform wallet', () => {
     await expect(
       createSubscriptionInvoice(ctx, s.vendorId, { plan_id: 'pro', months: 1 }),
     ).rejects.toMatchObject({ code: 'PAYMENT_UNAVAILABLE' });
+  });
+});
+
+describe('pairing with nostr+walletauth', () => {
+  it('links the wallet that approves the link, with the usual checks, and forgets the secret', async () => {
+    const s = await createShop(ctx.db, 'nwc-pair-a');
+    const watcher = new PairingWatcher(ctx);
+    try {
+      const pairing = await startPairing(ctx, s.vendorId);
+      expect(pairing.open_uri).toMatch(/^nostr\+walletauth:\/\/[0-9a-f]{64}\?/);
+      expect(pairing.open_uri).toContain(
+        'request_methods=get_info%20get_balance%20make_invoice%20lookup_invoice',
+      );
+      await watcher.refresh();
+
+      const w = await FakeNwcWallet.approve(pairing.open_uri);
+      wallets.push(w);
+      await expect
+        .poll(
+          async () =>
+            (await liveWallet(ctx.db, { owner: 'vendor', vendorId: s.vendorId }))?.walletPubkey,
+          {
+            timeout: 5000,
+          },
+        )
+        .toBe(w.walletPubkey);
+      expect(w.calls).toEqual(
+        expect.arrayContaining(['get_info', 'make_invoice', 'lookup_invoice']),
+      );
+      await expect
+        .poll(async () => {
+          const [row] = await ctx.db
+            .select()
+            .from(core.walletPairings)
+            .where(eq(core.walletPairings.id, pairing.pairing_id));
+          return { status: row?.status, secret: row?.secretCiphertext ?? null };
+        })
+        .toEqual({ status: 'linked', secret: null });
+      const [note] = await ctx.db
+        .select()
+        .from(core.vendorNotifications)
+        .where(
+          and(
+            eq(core.vendorNotifications.vendorId, s.vendorId),
+            eq(core.vendorNotifications.type, 'wallet.paired'),
+          ),
+        );
+      expect(note?.data).toMatchObject({ status: 'linked', error: null });
+    } finally {
+      watcher.close();
+    }
+  });
+
+  it('refuses a wallet that grants spending, and expires an unused link', async () => {
+    const s = await createShop(ctx.db, 'nwc-pair-b');
+    const watcher = new PairingWatcher(ctx);
+    try {
+      const pairing = await startPairing(ctx, s.vendorId);
+      await watcher.refresh();
+      wallets.push(
+        await FakeNwcWallet.approve(pairing.open_uri, {
+          methods: ['get_info', 'make_invoice', 'lookup_invoice', 'pay_invoice'],
+        }),
+      );
+      await expect
+        .poll(
+          async () => {
+            const [row] = await ctx.db
+              .select()
+              .from(core.walletPairings)
+              .where(eq(core.walletPairings.id, pairing.pairing_id));
+            return [row?.status, row?.error];
+          },
+          { timeout: 5000 },
+        )
+        .toEqual(['failed', 'NWC_PERMISSIONS_TOO_BROAD']);
+      expect(await liveWallet(ctx.db, { owner: 'vendor', vendorId: s.vendorId })).toBeNull();
+
+      // A second link replaces the first; past its 10 minutes it expires.
+      const first = await startPairing(ctx, s.vendorId);
+      const second = await startPairing(ctx, s.vendorId);
+      const status = async (id: string) =>
+        (await ctx.db.select().from(core.walletPairings).where(eq(core.walletPairings.id, id)))[0]
+          ?.status;
+      expect(await status(first.pairing_id)).toBe('expired');
+      await ctx.db
+        .update(core.walletPairings)
+        .set({ expiresAt: new Date(Date.now() - 1000) })
+        .where(eq(core.walletPairings.id, second.pairing_id));
+      await watcher.refresh();
+      expect(await status(second.pairing_id)).toBe('expired');
+    } finally {
+      watcher.close();
+    }
   });
 });

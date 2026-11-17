@@ -163,6 +163,32 @@ export const walletConnections = core.table(
   ],
 );
 
+/**
+ * Client-initiated pairing (Nostr Wallet Auth): Selly made the connection key and showed a nostr+walletauth:// link.
+ * When the wallet announces the connection, core links it with the usual checks. The secret is encrypted like a URI.
+ */
+export const walletPairings = core.table(
+  'wallet_pairings',
+  {
+    id: id(),
+    vendorId: uuid('vendor_id')
+      .notNull()
+      .references(() => vendors.id),
+    clientPubkey: text('client_pubkey').notNull().unique(),
+    secretCiphertext: bytea('secret_ciphertext'),
+    keyVersion: smallint('key_version').notNull(),
+    relays: text('relays').array().notNull(),
+    status: text('status', { enum: ['pending', 'linked', 'failed', 'expired'] })
+      .notNull()
+      .default('pending'),
+    error: text('error'),
+    walletConnectionId: uuid('wallet_connection_id').references(() => walletConnections.id),
+    expiresAt: ts('expires_at').notNull(),
+    createdAt: createdAt(),
+    completedAt: ts('completed_at'),
+  },
+  (t) => [index('wallet_pairings_pending').on(t.expiresAt).where(sql`${t.status} = 'pending'`)],
+);
 // ---------------------------------------------------------------- catalog and stock
 
 export const products = core.table(

@@ -10,7 +10,8 @@ import {
 } from '@getalby/sdk/nwc';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
-import { getPublicKey } from 'nostr-tools/pure';
+import { finalizeEvent, getPublicKey } from 'nostr-tools/pure';
+import { Relay } from 'nostr-tools/relay';
 import { encodeInvoice } from './bolt11';
 
 export interface FakeWalletOptions {
@@ -20,6 +21,11 @@ export interface FakeWalletOptions {
   notifications?: boolean;
   balanceMsat?: number;
   network?: 'bc' | 'tb' | 'tbs' | 'bcrt';
+  /**
+   * Nostr Wallet Auth: the app made the client key and only gave its public half. The wallet serves that key and
+   * tags its info event with it, so the app can find the wallet.
+   */
+  clientPubkey?: string;
 }
 
 type Tamper = 'amount' | 'hash' | 'expiry' | 'network' | null;
@@ -28,9 +34,10 @@ const RECEIVE_ONLY: Nip47Method[] = ['get_info', 'get_balance', 'make_invoice', 
 
 export class FakeNwcWallet {
   readonly walletSecret = bytesToHex(randomBytes(32));
-  readonly clientSecret = bytesToHex(randomBytes(32));
+  /** Empty for a wallet created by Nostr Wallet Auth: only the app knows that secret. */
+  readonly clientSecret: string;
   readonly walletPubkey = getPublicKey(Buffer.from(this.walletSecret, 'hex'));
-  readonly clientPubkey = getPublicKey(Buffer.from(this.clientSecret, 'hex'));
+  readonly clientPubkey: string;
   private readonly nodeKey = randomBytes(32);
   private readonly invoices = new Map<string, Nip47Transaction & { preimageHex: string }>();
   private readonly service: NWCWalletService;
@@ -45,6 +52,8 @@ export class FakeNwcWallet {
   readonly calls: string[] = [];
 
   private constructor(private readonly opts: FakeWalletOptions) {
+    this.clientSecret = opts.clientPubkey ? '' : bytesToHex(randomBytes(32));
+    this.clientPubkey = opts.clientPubkey ?? getPublicKey(Buffer.from(this.clientSecret, 'hex'));
     this.methods = opts.methods ?? RECEIVE_ONLY;
     this.notifications = opts.notifications ?? true;
     this.service = new NWCWalletService({ relayUrls: [opts.relayUrl] });
@@ -53,13 +62,53 @@ export class FakeNwcWallet {
 
   static async start(opts: FakeWalletOptions): Promise<FakeNwcWallet> {
     const w = new FakeNwcWallet(opts);
-    await w.service.publishWalletServiceInfoEvent(
-      w.walletSecret,
-      w.methods,
-      w.notifications ? (['payment_received'] satisfies Nip47NotificationType[]) : [],
-    );
+    if (opts.clientPubkey) await w.publishPairedInfo(opts.clientPubkey);
+    else
+      await w.service.publishWalletServiceInfoEvent(
+        w.walletSecret,
+        w.methods,
+        w.notifications ? (['payment_received'] satisfies Nip47NotificationType[]) : [],
+      );
     await w.goOnline();
     return w;
+  }
+
+  /**
+   * What a wallet app does when the vendor opens a nostr+walletauth:// link: create a connection for the app's key
+   * on the link's relay, and announce it with an info event tagged with that key.
+   */
+  static async approve(
+    walletAuthUri: string,
+    opts: Omit<FakeWalletOptions, 'clientPubkey' | 'relayUrl'> & { relayUrl?: string } = {},
+  ): Promise<FakeNwcWallet> {
+    const url = new URL(walletAuthUri.replace(/^nostr\+walletauth(\+[a-z]+)?:(\/\/)?/, 'http://'));
+    const relayUrl = opts.relayUrl ?? url.searchParams.get('relay');
+    if (!/^[0-9a-f]{64}$/.test(url.hostname) || !relayUrl)
+      throw new Error('not a wallet auth link');
+    return FakeNwcWallet.start({ ...opts, relayUrl, clientPubkey: url.hostname });
+  }
+
+  private async publishPairedInfo(clientPubkey: string) {
+    const relay = await Relay.connect(this.opts.relayUrl);
+    try {
+      await relay.publish(
+        finalizeEvent(
+          {
+            kind: 13194,
+            created_at: Math.floor(Date.now() / 1000),
+            content: this.methods.join(' '),
+            tags: [
+              ['p', clientPubkey],
+              ['encryption', 'nip44_v2 nip04'],
+              ...(this.notifications ? [['notifications', 'payment_received']] : []),
+            ],
+          },
+          Buffer.from(this.walletSecret, 'hex'),
+        ),
+      );
+    } finally {
+      relay.close();
+    }
   }
 
   /** The URI a vendor would paste into Selly. Contains the client secret. */
