@@ -7,16 +7,23 @@ services:
   postgres:
     image: postgres:18
     environment: { POSTGRES_USER: selly, POSTGRES_PASSWORD: selly, POSTGRES_DB: selly }
-    healthcheck: { test: ["CMD-SHELL", "pg_isready -U selly"], interval: 3s, timeout: 3s, retries: 20 }
+    healthcheck:
+      { test: ["CMD-SHELL", "pg_isready -U selly"], interval: 3s, timeout: 3s, retries: 20 }
   storage:
     image: rustfs/rustfs:latest
-    environment: { RUSTFS_ACCESS_KEY: selly, RUSTFS_SECRET_KEY: selly-secret-key, RUSTFS_ADDRESS: ":9000" }
+    environment:
+      { RUSTFS_ACCESS_KEY: selly, RUSTFS_SECRET_KEY: selly-secret-key, RUSTFS_ADDRESS: ":9000" }
     ports: ["9000:9000"]
   # Buckets, public read on selly-public only, 30-day expiry on selly-private.
   storage-init:
     image: amazon/aws-cli:latest
     depends_on: [storage]
-    environment: { AWS_ACCESS_KEY_ID: selly, AWS_SECRET_ACCESS_KEY: selly-secret-key, AWS_DEFAULT_REGION: us-east-1 }
+    environment:
+      {
+        AWS_ACCESS_KEY_ID: selly,
+        AWS_SECRET_ACCESS_KEY: selly-secret-key,
+        AWS_DEFAULT_REGION: us-east-1,
+      }
     volumes: ["./storage-init.sh:/init/storage.sh:ro"]
     entrypoint: ["/bin/sh", "/init/storage.sh"]
   relay:
@@ -42,7 +49,8 @@ services:
       S3_ACCESS_KEY_ID: selly
       S3_SECRET_ACCESS_KEY: selly-secret-key
       INVOICE_PROVIDER: nwc
-      SECRETS_KEK_V1: ${SECRETS_KEK_V1:?set SECRETS_KEK_V1 to 32 random bytes in base64}
+      # Set by the CI job (openssl rand -base64 32). Core refuses to start with INVOICE_PROVIDER=nwc without it.
+      SECRETS_KEK_V1: ${SECRETS_KEK_V1:-}
       NWC_ALLOW_INSECURE_RELAYS: "true"
       NWC_PAIRING_RELAYS: ws://relay:8080
       # A one-minute poll: live streams that update within the test were woken by LISTEN/NOTIFY.
