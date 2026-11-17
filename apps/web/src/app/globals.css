@@ -1,1 +1,116 @@
 @import "tailwindcss";
+
+/*
+ * Selly design tokens.
+ * Indigo is the dye of the wax prints our first vendors sell; bissap and ochre come from the same cloth.
+ * One bold element per page: the wax band at the top of a shop. Everything else stays quiet.
+ * System fonts only (architecture.md 3.4): no web font download on a mobile network.
+ */
+@theme {
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", Ubuntu, sans-serif;
+
+  --color-paper: #ffffff;
+  --color-mist: #eef0f6;
+  --color-line: #d9dcea;
+  --color-ink: #161a33;
+  --color-muted: #555b78;
+  --color-indigo: #2c3ba8;
+  --color-indigo-deep: #1f2a7c;
+  --color-bissap: #a3214f;
+  --color-ochre: #c8902e;
+  --color-leaf: #1c7a4a;
+  --color-leaf-soft: #e3f3ea;
+  --color-alert: #b3261e;
+  --color-alert-soft: #fbe9e7;
+
+  --radius-tile: 14px;
+  --radius-control: 10px;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    color-scheme: light;
+  }
+  body {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-indigo);
+    outline-offset: 2px;
+  }
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* The wax band: a repeating print drawn with gradients, zero bytes of image. */
+.wax {
+  --a: var(--color-indigo);
+  --b: var(--color-indigo-deep);
+  --c: var(--color-ochre);
+  --d: var(--color-bissap);
+  background-color: var(--b);
+  background-image:
+    radial-gradient(circle at 50% 50%, var(--c) 0 18%, transparent 19%),
+    radial-gradient(circle at 50% 50%, transparent 0 30%, var(--d) 31% 36%, transparent 37%),
+    conic-gradient(from 45deg, var(--a) 0 25%, var(--b) 0 50%, var(--a) 0 75%, var(--b) 0);
+  background-size:
+    44px 44px,
+    44px 44px,
+    22px 22px;
+  background-position:
+    0 0,
+    22px 22px,
+    0 0;
+}
+
+/* Product tiles without a photo: the same cloth, in one of four colourways. */
+.wax-tile {
+  background-color: var(--b);
+  background-image:
+    radial-gradient(circle at 50% 50%, var(--c) 0 14%, transparent 15%),
+    radial-gradient(circle at 50% 50%, transparent 0 26%, var(--c) 27% 31%, transparent 32%),
+    conic-gradient(from 45deg, var(--a) 0 25%, var(--b) 0 50%, var(--a) 0 75%, var(--b) 0);
+  background-size:
+    36px 36px,
+    36px 36px,
+    18px 18px;
+  background-position:
+    0 0,
+    18px 18px,
+    0 0;
+}
+/* Pale washes, so the shop's own band stays the loudest thing on the page. */
+.wax-0 {
+  --a: #e6e9f7;
+  --b: #d9def3;
+  --c: #8f9ad6;
+}
+.wax-1 {
+  --a: #f6e4ea;
+  --b: #efd3dd;
+  --c: #c77b97;
+}
+.wax-2 {
+  --a: #e2f1e8;
+  --b: #d2e9dc;
+  --c: #73b08e;
+}
+.wax-3 {
+  --a: #f6ecd9;
+  --b: #efdfc2;
+  --c: #c8a35e;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
