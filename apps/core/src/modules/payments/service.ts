@@ -161,6 +161,7 @@ export async function confirmPayment(
     vendorId: n.vendorId,
     walletConnectionId: n.walletConnectionId,
     paymentHash: n.paymentHash,
+    verifyUrl: inv.verifyUrl,
   });
   if (!state.settled) return 'pending';
   return settleInvoice(ctx, {
@@ -195,6 +196,7 @@ export async function reconcileOnce(ctx: Context, log?: { warn: (o: object, m: s
         vendorId: invoice.vendorId,
         walletConnectionId: invoice.walletConnectionId,
         paymentHash: invoice.paymentHash,
+        verifyUrl: invoice.verifyUrl,
       });
       if (found.settled) {
         await settleInvoice(ctx, {
@@ -254,6 +256,7 @@ export async function reconcileLateOnce(
         vendorId: inv.vendorId,
         walletConnectionId: inv.walletConnectionId,
         paymentHash: inv.paymentHash,
+        verifyUrl: inv.verifyUrl,
       });
       if (
         found.settled &&

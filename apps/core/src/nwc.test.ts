@@ -1,7 +1,10 @@
+import { createHash, randomBytes } from 'node:crypto';
+import http from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { core } from '@selly/db';
 import { and, eq } from '@selly/db/orm';
 import { createTestDb } from '@selly/db/testing';
-import { FakeNwcWallet, TestRelay } from '@selly/nwc/testkit';
+import { encodeInvoice, FakeNwcWallet, TestRelay } from '@selly/nwc/testkit';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from './app';
 import { loadConfig } from './config';
@@ -46,6 +49,7 @@ beforeAll(async () => {
       NODE_ENV: 'test',
       SERVICE_TOKEN_AGENT: 'test-service-token',
       NWC_ALLOW_INSECURE_RELAYS: 'true',
+      LNURL_ALLOW_INSECURE: 'true',
       NWC_PAIRING_RELAYS: relay.url,
       NWC_MIN_INTERVAL_MS: '0',
       NWC_MAKE_INVOICE_TIMEOUT_MS: '1500',
@@ -485,4 +489,121 @@ describe('pairing with nostr+walletauth', () => {
       watcher.close();
     }
   });
+});
+
+/** A Lightning Address server (LUD-06, LUD-16, LUD-21) on 127.0.0.1 that mints real, signed BOLT11 invoices. */
+async function lnurlServer(opts: { verify: boolean }) {
+  const invoices = new Map<string, { preimage: string; paid: boolean; pr: string }>();
+  const nodeKey = randomBytes(32);
+  let base = '';
+  const server = http.createServer((req, res) => {
+    const u = new URL(req.url ?? '/', base);
+    const json = (body: unknown) => {
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify(body));
+    };
+    if (u.pathname === '/.well-known/lnurlp/shop')
+      return json({
+        tag: 'payRequest',
+        callback: `${base}/cb`,
+        minSendable: 1000,
+        maxSendable: 100_000_000_000,
+        metadata: '[["text/plain","Shop"]]',
+        commentAllowed: 120,
+      });
+    if (u.pathname === '/cb') {
+      const amountMsat = Number(u.searchParams.get('amount'));
+      const preimage = randomBytes(32);
+      const hash = createHash('sha256').update(preimage).digest();
+      const pr = encodeInvoice({
+        amountMsat,
+        paymentHash: hash,
+        paymentSecret: randomBytes(32),
+        description: 'Shop',
+        expirySeconds: 86_400,
+        timestamp: Math.floor(Date.now() / 1000),
+        nodeKey,
+      });
+      invoices.set(hash.toString('hex'), { preimage: preimage.toString('hex'), paid: false, pr });
+      return json({
+        pr,
+        routes: [],
+        ...(opts.verify ? { verify: `${base}/verify/${hash.toString('hex')}` } : {}),
+      });
+    }
+    const v = /^\/verify\/([0-9a-f]{64})$/.exec(u.pathname);
+    const inv = v ? invoices.get(v[1] as string) : undefined;
+    if (inv)
+      return json({
+        status: 'OK',
+        settled: inv.paid,
+        preimage: inv.paid ? inv.preimage : null,
+        pr: inv.pr,
+      });
+    res.statusCode = 404;
+    json({ status: 'ERROR', reason: 'not found' });
+  });
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', () => r()));
+  base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  return {
+    lud16: `shop@${base.replace('http://', '')}`,
+    pay: (hash: string) => {
+      const i = invoices.get(hash);
+      if (i) i.paid = true;
+    },
+    count: () => invoices.size,
+    close: () => new Promise<void>((r) => server.close(() => r())),
+  };
+}
+
+describe('Lightning Address fallback', () => {
+  it('makes the invoice through the address when the NWC wallet does not answer, and settles by LUD-21', async () => {
+    const ln = await lnurlServer({ verify: true });
+    try {
+      const s = await createShop(ctx.db, 'nwc-lnurl-a');
+      const w = await newWallet({ notifications: false });
+      await link(s.vendorId, `${w.uri}&lud16=${encodeURIComponent(ln.lud16)}`);
+      w.goOffline();
+
+      const res = await post('/api/v1/orders', orderPayload('nwc-lnurl-a', s.variantId), {
+        'idempotency-key': idemKey(),
+      });
+      expect(res.statusCode, res.body).toBe(201);
+      const o = res.json();
+      expect(ln.count()).toBe(1);
+      const [inv] = await ctx.db
+        .select()
+        .from(core.invoices)
+        .where(eq(core.invoices.orderId, o.order.id));
+      expect(inv).toMatchObject({ source: 'lnurl', amountMsat: 27_103_000 });
+      expect(inv?.verifyUrl).toContain('/verify/');
+      // Selly keeps its own 20 minutes, not the server's 24 hours.
+      expect((inv?.expiresAt.getTime() ?? 0) - Date.now()).toBeLessThanOrEqual(20 * 60_000 + 1000);
+
+      await reconcileOnce(ctx);
+      expect(await status(o.order.public_token)).toBe('pending_payment');
+      ln.pay(o.invoice.payment_hash);
+      await reconcileOnce(ctx);
+      expect(await status(o.order.public_token)).toBe('paid');
+    } finally {
+      await ln.close();
+    }
+  }, 20_000);
+
+  it('does not fall back to an address that cannot verify payments', async () => {
+    const ln = await lnurlServer({ verify: false });
+    try {
+      const s = await createShop(ctx.db, 'nwc-lnurl-b');
+      const w = await newWallet({ notifications: false });
+      await link(s.vendorId, `${w.uri}&lud16=${encodeURIComponent(ln.lud16)}`);
+      w.goOffline();
+      const res = await post('/api/v1/orders', orderPayload('nwc-lnurl-b', s.variantId), {
+        'idempotency-key': idemKey(),
+      });
+      expect(res.statusCode).toBe(503);
+      expect(res.json().code).toBe('PAYMENT_UNAVAILABLE');
+    } finally {
+      await ln.close();
+    }
+  }, 20_000);
 });
