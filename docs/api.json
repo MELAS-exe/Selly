@@ -10100,6 +10100,119 @@
           }
         }
       }
+    },
+    "/internal/v1/vendors/{id}/media/links": {
+      "post": {
+        "servers": [
+          {
+            "url": "http://core.internal:4000",
+            "description": "core, private network only"
+          }
+        ],
+        "security": [
+          {
+            "serviceToken": []
+          }
+        ],
+        "operationId": "internalMediaLinks",
+        "summary": "Read links to a vendor's uploads",
+        "description": "Scope `media:read`. Presigned read links, valid one hour, to this vendor's uploads (`vendors/<id>/uploads/...`), for the vision model when the vendor sends photos in the assistant chat. The private bucket is never public: originals still carry EXIF data (location) and it also holds customers' voice notes. A key that is not an existing upload of this vendor is 422.",
+        "parameters": [
+          {
+            "name": "X-Request-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "4bf92f3577b34da6a3ce929d0e0e4736"
+          },
+          {
+            "name": "X-Actor",
+            "in": "header",
+            "required": false,
+            "description": "`customer:<conversation id>` or `vendor:<id>`, for the audit log.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "customer:0193a8f4-6f7a-7b8c-9d0e-1f2a3b4c5d6e"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Vendor id.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "0193a000-0000-7000-8000-000000000001"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MediaLinksRequest"
+              },
+              "example": {
+                "keys": [
+                  "vendors/0193a000-0000-7000-8000-000000000001/uploads/0193a8f3-5e6f-7a8b-9c0d-1e2f3a4b5c6d.jpg"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "One link per key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaLinks"
+                },
+                "example": {
+                  "links": [
+                    {
+                      "key": "vendors/0193a000-0000-7000-8000-000000000001/uploads/0193a8f3-5e6f-7a8b-9c0d-1e2f3a4b5c6d.jpg",
+                      "url": "https://storage.selly.example/selly-private/vendors/0193a000-0000-7000-8000-000000000001/uploads/0193a8f3-5e6f-7a8b-9c0d-1e2f3a4b5c6d.jpg?X-Amz-Expires=3600",
+                      "expires_at": "2026-11-17T10:12:00Z"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "example": {
+                  "type": "https://app.selly.example/problems/not-found",
+                  "title": "Not found",
+                  "status": 404,
+                  "code": "NOT_FOUND",
+                  "detail": "No such vendor.",
+                  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
+          }
+        },
+        "tags": [
+          "Internal"
+        ]
+      }
     }
   },
   "components": {
@@ -15337,6 +15450,57 @@
           "reply",
           "tool_calls",
           "usage"
+        ],
+        "additionalProperties": false
+      },
+      "MediaLinksRequest": {
+        "type": "object",
+        "properties": {
+          "keys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "maxItems": 6
+          }
+        },
+        "required": [
+          "keys"
+        ],
+        "additionalProperties": false
+      },
+      "MediaLinks": {
+        "type": "object",
+        "properties": {
+          "links": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "expires_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "key",
+                "url",
+                "expires_at"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "links"
         ],
         "additionalProperties": false
       }

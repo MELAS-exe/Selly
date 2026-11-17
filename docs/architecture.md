@@ -1323,6 +1323,7 @@ Vendor endpoints served by the agent check the session cookie through `POST /int
 | POST   | `/internal/v1/vendors/{id}/variants/{variant_id}/adjustments` | `inventory:write`     | The vendor's stock command ("plus que 2 en 42")                                                                       |
 | PATCH  | `/internal/v1/vendors/{id}/products/{product_id}`             | `catalog:write`       | The vendor's price command                                                                                            |
 | POST   | `/internal/v1/media`                                          | `media:write`         | Upload bytes (a customer's voice note) and get a storage key                                                          |
+| POST   | `/internal/v1/vendors/{id}/media/links`                       | `media:read`          | One-hour read links to the vendor's uploads, for the vision model                                                     |
 | POST   | `/internal/v1/vendors/{id}/notifications`                     | `notifications:write` | Ask core to alert the vendor (Web Push, banner): handoff, new chat                                                    |
 | POST   | `/internal/v1/sessions/introspect`                            | `auth:introspect`     | Session check for vendor endpoints served by the agent                                                                |
 
