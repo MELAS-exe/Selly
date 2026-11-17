@@ -1,17 +1,19 @@
 // The agent against the real core, in one process: the agent's HTTP client calls core's Fastify app,
 // and core's outbox dispatcher delivers signed events to the agent's Fastify app (both through inject).
 // Core runs on PGlite with every migration, a simulated Lightning wallet and fixed price feeds.
-import { core } from '@selly/db';
-import type { FastifyInstance } from 'fastify';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { dispatchOnce } from '../../../core/src/modules/events/dispatcher';
-import { reconcileOnce } from '../../../core/src/modules/payments/service';
+
 import {
   createShop,
   createTestApp,
+  createVendorSession,
+  dispatchOnce,
+  reconcileOnce,
   SERVICE_TOKEN,
   type TestApp,
-} from '../../../core/src/test-helpers';
+} from '@selly/core/testing';
+import { core } from '@selly/db';
+import type { FastifyInstance } from 'fastify';
+import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vitest';
 import { buildApp } from '../app';
 import { HttpCoreClient } from '../core/client';
 import { ScriptedProvider, say, toolCall } from '../engine/scripted';
@@ -209,6 +211,10 @@ describe('agent with the real core', () => {
 
   it('runs the vendor assistant tools against core: stock, price, orders, fulfilment, metrics', async () => {
     agentApp.services.config.testEndpoint = true;
+    // Switched back even when an assertion fails, so the next test sees the endpoint disabled.
+    onTestFinished(() => {
+      agentApp.services.config.testEndpoint = false;
+    });
     const turn = async (text: string) => {
       const res = await agentApp.inject({
         method: 'POST',
@@ -275,7 +281,52 @@ describe('agent with the real core', () => {
     );
     await turn('Mes ventes de la semaine');
     expect(lastResult()).toMatchObject({ period: '7d', orders: { fulfilled: 1 } });
-    agentApp.services.config.testEndpoint = false;
+  });
+
+  it('serves the inbox and the assistant on a real vendor session (introspect)', async () => {
+    const { cookie } = await createVendorSession(t, shop.vendorId, { pubkey: 'c'.repeat(64) });
+    const vendor = { cookie: `selly_session=${cookie}`, origin: t.ctx.config.APP_BASE_URL };
+
+    const inbox = await agentApp.inject({
+      method: 'GET',
+      url: '/api/v1/conversations',
+      headers: vendor,
+    });
+    expect(inbox.statusCode).toBe(200);
+    const chat = inbox.json().data[0];
+    expect(chat).toMatchObject({ mode: 'bot', customer_label: expect.stringMatching(/^Visiteur/) });
+
+    const takeover = await agentApp.inject({
+      method: 'POST',
+      url: `/api/v1/conversations/${chat.id}/messages`,
+      headers: vendor,
+      payload: { client_message_id: 'vendor-real-001', text: 'Bonjour, c’est la vendeuse.' },
+    });
+    expect(takeover.statusCode).toBe(201);
+    expect(takeover.json()).toMatchObject({
+      author: 'vendor',
+      author_label: 'Shop awa-style (vendeur)',
+    });
+
+    llm.push(
+      () => [toolCall('get_metrics', { period: 'today' })],
+      () => [say('Une commande payée aujourd’hui.')],
+    );
+    const assistant = await agentApp.inject({
+      method: 'POST',
+      url: '/api/v1/assistant/messages',
+      headers: vendor,
+      payload: { client_message_id: 'assistant-real-001', text: 'Mes ventes du jour ?' },
+    });
+    expect(assistant.statusCode).toBe(200);
+    expect(assistant.json().reply.text).toBe('Une commande payée aujourd’hui.');
+
+    const stranger = await agentApp.inject({
+      method: 'GET',
+      url: '/api/v1/conversations',
+      headers: { cookie: 'selly_session=not-a-session', origin: t.ctx.config.APP_BASE_URL },
+    });
+    expect(stranger.statusCode).toBe(401);
   });
 
   it('refuses events signed with another secret', async () => {

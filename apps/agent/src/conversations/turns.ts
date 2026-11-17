@@ -17,6 +17,7 @@ import {
   type TurnResult,
   TurnTimeoutError,
 } from '../engine';
+import { formatXof } from '../engine/filter';
 import {
   checkTurn,
   type EntitlementsCache,
@@ -57,8 +58,6 @@ export class TurnService {
   private readonly chains = new Map<string, Promise<unknown>>();
   private readonly timers = new Map<string, NodeJS.Timeout>();
   private readonly lastNotified = new Map<string, number>();
-  /** Vendors who paused the bot for all chats, until a date (null: until resumed). */
-  private readonly pausedVendors = new Map<string, Date | null>();
   private readonly background = new Set<Promise<unknown>>();
 
   constructor(private readonly d: TurnDeps) {}
@@ -104,11 +103,12 @@ export class TurnService {
     void p.finally(() => this.background.delete(p));
   }
 
-  isVendorPaused(vendorId: string): boolean {
-    if (!this.pausedVendors.has(vendorId)) return false;
-    const until = this.pausedVendors.get(vendorId);
-    if (until && until <= new Date()) {
-      this.pausedVendors.delete(vendorId);
+  /** "Pause all chats" is stored, so it survives a restart and holds for every agent instance. */
+  async isVendorPaused(vendorId: string): Promise<boolean> {
+    const pause = await this.d.store.getVendorPause(vendorId);
+    if (!pause) return false;
+    if (pause.until && pause.until <= new Date()) {
+      await this.d.store.setVendorPause(vendorId, false, null);
       return false;
     }
     return true;
@@ -117,10 +117,14 @@ export class TurnService {
   /** set_bot_mode (vendor assistant) and the inbox "pause all" switch. */
   async setVendorBotMode(vendorId: string, mode: 'bot' | 'paused', minutes?: number) {
     if (mode === 'paused') {
-      this.pausedVendors.set(vendorId, minutes ? new Date(Date.now() + minutes * 60_000) : null);
+      await this.d.store.setVendorPause(
+        vendorId,
+        true,
+        minutes ? new Date(Date.now() + minutes * 60_000) : null,
+      );
       return;
     }
-    this.pausedVendors.delete(vendorId);
+    await this.d.store.setVendorPause(vendorId, false, null);
     // Chats that waited while the bot was paused get their answer now (section 4.4).
     const { rows } = await this.d.store.listInbox({ vendorId, mode: 'bot', limit: 100 });
     for (const r of rows) {
@@ -129,14 +133,24 @@ export class TurnService {
     }
   }
 
-  private async processOnce(conversationId: string): Promise<TurnOutcome | null> {
+  /** One turn, under the conversation lock: no two instances answer the same chat at once. */
+  private processOnce(conversationId: string): Promise<TurnOutcome | null> {
+    return this.d.store.withConversationLock(conversationId, () =>
+      this.processLocked(conversationId),
+    );
+  }
+
+  private async processLocked(conversationId: string): Promise<TurnOutcome | null> {
     let conv = await this.d.store.getConversation(conversationId);
     if (!conv) return null;
     conv = await this.d.conversations.refreshMode(conv);
     const pending = await this.d.store.pendingInbound(conv.id);
     if (pending.length === 0) return null;
 
-    if (conv.role === 'customer' && (conv.mode !== 'bot' || this.isVendorPaused(conv.vendorId))) {
+    if (
+      conv.role === 'customer' &&
+      (conv.mode !== 'bot' || (await this.isVendorPaused(conv.vendorId)))
+    ) {
       // The vendor is answering: the message is only stored, and the vendor is alerted (section 7.2).
       await this.notify(conv, {
         type: 'conversation.new',
@@ -197,7 +211,61 @@ export class TurnService {
       return this.runEngine(conv, profile, pending, label, voice.transcripts);
     }
 
+    // « Annuler » after a risky change is undone by code, never by the model (section 8.4).
+    const undoTap = pending.find((m) => m.quickReplyId?.startsWith('undo:'));
+    if (undoTap) return this.undo(conv, pending, label, undoTap.quickReplyId?.slice(5) ?? '');
     return this.runEngine(conv, profile, pending, label, {});
+  }
+
+  private async undo(
+    conv: Conversation,
+    pending: StoredMessage[],
+    label: string,
+    id: string,
+  ): Promise<TurnOutcome> {
+    const u = conv.state.undo;
+    let text: string;
+    if (!u || u.id !== id) {
+      text = 'Il n’y a rien à annuler.';
+    } else if (new Date(u.expiresAt).getTime() < Date.now()) {
+      text = 'Le délai de 5 minutes pour annuler est passé. Dites-moi la valeur à remettre.';
+    } else {
+      try {
+        if (u.kind === 'price') {
+          await this.d.core.updateProduct(
+            conv.vendorId,
+            u.productId,
+            { price: u.previous },
+            { actor: `vendor:${conv.vendorId}` },
+          );
+          text = `Annulé : ${u.title} revient à ${formatXof(u.previous.amount)}.`;
+        } else {
+          await this.d.core.adjustStock(
+            conv.vendorId,
+            u.variantId,
+            { set_to: u.previousOnHand, reason: 'adjustment' },
+            `undo-${u.id}`,
+            { actor: `vendor:${conv.vendorId}` },
+          );
+          text = `Annulé : ${u.title} revient à ${u.previousOnHand} en stock.`;
+        }
+        await this.d.store.patchState(conv.id, {}, ['undo']);
+      } catch (err) {
+        this.d.log.warn({ err, conversationId: conv.id }, 'undo failed');
+        text = 'Je n’ai pas pu annuler. Réessayez, ou dites-moi la valeur à remettre.';
+      }
+    }
+    const reply = await this.d.conversations.agentReply(
+      conv,
+      { text, cards: [], quickReplies: [] },
+      label,
+      pending.at(-1)?.id,
+    );
+    await this.d.store.setMessageStatus(
+      pending.map((m) => m.id),
+      'processed',
+    );
+    return { reply };
   }
 
   private async transcribe(
