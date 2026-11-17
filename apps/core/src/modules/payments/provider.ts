@@ -1,5 +1,5 @@
 // The seam between Selly and Lightning wallets (architecture.md section 3.6).
-// The real implementation is the NWC gateway (packages/nwc). FakeInvoiceProvider serves development and tests.
+// NwcGateway (nwc-gateway.ts) talks to each vendor's wallet. FakeInvoiceProvider serves development and tests.
 
 export interface MakeInvoiceRequest {
   vendorId: string;
@@ -25,7 +25,12 @@ export interface InvoiceLookup {
 
 export interface InvoiceProvider {
   makeInvoice(req: MakeInvoiceRequest): Promise<MadeInvoice>;
-  lookupInvoice(req: { vendorId: string; paymentHash: string }): Promise<InvoiceLookup>;
+  /** walletConnectionId is the connection that made the invoice (null for the fake provider). */
+  lookupInvoice(req: {
+    vendorId: string;
+    walletConnectionId: string | null;
+    paymentHash: string;
+  }): Promise<InvoiceLookup>;
 }
 
 /** Picks the provider for a vendor. Today every vendor shares one provider. */

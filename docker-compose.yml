@@ -84,7 +84,9 @@ services:
       # Local stack: apply migrations, load the demo shop (awa-style), simulate Lightning invoices.
       MIGRATE_ON_START: ${MIGRATE_ON_START:-true}
       SEED_DEMO: ${SEED_DEMO:-true}
+      # fake: simulated invoices. nwc: each vendor's own wallet; needs SECRETS_KEK_V1 and a linked wallet.
       INVOICE_PROVIDER: ${INVOICE_PROVIDER:-fake}
+      LIGHTNING_NETWORK: ${LIGHTNING_NETWORK:-mainnet}
     ports:
       - "4000:4000"
     depends_on:

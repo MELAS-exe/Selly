@@ -3,7 +3,7 @@ import { core } from '@selly/db';
 import { createTestDb } from '@selly/db/testing';
 import { buildApp } from './app';
 import { loadConfig } from './config';
-import type { Context, Database } from './context';
+import { type Context, type Database, silentLogger } from './context';
 import { FakeInvoiceProvider } from './modules/payments/fake';
 import { singleProvider } from './modules/payments/provider';
 import type { RateFeed } from './modules/rates/feeds';
@@ -42,6 +42,8 @@ export async function createTestApp() {
     now: clock.now,
     rates: new RateService(db, feeds, clock.now),
     invoices: singleProvider(provider),
+    keyring: null,
+    log: silentLogger,
   };
   const app = buildApp(ctx);
   await app.ready();

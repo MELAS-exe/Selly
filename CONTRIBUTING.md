@@ -42,7 +42,24 @@ These endpoints work, and their responses match `docs/api.json`:
 - `GET /api/v1/rates/btc-xof` and `GET /api/v1/plans`.
 - For the agent (service token): `POST /internal/v1/vendors/{id}/cart-quotes` and `/orders`.
 
-Lightning is simulated (`INVOICE_PROVIDER=fake`): invoices look real but cannot be paid. Vendor sign-in, the vendor dashboard API and subscriptions are not built yet; mock them from `docs/api.json`.
+By default Lightning is simulated (`INVOICE_PROVIDER=fake`): invoices look real but cannot be paid. Vendor sign-in, the vendor dashboard API and subscriptions are not built yet; mock them from `docs/api.json`.
+
+## Taking real payments on a wallet (NWC)
+
+1. In a wallet that supports Nostr Wallet Connect, create a connection that can **only receive**: `make_invoice`, `lookup_invoice`, `get_info`, and `get_balance` if you want the balance shown. Selly refuses a connection that can pay. Copy its `nostr+walletconnect://` link.
+2. In `.env`, set `SECRETS_KEK_V1` (the command is in `.env.example`) and `INVOICE_PROVIDER=nwc`. Keep the same key afterwards: it decrypts the stored connections.
+3. Link the wallet to the demo shop. The command asks for the link without showing it; it is never taken from the command line.
+
+   ```
+   pnpm --filter @selly/core cli wallet:link --slug awa-style
+   # or, with Docker:
+   docker compose exec core node dist/cli.js wallet:link --slug awa-style
+   ```
+
+   Selly checks the connection first: its permissions, then a 1-sat test invoice that is never paid. `wallet:status` and `wallet:unlink` work the same way.
+4. Start core. Orders now get invoices from that wallet, and a payment shows as paid within seconds.
+
+Until vendor sign-in exists, this command replaces `PUT /api/v1/vendors/me/wallet`.
 
 ## Who owns what
 

@@ -328,7 +328,8 @@ async function makeInvoiceFor(ctx: Context, vendor: Vendor, number: string, amou
       description: `${vendor.displayName} commande ${number}`,
       expirySeconds: INVOICE_EXPIRY_SECONDS,
     });
-  } catch {
+  } catch (err) {
+    ctx.log.warn({ err: String(err), vendorId: vendor.id }, 'make_invoice failed');
     throw new AppError(
       'PAYMENT_UNAVAILABLE',
       "The vendor's wallet did not answer. No order was created and no stock is held.",
