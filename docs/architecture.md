@@ -271,7 +271,7 @@ One Next.js app, four surfaces, all React.
 | `rates`         | rate quotes                                                               | current BTC/XOF quote from the median of sources                                                                                                     |
 | `subscriptions` | plans, subscriptions, subscription invoices, usage counters, trial claims | start a trial, price and create a renewal or upgrade invoice, extend a period on settlement, grace and suspension, enforce plan limits, report usage |
 | `media`         | uploads                                                                   | presign, process with sharp, purge CDN URLs                                                                                                          |
-| `events`        | outbox, SSE, notifications                                                | publish after commit, dispatch to the agent, LISTEN/NOTIFY fan-out, Web Push                                                                         |
+| `events`        | outbox, vendor notifications, SSE                                         | publish after commit, dispatch to the agent, the vendor's live stream (7 days kept), Web Push registration; sending Web Push comes later             |
 
 Boundary rules:
 

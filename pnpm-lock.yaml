@@ -99,6 +99,9 @@ importers:
       light-bolt11-decoder:
         specifier: 3.2.0
         version: 3.2.0
+      nostr-tools:
+        specifier: 2.26.1
+        version: 2.26.1(typescript@5.9.3)
       pg:
         specifier: ^8.23.1
         version: 8.23.1
@@ -133,9 +136,6 @@ importers:
       ajv-formats:
         specifier: ^3.0.1
         version: 3.0.1(ajv@8.20.0)
-      nostr-tools:
-        specifier: 2.26.1
-        version: 2.26.1(typescript@5.9.3)
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(jiti@2.7.0)(postcss@8.5.33)(tsx@4.23.15)(typescript@5.9.3)

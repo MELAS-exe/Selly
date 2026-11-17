@@ -558,3 +558,45 @@ export const auditLog = core.table('audit_log', {
   details: jsonb('details').$type<Record<string, unknown>>().notNull().default({}),
   createdAt: createdAt(),
 });
+
+// ---------------------------------------------------------------- vendor notifications
+
+/**
+ * What the vendor's dashboard is told about: order and wallet events from core, chat handoffs from the agent.
+ * Read by the dashboard's SSE stream (and later sent as Web Push). Kept a few days. Separate from the outbox,
+ * whose every row is delivered to the agent.
+ */
+export const vendorNotifications = core.table(
+  'vendor_notifications',
+  {
+    id: id(),
+    vendorId: uuid('vendor_id')
+      .notNull()
+      .references(() => vendors.id),
+    type: text('type').notNull(),
+    data: jsonb('data').$type<Record<string, unknown>>().notNull().default({}),
+    /** Groups repeats (one per conversation every 5 minutes for handoffs). */
+    dedupeKey: text('dedupe_key'),
+    createdAt: createdAt(),
+  },
+  (t) => [index('vendor_notifications_stream').on(t.vendorId, t.id)],
+);
+
+/** A browser that allowed Web Push for a vendor (PushManager.subscribe). The endpoint is unique per browser. */
+export const pushSubscriptions = core.table(
+  'push_subscriptions',
+  {
+    id: id(),
+    vendorId: uuid('vendor_id')
+      .notNull()
+      .references(() => vendors.id),
+    endpoint: text('endpoint').notNull().unique(),
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    expirationTime: ts('expiration_time'),
+    createdAt: createdAt(),
+    lastError: text('last_error'),
+    revokedAt: ts('revoked_at'),
+  },
+  (t) => [index('push_subscriptions_by_vendor').on(t.vendorId)],
+);
