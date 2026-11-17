@@ -1,6 +1,7 @@
 import type { core } from '@selly/db';
 import type { PgDatabase } from '@selly/db/orm';
 import type { Config } from './config';
+import type { ObjectStore } from './modules/media/storage';
 import type { InvoiceGateway } from './modules/payments/provider';
 import type { RateService } from './modules/rates/service';
 import type { Keyring } from './secrets';
@@ -16,6 +17,8 @@ export interface Context {
   now: () => Date;
   rates: RateService;
   invoices: InvoiceGateway;
+  /** Images and voice notes (S3-compatible storage, or memory in tests). */
+  media: ObjectStore;
   /** Null when no SECRETS_KEK_V<n> is set: wallets cannot be linked or used. */
   keyring: Keyring | null;
   log: Logger;

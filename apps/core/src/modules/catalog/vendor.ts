@@ -2,11 +2,12 @@
 // Changes go through patchProduct (internal.ts) and stock through the inventory module.
 import { core } from '@selly/db';
 import { and, desc, eq, like, lt, ne, or, sql } from '@selly/db/orm';
-import type { Context } from '../../context';
+import type { Context, Database } from '../../context';
 import { AppError } from '../../errors';
 import { decodeCursor, encodeCursor } from '../../util';
 import { audit } from '../events/outbox';
 import * as inventory from '../inventory/service';
+import { insertImages, processUploads } from '../media/images';
 import { currentSubscription, productCount } from '../subscriptions/service';
 import { vendorProductView } from './internal';
 import { type Vendor, vendorSettings } from './store';
@@ -98,8 +99,24 @@ export interface ProductInput {
   }[];
 }
 
-/** A new product with its variants. Counts against the plan's product limit; initial stock is a restock movement. */
-export async function createVendorProduct(ctx: Context, vendor: Vendor, input: ProductInput) {
+export interface CreateOptions {
+  actor?: string;
+  /** The draft this product comes from: recorded on the stock movements. */
+  draftId?: string;
+  /** Runs inside the product's transaction, after the insert: a draft is marked confirmed in the same commit. */
+  inTx?: (tx: Database, product: Product) => Promise<void>;
+}
+
+/**
+ * A new product with its variants and images. Counts against the plan's product limit; initial stock is a restock
+ * movement. Images are processed before the transaction, so a bad photo changes nothing.
+ */
+export async function createVendorProduct(
+  ctx: Context,
+  vendor: Vendor,
+  input: ProductInput,
+  opts: CreateOptions = {},
+) {
   const currency = vendorSettings(vendor).pricingCurrency;
   const wrong = [
     input.price,
@@ -109,15 +126,7 @@ export async function createVendorProduct(ctx: Context, vendor: Vendor, input: P
     throw new AppError('VALIDATION_FAILED', `This shop prices in ${currency}.`, {
       errors: [{ field: 'price.currency', message: 'Wrong currency' }],
     });
-  if (input.image_keys && input.image_keys.length > 0) {
-    throw new AppError(
-      'VALIDATION_FAILED',
-      'Images cannot be attached yet: the media pipeline is not built.',
-      {
-        errors: [{ field: 'image_keys', message: 'Not supported yet' }],
-      },
-    );
-  }
+
   const seen = new Set(input.variants.map((v) => JSON.stringify(Object.entries(v.options).sort())));
   if (seen.size !== input.variants.length) {
     throw new AppError('VALIDATION_FAILED', 'Two variants have the same options.', {
@@ -151,8 +160,9 @@ export async function createVendorProduct(ctx: Context, vendor: Vendor, input: P
     );
   }
 
+  const images = await processUploads(ctx.media, vendor.id, [...new Set(input.image_keys ?? [])]);
   const slug = await freeSlug(ctx, vendor.id, slugify(input.title));
-  const actor = `vendor:${vendor.id}`;
+  const actor = opts.actor ?? `vendor:${vendor.id}`;
   const product = await ctx.db.transaction(async (tx) => {
     const [p] = await tx
       .insert(products)
@@ -184,16 +194,23 @@ export async function createVendorProduct(ctx: Context, vendor: Vendor, input: P
           { delta: v.on_hand },
           'restock',
           actor,
+          opts.draftId,
         );
     }
+    await insertImages(tx, created.id, images);
     await audit(tx, {
       actor,
       action: 'product.created',
       target: created.id,
-      details: { title: created.title, variants: input.variants.length },
+      details: {
+        title: created.title,
+        variants: input.variants.length,
+        ...(opts.draftId ? { draft_id: opts.draftId } : {}),
+      },
     });
+    if (opts.inTx) await opts.inTx(tx, created);
     return created;
   });
-  // TODO (media): purge the store's CDN URLs once the CDN is configured.
+  // New images have new URLs, so nothing cached needs purging; a CDN purge hook belongs to the hardening work.
   return vendorProductView(ctx, product);
 }

@@ -6,6 +6,8 @@ import { seedDemo } from './dev/seed';
 import { purgeOldChallenges } from './modules/auth/service';
 import { dispatchOnce } from './modules/events/dispatcher';
 import { purgeOldNotifications } from './modules/events/notifications';
+import { failStaleDrafts } from './modules/inventory/drafts';
+import { objectStoreFromConfig } from './modules/media/storage';
 import { FakeInvoiceProvider } from './modules/payments/fake';
 import { NwcGateway } from './modules/payments/nwc-gateway';
 import { singleProvider } from './modules/payments/provider';
@@ -48,11 +50,16 @@ async function main() {
     now,
     rates: new RateService(db, feedsFromConfig(config.RATE_SOURCES), now),
     invoices: singleProvider(new FakeInvoiceProvider(now)),
+    media: objectStoreFromConfig(config),
     keyring,
     log: silentLogger,
   };
   const app = buildApp(ctx);
   ctx.log = app.log;
+  if (config.NODE_ENV === 'production' && config.MEDIA_STORE === 'memory')
+    app.log.warn(
+      'MEDIA_STORE=memory: uploads live in this process and are lost on restart. Use s3.',
+    );
 
   let gateway: NwcGateway | null = null;
   if (config.INVOICE_PROVIDER === 'nwc') {
@@ -133,6 +140,7 @@ async function main() {
           subscriptionJobRunning = true;
           try {
             await runSubscriptionJob(ctx);
+            await failStaleDrafts(ctx);
           } catch (err) {
             app.log.error({ err }, 'subscription job failed');
           } finally {

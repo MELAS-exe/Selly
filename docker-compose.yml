@@ -42,7 +42,7 @@ services:
       timeout: 3s
       retries: 10
 
-  # Creates the two buckets, then exits.
+  # Creates the two buckets, then exits. Private uploads (originals, voice notes) expire after 30 days.
   minio-init:
     image: minio/mc
     depends_on:
@@ -52,7 +52,8 @@ services:
       /bin/sh -c "
       mc alias set local http://minio:9000 selly selly-secret-key &&
       mc mb --ignore-existing local/selly-public local/selly-private &&
-      mc anonymous set download local/selly-public
+      mc anonymous set download local/selly-public &&
+      (mc ilm rule ls local/selly-private | grep -q Expir || mc ilm rule add --expire-days 30 local/selly-private)
       "
     restart: "no"
 
@@ -72,7 +73,10 @@ services:
       APP_BASE_URL: http://localhost:3000
       DATABASE_URL: postgres://selly:selly@postgres:5432/selly
       DATABASE_DIRECT_URL: postgres://selly:selly@postgres:5432/selly
+      MEDIA_STORE: s3
       S3_ENDPOINT: http://minio:9000
+      # Browsers upload photos to MinIO directly: presigned URLs use the address they can reach.
+      S3_PRESIGN_ENDPOINT: http://localhost:9000
       S3_BUCKET_PUBLIC: selly-public
       S3_BUCKET_PRIVATE: selly-private
       S3_ACCESS_KEY_ID: selly

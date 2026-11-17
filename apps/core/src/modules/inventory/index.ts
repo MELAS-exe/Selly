@@ -4,12 +4,35 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import type { Context } from '../../context';
 import { AppError } from '../../errors';
+import { withIdempotency } from '../../idempotency';
 import { iso } from '../../util';
 import { requireVendor } from '../auth/http';
 import { actorOf } from '../catalog';
 import { vendorVariantView } from '../catalog/internal';
 import { findVendorById, isUuid, type Vendor } from '../catalog/store';
+import {
+  confirmBody,
+  confirmDraft,
+  createRestockDraft,
+  discardDraft,
+  draftView,
+  findDraft,
+  findDraftById,
+  listDrafts,
+  upsertBody,
+  upsertDraft,
+} from './drafts';
 import { adjust } from './service';
+
+const restockBody = z.strictObject({
+  image_keys: z.array(z.string().max(200)).min(1).max(6),
+  text: z.string().max(1000).optional(),
+});
+const draftsQuery = z.object({
+  status: z.enum(['processing', 'needs_review', 'confirmed', 'discarded', 'failed']).optional(),
+  cursor: z.string().max(200).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
 
 const adjustmentBody = z
   .strictObject({
@@ -86,6 +109,80 @@ export const inventoryModule: FastifyPluginAsync = async (app) => {
             req.body,
             `vendor:${vendor.id}`,
           ),
+        );
+    },
+  );
+  // ----------------------------------------------------------------------------------- drafts from photos
+
+  app.post('/api/v1/inventory/restock-ai', async (req, reply) => {
+    const s = await requireVendor(ctx(), req);
+    const body = restockBody.parse(req.body);
+    const vendor = await findVendorById(ctx(), s.vendorId);
+    const res = await withIdempotency(
+      ctx(),
+      `restock-ai:${vendor.id}`,
+      req.headers['idempotency-key'] as string | undefined,
+      body,
+      async () => ({ status: 202, body: await createRestockDraft(ctx(), vendor, body) }),
+    );
+    return reply.code(res.status).send(res.body);
+  });
+
+  app.get('/api/v1/inventory/drafts', async (req) => {
+    const s = await requireVendor(ctx(), req);
+    return listDrafts(ctx(), s.vendorId, draftsQuery.parse(req.query));
+  });
+
+  app.get<{ Params: { id: string } }>('/api/v1/inventory/drafts/:id', async (req) => {
+    const s = await requireVendor(ctx(), req);
+    return draftView(ctx(), await findDraft(ctx(), s.vendorId, req.params.id));
+  });
+
+  app.post<{ Params: { id: string } }>(
+    '/api/v1/inventory/drafts/:id/confirm',
+    async (req, reply) => {
+      const s = await requireVendor(ctx(), req);
+      const body = confirmBody.parse(req.body);
+      const vendor = await findVendorById(ctx(), s.vendorId);
+      const d = await findDraft(ctx(), vendor.id, req.params.id);
+      return reply
+        .code(201)
+        .send(await confirmDraft(ctx(), vendor, d, body, `vendor:${vendor.id}`));
+    },
+  );
+
+  app.post<{ Params: { id: string } }>(
+    '/api/v1/inventory/drafts/:id/discard',
+    async (req, reply) => {
+      const s = await requireVendor(ctx(), req);
+      await discardDraft(ctx(), s.vendorId, req.params.id, `vendor:${s.vendorId}`);
+      return reply.code(204).send();
+    },
+  );
+
+  // The agent: a draft from the assistant chat, or the extraction of a dashboard draft.
+  app.post<{ Params: { id: string } }>(
+    '/internal/v1/vendors/:id/product-drafts',
+    async (req, reply) => {
+      const body = upsertBody.parse(req.body);
+      const vendor = await findVendorById(ctx(), req.params.id);
+      return reply
+        .code(201)
+        .send(await upsertDraft(ctx(), vendor, body, actorOf(req.headers['x-actor'], vendor.id)));
+    },
+  );
+
+  // The path names only the draft (api.json); the draft names its vendor.
+  app.post<{ Params: { id: string } }>(
+    '/internal/v1/product-drafts/:id/confirm',
+    async (req, reply) => {
+      const body = confirmBody.parse(req.body);
+      const d = await findDraftById(ctx(), req.params.id);
+      const vendor = await findVendorById(ctx(), d.vendorId);
+      return reply
+        .code(201)
+        .send(
+          await confirmDraft(ctx(), vendor, d, body, actorOf(req.headers['x-actor'], vendor.id)),
         );
     },
   );

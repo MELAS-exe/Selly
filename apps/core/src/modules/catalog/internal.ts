@@ -6,6 +6,7 @@ import type { Context } from '../../context';
 import { AppError } from '../../errors';
 import { iso, money } from '../../util';
 import { audit } from '../events/outbox';
+import { insertImages, type PreparedImage, processUpload } from '../media/images';
 import { imageView, isUuid, type Vendor, vendorSettings } from './store';
 
 const { products, productVariants: pv, productImages } = core;
@@ -154,6 +155,11 @@ export interface ProductPatch {
   category?: string | undefined;
   price?: { amount: number; currency: 'XOF' | 'SAT' } | undefined;
   status?: 'active' | 'hidden' | 'archived' | undefined;
+  /**
+   * The full image list, in order: keys of this product's current images to keep, and new upload keys. An empty
+   * list removes every image.
+   */
+  image_keys?: string[] | undefined;
 }
 
 /** A vendor changes a product. A price change is audited with the old price, so it can be undone. */
@@ -179,8 +185,35 @@ export async function patchProduct(
       errors: [{ field: 'price.amount', message: 'Must be positive' }],
     });
   }
+  // Images are processed before the transaction, so a bad photo changes nothing.
+  let images: PreparedImage[] | null = null;
+  if (patch.image_keys) {
+    const current = await ctx.db
+      .select()
+      .from(productImages)
+      .where(eq(productImages.productId, p.id));
+    const byKey = new Map(current.map((i) => [i.storageKey, i]));
+    images = [];
+    for (const key of [...new Set(patch.image_keys)]) {
+      const kept = byKey.get(key);
+      images.push(
+        kept
+          ? {
+              storageKey: kept.storageKey,
+              width: kept.width,
+              height: kept.height,
+              dominant: kept.dominant ?? '#cccccc',
+            }
+          : await processUpload(ctx.media, vendor.id, key),
+      );
+    }
+  }
   const now = ctx.now();
   const updated = await ctx.db.transaction(async (tx) => {
+    if (images) {
+      await tx.delete(productImages).where(eq(productImages.productId, p.id));
+      await insertImages(tx, p.id, images);
+    }
     const [row] = await tx
       .update(products)
       .set({
@@ -219,6 +252,5 @@ export async function patchProduct(
     }
     return row as Product;
   });
-  // TODO (media): purge the store's CDN URLs once the CDN is configured.
   return vendorProductView(ctx, updated);
 }

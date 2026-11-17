@@ -31,7 +31,7 @@ const productPatch = z
     category: z.string().max(60).optional(),
     price: moneyIn.optional(),
     status: z.enum(['active', 'hidden', 'archived']).optional(),
-    image_keys: z.array(z.string()).optional(),
+    image_keys: z.array(z.string().max(200)).max(8).optional(),
   })
   .refine((b) => Object.keys(b).length > 0, 'Nothing to change.');
 const page = z.object({
@@ -131,15 +131,6 @@ export const catalogModule: FastifyPluginAsync = async (app) => {
     '/internal/v1/vendors/:id/products/:product_id',
     async (req) => {
       const body = productPatch.parse(req.body);
-      if (body.image_keys) {
-        throw new AppError(
-          'VALIDATION_FAILED',
-          'Images cannot be changed here yet: the media pipeline is not built.',
-          {
-            errors: [{ field: 'image_keys', message: 'Not supported yet' }],
-          },
-        );
-      }
       const vendor = await findVendorById(ctx(), req.params.id);
       await findVendorProduct(ctx(), vendor, req.params.product_id);
       return patchProduct(
@@ -183,15 +174,6 @@ export const catalogModule: FastifyPluginAsync = async (app) => {
   app.patch<{ Params: { product_id: string } }>('/api/v1/inventory/:product_id', async (req) => {
     const s = await requireVendor(ctx(), req);
     const body = productPatch.parse(req.body);
-    if (body.image_keys) {
-      throw new AppError(
-        'VALIDATION_FAILED',
-        'Images cannot be changed yet: the media pipeline is not built.',
-        {
-          errors: [{ field: 'image_keys', message: 'Not supported yet' }],
-        },
-      );
-    }
     const vendor = await findVendorById(ctx(), s.vendorId);
     return patchProduct(ctx(), vendor, req.params.product_id, body, `vendor:${vendor.id}`);
   });
