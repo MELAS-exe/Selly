@@ -50,6 +50,9 @@ const internalOrderBody = z.strictObject({
   customer,
   items: z.array(cartItem).min(1).max(20),
   delivery,
+  // The discount the customer negotiated, as sent to cart-quotes. Core caps it again at the vendor's limit, then
+  // expected_total must equal the re-priced total: the model never sets a price.
+  discount_pct: z.number().int().min(0).max(100).optional(),
   expected_total: moneySchema,
 });
 
@@ -203,6 +206,7 @@ export const ordersModule: FastifyPluginAsync = async (app) => {
           items: body.items,
           delivery: body.delivery,
           expectedTotal: body.expected_total,
+          discountPct: body.discount_pct ?? 0,
           actor: `customer:${body.conversation_ref}`,
         });
         return {

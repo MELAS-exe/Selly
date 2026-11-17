@@ -8027,7 +8027,7 @@
         ],
         "operationId": "internalCreateOrder",
         "summary": "Create an order for a chat customer",
-        "description": "Scope `orders:write`. Same steps and errors as `POST /api/v1/orders`, with `conversation_ref` stored on the order so the payment confirmation reaches the right chat. Idempotent.",
+        "description": "Scope `orders:write`. Same steps and errors as `POST /api/v1/orders`, plus the negotiated `discount_pct`, with `conversation_ref` stored on the order so the payment confirmation reaches the right chat. Idempotent.",
         "parameters": [
           {
             "name": "X-Request-Id",
@@ -8083,15 +8083,13 @@
                   }
                 ],
                 "delivery": {
-                  "method": "delivery",
-                  "zone_id": "plateau",
-                  "address_text": "Rue 10, près de la pharmacie",
-                  "note": "Appeler avant"
+                  "method": "pickup"
                 },
                 "expected_total": {
-                  "amount": 16000,
+                  "amount": 13500,
                   "currency": "XOF"
-                }
+                },
+                "discount_pct": 10
               }
             }
           }
@@ -8108,10 +8106,10 @@
                   "number": "A7K2",
                   "checkout_url": "https://app.selly.example/c/q8ZrT2mWfLx0aB7cD9eF1g",
                   "total": {
-                    "amount": 16000,
+                    "amount": 13500,
                     "currency": "XOF"
                   },
-                  "total_sat": 27103,
+                  "total_sat": 22868,
                   "expires_at": "2026-11-17T10:24:11Z"
                 }
               }
@@ -9724,7 +9722,7 @@
         ],
         "operationId": "internalReceiveEvent",
         "summary": "Core delivers an event to the agent",
-        "description": "Sent from the outbox dispatcher: at least once, ordered per key (the order id). Signed with `X-Selly-Signature: t=<unix>,v1=<hex>`, HMAC-SHA256 over `<t>.<raw body>`, 5 minutes of tolerance. The agent answers 200 for an `event_id` it already saw (`duplicate: true`). Backoff on failure: 1 s, 5 s, 30 s, 2 min, 10 min, 1 h, then a dead letter and an alert. `order.paid` makes the agent add a system message to the order's conversation.",
+        "description": "Sent from the outbox dispatcher: at least once, ordered per key (the order id). Signed with `X-Selly-Signature: t=<unix>,v1=<hex>`, HMAC-SHA256 over `<t>.<raw body>`, 5 minutes of tolerance. The agent answers 200 for an `event_id` it already saw (`duplicate: true`). Backoff on failure: 1 s, 5 s, 30 s, 2 min, 10 min, 1 h, then a dead letter and an alert. Every `order.*` event carries `order_id`, `number`, `channel`, `conversation_ref`, `total`, `total_sat` and `checkout_url`. `order.paid` makes the agent add a system message to the order's conversation.",
         "security": [
           {
             "coreSignature": []
@@ -9765,7 +9763,8 @@
                         "amount": 16000,
                         "currency": "XOF"
                       },
-                      "total_sat": 27103
+                      "total_sat": 27103,
+                      "checkout_url": "https://app.selly.example/c/q8ZrT2mWfLx0aB7cD9eF1g"
                     }
                   }
                 },
@@ -9780,7 +9779,13 @@
                       "order_id": "0193a8f1-2c3d-7e4f-8a9b-0c1d2e3f4a5b",
                       "number": "A7K2",
                       "channel": "web",
-                      "conversation_ref": "0193a8f4-6f7a-7b8c-9d0e-1f2a3b4c5d6e"
+                      "conversation_ref": "0193a8f4-6f7a-7b8c-9d0e-1f2a3b4c5d6e",
+                      "checkout_url": "https://app.selly.example/c/q8ZrT2mWfLx0aB7cD9eF1g",
+                      "total": {
+                        "amount": 16000,
+                        "currency": "XOF"
+                      },
+                      "total_sat": 27103
                     }
                   }
                 },
@@ -14725,6 +14730,12 @@
           },
           "delivery": {
             "$ref": "#/components/schemas/DeliveryInput"
+          },
+          "discount_pct": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "The discount negotiated in the chat, as sent to cart-quotes. Core caps it at the vendor limit again and re-prices; expected_total must equal that total. Omitted means no discount."
           },
           "expected_total": {
             "$ref": "#/components/schemas/Money"
