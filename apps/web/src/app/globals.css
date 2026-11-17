@@ -142,3 +142,127 @@
     animation: none !important;
   }
 }
+
+/* ------------------------------------------------------------------------------------------ */
+/* Shop motion. One strong moment: the band weaves itself, the card rises out of it.          */
+/* Entrances play once per visit: <Woven /> in the shop layout sets html[data-woven].          */
+/* ------------------------------------------------------------------------------------------ */
+
+/* The loom: a plain indigo ground; six strips of print arrive from alternating sides. */
+.loom {
+  position: relative;
+  background-color: var(--color-indigo-deep);
+}
+.loom-strip {
+  position: absolute;
+  inset: 0;
+  /* --clip-* names: .wax already uses --a to --d for its colours. */
+  --clip-t: calc(var(--r) * 100% / 6);
+  --clip-b: calc(100% - (var(--r) + 1) * 100% / 6 - 0.5px);
+  clip-path: inset(var(--clip-t) 0 var(--clip-b) 0);
+  animation: weave calc(var(--dur-hero) * 0.6) var(--ease-out-expo)
+    calc(var(--r) * var(--dur-hero) * 0.08) both;
+}
+.loom-strip:nth-child(even) {
+  --from-l: 100%;
+  --from-r: 0%;
+}
+.loom-strip:nth-child(odd) {
+  --from-l: 0%;
+  --from-r: 100%;
+}
+@keyframes weave {
+  from {
+    clip-path: inset(var(--clip-t) var(--from-r) var(--clip-b) var(--from-l));
+  }
+}
+
+/* The shop card rises out of the band while its shadow settles (opacity on a pseudo, never box-shadow). */
+.card-rise {
+  position: relative;
+  animation: rise var(--dur-hero) var(--ease-out-expo) calc(var(--dur-hero) * 0.4) both;
+}
+.card-rise::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 8px 24px rgb(22 26 51 / 0.18);
+  pointer-events: none;
+  animation: settle var(--dur-hero) linear calc(var(--dur-hero) * 0.4) both;
+}
+@keyframes rise {
+  from {
+    transform: translateY(24px);
+  }
+}
+@keyframes settle {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Product tiles: a short cascade for the first six; prices are legible from the first frame. */
+.tile-in {
+  animation: tile-in calc(var(--dur-hero) * 0.7) var(--ease-out-expo)
+    calc(var(--dur-hero) * 0.3 + var(--i) * var(--dur-tap) / 3) both;
+}
+@keyframes tile-in {
+  from {
+    opacity: 0.5;
+    transform: translateY(16px);
+  }
+}
+.tile-press {
+  transition: transform var(--dur-tap) var(--ease-out-expo);
+}
+.tile-press:active {
+  transform: scale(0.97);
+}
+
+html[data-woven] :is(.loom-strip, .card-rise, .tile-in),
+html[data-woven] .card-rise::after {
+  animation: none;
+}
+
+/* Shared element: the tile photo becomes the product hero, and back. */
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-group(.morph) {
+  animation-duration: var(--dur-hero);
+  animation-timing-function: var(--ease-out-expo);
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--dur-ui);
+}
+/* The header is the fixed reference while the content changes. */
+::view-transition-group(shop-header) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(shop-header) {
+  display: none;
+}
+::view-transition-new(shop-header) {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loom-strip,
+  .card-rise,
+  .card-rise::after {
+    animation: none;
+  }
+  .tile-in {
+    animation: settle var(--dur-ui) linear both;
+  }
+  .tile-press:active {
+    transform: none;
+  }
+  /* No travel: the photo swaps in place, the page only crossfades. */
+  ::view-transition-group(.morph) {
+    animation-duration: 0s;
+  }
+}

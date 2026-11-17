@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { type CSSProperties, ViewTransition } from 'react';
 import { Availability } from '@/components/availability';
 import { ProductVisual } from '@/components/product-visual';
 import { getStore } from '@/lib/core';
@@ -50,9 +51,17 @@ export default async function StorePage({ params }: Params) {
 
   return (
     <main>
-      <section className="wax relative">
-        <div className="mx-auto max-w-3xl px-4 pt-16 pb-5">
-          <div className="rounded-[var(--radius-tile)] bg-paper p-5 shadow-[0_8px_24px_rgba(22,26,51,0.18)]">
+      <section className="loom">
+        {[0, 1, 2, 3, 4, 5].map((r) => (
+          <span
+            key={r}
+            aria-hidden="true"
+            className="wax loom-strip"
+            style={{ '--r': r } as CSSProperties}
+          />
+        ))}
+        <div className="relative mx-auto max-w-3xl px-4 pt-16 pb-5">
+          <div className="card-rise rounded-[var(--radius-tile)] bg-paper p-5">
             <h1 className="text-[1.75rem] leading-tight font-bold tracking-[-0.01em]">
               {store.display_name}
             </h1>
@@ -90,16 +99,22 @@ export default async function StorePage({ params }: Params) {
         ) : (
           <ul className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3">
             {products.map((p, i) => (
-              <li key={p.id}>
-                <Link href={`/s/${slug}/p/${p.slug}`} className="group block">
+              <li
+                key={p.id}
+                className={i < 6 ? 'tile-in' : undefined}
+                style={i < 6 ? ({ '--i': i } as CSSProperties) : undefined}
+              >
+                <Link href={`/s/${slug}/p/${p.slug}`} className="tile-press group block">
                   <div className="overflow-hidden rounded-[var(--radius-tile)]">
-                    <ProductVisual
-                      image={p.image}
-                      title={p.title}
-                      seed={p.slug}
-                      sizes="(min-width: 640px) 240px, 50vw"
-                      priority={i < 2}
-                    />
+                    <ViewTransition name={`product-${p.slug}`} share="morph" default="none">
+                      <ProductVisual
+                        image={p.image}
+                        title={p.title}
+                        seed={p.slug}
+                        sizes="(min-width: 640px) 240px, 50vw"
+                        priority={i < 2}
+                      />
+                    </ViewTransition>
                   </div>
                   <h3 className="mt-2 leading-snug font-semibold group-hover:underline">
                     {p.title}

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { ViewTransition } from 'react';
 import { AddToCart } from '@/components/add-to-cart';
 import { Availability } from '@/components/availability';
 import { ProductVisual } from '@/components/product-visual';
@@ -45,13 +46,15 @@ export default async function ProductPage({ params }: Params) {
 
       <div>
         <div className="overflow-hidden rounded-[var(--radius-tile)]">
-          <ProductVisual
-            image={first ?? null}
-            title={product.title}
-            seed={product.slug}
-            sizes="(min-width: 640px) 360px, 100vw"
-            priority
-          />
+          <ViewTransition name={`product-${product.slug}`} share="morph" default="none">
+            <ProductVisual
+              image={first ?? null}
+              title={product.title}
+              seed={product.slug}
+              sizes="(min-width: 640px) 360px, 100vw"
+              priority
+            />
+          </ViewTransition>
         </div>
         {rest.length > 0 && (
           <ul className="mt-2 grid grid-cols-4 gap-2">
