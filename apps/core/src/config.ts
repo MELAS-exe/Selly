@@ -12,6 +12,8 @@ const flag = z
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   CORE_PORT: z.coerce.number().int().default(4000),
+  // Proxies in front of core whose X-Forwarded-For is believed: 1 for the web app, 2 with a CDN in front.
+  TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(1),
   APP_BASE_URL: z.url().default('http://localhost:3000'),
   CDN_BASE_URL: z.url().default('http://localhost:9000/selly-public'),
   DATABASE_URL: z.string().default('postgres://selly:selly@localhost:5432/selly'),

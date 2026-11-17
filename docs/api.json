@@ -2154,6 +2154,12 @@
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           },
+          "403": {
+            "$ref": "#/components/responses/OriginRejected"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
           "429": {
             "$ref": "#/components/responses/RateLimited"
           }
@@ -2281,6 +2287,12 @@
               }
             }
           },
+          "403": {
+            "$ref": "#/components/responses/OriginRejected"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
           "429": {
             "$ref": "#/components/responses/RateLimited"
           }
@@ -2305,6 +2317,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/OriginRejected"
           }
         }
       }
@@ -2399,6 +2414,9 @@
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           },
+          "403": {
+            "$ref": "#/components/responses/OriginRejected"
+          },
           "404": {
             "description": "Not found",
             "content": {
@@ -2473,6 +2491,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundNoShop"
           }
         }
       },
@@ -2562,7 +2583,7 @@
           "403": {
             "$ref": "#/components/responses/StepUpRequired"
           },
-          "409": {
+          "422": {
             "description": "Key limit reached",
             "content": {
               "application/problem+json": {
@@ -2572,7 +2593,7 @@
                 "example": {
                   "type": "https://app.selly.example/problems/validation-failed",
                   "title": "Key limit reached",
-                  "status": 409,
+                  "status": 422,
                   "code": "VALIDATION_FAILED",
                   "detail": "A vendor can register at most 3 keys.",
                   "errors": [
@@ -2585,6 +2606,9 @@
                 }
               }
             }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
@@ -2617,6 +2641,9 @@
           "204": {
             "description": "The key is removed."
           },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
           "403": {
             "$ref": "#/components/responses/StepUpRequired"
           },
@@ -2638,7 +2665,7 @@
               }
             }
           },
-          "409": {
+          "422": {
             "description": "Last key",
             "content": {
               "application/problem+json": {
@@ -2648,7 +2675,7 @@
                 "example": {
                   "type": "https://app.selly.example/problems/validation-failed",
                   "title": "Last key",
-                  "status": 409,
+                  "status": 422,
                   "code": "VALIDATION_FAILED",
                   "detail": "The last key cannot be removed. Add another key first.",
                   "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
@@ -2771,29 +2798,8 @@
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           },
-          "409": {
-            "description": "Slug taken",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                },
-                "example": {
-                  "type": "https://app.selly.example/problems/validation-failed",
-                  "title": "Slug taken",
-                  "status": 409,
-                  "code": "VALIDATION_FAILED",
-                  "detail": "The slug \"awa-style\" is already used.",
-                  "errors": [
-                    {
-                      "field": "slug",
-                      "message": "Already used"
-                    }
-                  ],
-                  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
-                }
-              }
-            }
+          "403": {
+            "$ref": "#/components/responses/OriginRejected"
           },
           "422": {
             "description": "Validation failed",
@@ -3144,7 +3150,7 @@
         ],
         "operationId": "linkWallet",
         "summary": "Link or replace the vendor wallet",
-        "description": "Steps: parse the URI; read the wallet info event; call `get_info`; apply the permission policy (must include `make_invoice` and `lookup_invoice`, must not include any spending method); create a 1-sat test invoice that expires in 60 seconds and look it up; encrypt and store the URI; write the audit record `wallet.linked` or `wallet.replaced`; push a notice to the dashboard. The URI is never returned, logged or sent to the browser again. Replacing an existing wallet needs a step-up.",
+        "description": "Steps: parse the URI; read the wallet info event; call `get_info`; apply the permission policy (must include `make_invoice` and `lookup_invoice`, must not include any spending method); create a 1-sat test invoice that expires in 60 seconds and look it up; encrypt and store the URI; write the audit record `wallet.linked` or `wallet.replaced`; push a notice to the dashboard. The URI is never returned, logged or sent to the browser again. Replacing an existing wallet needs a step-up. Only `kind: nwc` is supported for now; `lightning_address` answers 422. Linking calls the wallet, so the route allows 10 requests a minute.",
         "security": [
           {
             "vendorSession": []
@@ -3222,6 +3228,9 @@
                 }
               }
             }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           },
           "504": {
             "description": "Wallet timeout",
@@ -3341,7 +3350,7 @@
         ],
         "operationId": "unlinkWallet",
         "summary": "Unlink the wallet",
-        "description": "Marks the connection revoked and deletes the encrypted URI. The shop stops accepting orders (`wallet_missing`). Remind the vendor to revoke the connection in the wallet app.",
+        "description": "Needs a step-up. Marks the connection revoked and deletes the encrypted URI. The shop stops accepting orders (`wallet_missing`). Remind the vendor to revoke the connection in the wallet app.",
         "security": [
           {
             "vendorSession": []
@@ -9708,6 +9717,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
           }
         },
         "tags": [
@@ -10201,6 +10213,42 @@
                   "message": "Too big: expected number to be <=5"
                 }
               ],
+              "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+            }
+          }
+        }
+      },
+      "OriginRejected": {
+        "description": "Origin missing or wrong",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            },
+            "example": {
+              "type": "https://app.selly.example/problems/forbidden",
+              "title": "Forbidden",
+              "status": 403,
+              "code": "FORBIDDEN",
+              "detail": "This request must come from the Selly app (Origin header missing or wrong).",
+              "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+            }
+          }
+        }
+      },
+      "NotFoundNoShop": {
+        "description": "No shop yet",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            },
+            "example": {
+              "type": "https://app.selly.example/problems/not-found",
+              "title": "Not found",
+              "status": 404,
+              "code": "NOT_FOUND",
+              "detail": "This key has no shop yet. Call POST /vendors.",
               "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
             }
           }
