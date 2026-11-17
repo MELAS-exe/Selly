@@ -15,6 +15,7 @@ export function CartButton({ slug }: { slug: string }) {
   const [dir, setDir] = useState<1 | -1 | 0>(0);
   const [bump, setBump] = useState(0);
   const badge = useRef<HTMLSpanElement>(null);
+  const bag = useRef<SVGSVGElement>(null);
 
   const last = useRef<number | null>(null);
 
@@ -50,6 +51,15 @@ export function CartButton({ slug }: { slug: string }) {
       duration: durationToken('--dur-ui'),
       easing: motionToken('--ease-snap'),
     });
+    // The bag takes the hit: a small swing from its handle.
+    bag.current?.animate(
+      [
+        { transform: 'rotate(-14deg)' },
+        { transform: 'rotate(8deg)' },
+        { transform: 'rotate(0deg)' },
+      ],
+      { duration: durationToken('--dur-ui') * 1.5, easing: motionToken('--ease-out-expo') },
+    );
   }, [bump]);
 
   return (
@@ -60,9 +70,10 @@ export function CartButton({ slug }: { slug: string }) {
       aria-label={count > 0 ? `Panier, ${count} article${count > 1 ? 's' : ''}` : 'Panier'}
     >
       <svg
+        ref={bag}
         aria-hidden="true"
         viewBox="0 0 24 24"
-        className="size-5"
+        className="size-5 origin-top"
         fill="none"
         stroke="currentColor"
         strokeWidth="2"

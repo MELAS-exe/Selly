@@ -248,7 +248,7 @@ export function Landing() {
             </h2>
           </div>
           <div className="md:col-span-8 reveal-on-scroll [--d:75ms] opacity-100">
-            <h3 className="pv-serif text-4xl md:text-6xl leading-tight font-light mb-12">
+            <h3 className="scroll-curtain pv-serif text-4xl md:text-6xl leading-tight font-light mb-12">
               "A ready-to-share storefront, a helpful sales assistant, and{' '}
               <span className="italic text-[#8AAE4A]">payment</span> direct to your wallet."
             </h3>
@@ -307,7 +307,7 @@ export function Landing() {
           <div className="order-1 md:order-2 h-[50vh] md:h-[80vh] relative bg-[#F6F4F0] reveal-on-scroll [--d:75ms] opacity-100">
             <img
               alt="Selly, your sales assistant"
-              className="w-full h-full object-contain p-8 md:p-12"
+              className="mascot-in w-full h-full object-contain p-8 md:p-12"
               src="/brand/selly-mascot.webp"
               width={800}
               height={800}
@@ -563,7 +563,7 @@ export function Landing() {
               src="/landing/gallery/gallery.jpg"
             />
             <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
-            <div className="absolute bottom-6 left-6 bg-[#F6F4F0] p-5 pr-12 border border-[#1111111f] transition-transform duration-(--dur-ui) ease-(--ease-out-expo) group-hover:translate-x-2">
+            <div className="gal-card absolute bottom-6 left-6 bg-[#F6F4F0] p-5 pr-12 border border-[#1111111f] transition-transform duration-(--dur-ui) ease-(--ease-out-expo) group-hover:translate-x-2">
               <h3 className="pv-serif text-3xl mb-1 group-hover:text-[#8AAE4A] transition-colors duration-(--dur-ui)">
                 Your online shop
               </h3>
@@ -633,7 +633,7 @@ export function Landing() {
               <div className="pv-sans text-xs uppercase tracking-[0.3em] font-medium text-[#E3342F] mb-8 flex items-center gap-4">
                 <span className="w-8 h-px bg-[#E3342F]"></span>Get started
               </div>
-              <h2 className="pv-serif text-5xl md:text-7xl font-light leading-[1.1] mb-8">
+              <h2 className="scroll-curtain pv-serif text-5xl md:text-7xl font-light leading-[1.1] mb-8">
                 Start your <br />
                 <span className="italic text-[#8AAE4A]">Selly shop</span>
               </h2>

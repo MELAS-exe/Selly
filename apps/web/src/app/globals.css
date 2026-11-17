@@ -391,3 +391,8 @@ html[data-woven] .card-rise::after {
     transition: opacity var(--dur-ui) linear;
   }
 }
+
+/* A label that comes back after a confirmation fades in instead of snapping. */
+.swap-in {
+  animation: settle var(--dur-ui) linear both;
+}

@@ -38,6 +38,7 @@ export function flyToCart(source: HTMLElement | null, fallback: HTMLElement | nu
     pointerEvents: 'none',
     borderRadius: 'var(--radius-tile)',
     overflow: 'hidden',
+    boxShadow: '0 12px 28px rgb(22 26 51 / 0.28)',
     willChange: 'transform, opacity',
   });
   document.body.append(ghost);
@@ -54,14 +55,18 @@ export function flyToCart(source: HTMLElement | null, fallback: HTMLElement | nu
 
   const anim = ghost.animate(
     [
-      { transform: 'translate(0, 0) scale(1)', opacity: 1, easing: motionToken('--ease-out-expo') },
       {
-        transform: `translate(${dx * 0.55}px, ${peak}px) scale(${mid})`,
+        transform: 'translate(0, 0) scale(1) rotate(0deg)',
+        opacity: 1,
+        easing: motionToken('--ease-out-expo'),
+      },
+      {
+        transform: `translate(${dx * 0.55}px, ${peak}px) scale(${mid}) rotate(-10deg)`,
         opacity: 1,
         offset: 0.5,
         easing: 'ease-in',
       },
-      { transform: `translate(${dx}px, ${dy}px) scale(${end})`, opacity: 0.4 },
+      { transform: `translate(${dx}px, ${dy}px) scale(${end}) rotate(-20deg)`, opacity: 0.4 },
     ],
     { duration: durationToken('--dur-hero') * 0.85, fill: 'forwards' },
   );

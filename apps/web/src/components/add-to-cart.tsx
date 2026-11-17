@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { addLine, readCart, writeCart } from '@/lib/cart';
 import { formatMoney, optionName } from '@/lib/format';
 import type { ProductDetail, PublicVariant } from '@/lib/types';
@@ -105,6 +105,13 @@ export function AddToCart({ slug, product }: { slug: string; product: ProductDet
   const [added, setAdded] = useState(false);
   // Bumped on every add, so the check mark draws again.
   const [adds, setAdds] = useState(0);
+  // The button says "Ajouté" for a moment, then offers to add again; the confirmation stays.
+  const [flash, setFlash] = useState(false);
+  useEffect(() => {
+    if (!flash) return;
+    const t = setTimeout(() => setFlash(false), 1800);
+    return () => clearTimeout(t);
+  }, [flash, adds]);
   const button = useRef<HTMLButtonElement>(null);
 
   const variant = useMemo(
@@ -151,6 +158,7 @@ export function AddToCart({ slug, product }: { slug: string; product: ProductDet
       }),
     );
     setAdded(true);
+    setFlash(true);
     setAdds((n) => n + 1);
     flyToCart(document.querySelector<HTMLElement>('[data-hero-visual]'), button.current);
   }
@@ -236,10 +244,10 @@ export function AddToCart({ slug, product }: { slug: string; product: ProductDet
         onClick={add}
         disabled={!variant || soldOut}
         className={`press tnum inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-control)] px-5 text-lg font-semibold text-paper disabled:bg-mist disabled:text-muted ${
-          added ? 'bg-leaf' : 'bg-indigo'
+          flash ? 'bg-leaf' : 'bg-indigo'
         }`}
       >
-        {added ? (
+        {flash ? (
           <>
             <svg
               key={adds}
@@ -261,7 +269,9 @@ export function AddToCart({ slug, product }: { slug: string; product: ProductDet
         ) : missing.length > 0 ? (
           `Choisissez : ${missing.map(optionName).join(', ').toLowerCase()}`
         ) : (
-          `Ajouter au panier, ${formatMoney({ amount: (variant?.price.amount ?? 0) * quantity, currency: variant?.price.currency ?? 'XOF' })}`
+          <span key={adds} className={adds > 0 ? 'swap-in' : undefined}>
+            {`Ajouter au panier, ${formatMoney({ amount: (variant?.price.amount ?? 0) * quantity, currency: variant?.price.currency ?? 'XOF' })}`}
+          </span>
         )}
       </button>
 
