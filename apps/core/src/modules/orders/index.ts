@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { AppError } from '../../errors';
 import { withIdempotency } from '../../idempotency';
 import { iso, money } from '../../util';
+import { requireVendor } from '../auth/http';
 import { actorOf } from '../catalog';
 import { findVendorById, findVendorBySlug } from '../catalog/store';
 import { findOrder, fulfillOrder, listOrders, metrics, statusView } from './internal';
@@ -18,6 +19,13 @@ import {
   renewInvoice,
   satsFor,
 } from './service';
+import {
+  cancelVendorOrder,
+  findVendorOrderById,
+  fulfillVendorOrder,
+  listVendorOrders,
+  vendorOrderView,
+} from './vendor';
 
 const cartItem = z.object({ variant_id: z.uuid(), quantity: z.number().int().min(1).max(50) });
 const delivery = z.object({
@@ -264,5 +272,47 @@ export const ordersModule: FastifyPluginAsync = async (app) => {
       .object({ period: z.enum(['today', '7d', '30d']).default('today') })
       .parse(req.query);
     return metrics(ctx(), await findVendorById(ctx(), req.params.id), period);
+  });
+
+  // ----------------------------------------------------------------------------------- the vendor's dashboard
+
+  app.get('/api/v1/orders', async (req) => {
+    const s = await requireVendor(ctx(), req);
+    const q = z
+      .object({
+        status: z.enum(['pending_payment', 'paid', 'fulfilled', 'cancelled', 'expired']).optional(),
+        cursor: z.string().max(200).optional(),
+        limit: z.coerce.number().int().min(1).max(100).default(20),
+      })
+      .parse(req.query);
+    return listVendorOrders(ctx(), await findVendorById(ctx(), s.vendorId), q);
+  });
+
+  app.get<{ Params: { id: string } }>('/api/v1/orders/:id', async (req) => {
+    const s = await requireVendor(ctx(), req);
+    const vendor = await findVendorById(ctx(), s.vendorId);
+    return vendorOrderView(ctx(), await findVendorOrderById(ctx(), vendor, req.params.id));
+  });
+
+  app.patch<{ Params: { id: string } }>('/api/v1/orders/:id/fulfill', async (req) => {
+    const s = await requireVendor(ctx(), req);
+    const { note } = z.strictObject({ note: z.string().max(300).optional() }).parse(req.body ?? {});
+    return fulfillVendorOrder(ctx(), await findVendorById(ctx(), s.vendorId), req.params.id, note);
+  });
+
+  app.post<{ Params: { id: string } }>('/api/v1/orders/:id/cancel', async (req) => {
+    const s = await requireVendor(ctx(), req);
+    const { reason } = z
+      .strictObject({ reason: z.string().trim().min(2).max(300) })
+      .parse(req.body);
+    return cancelVendorOrder(ctx(), await findVendorById(ctx(), s.vendorId), req.params.id, reason);
+  });
+
+  app.get('/api/v1/vendors/dashboard/metrics', async (req) => {
+    const s = await requireVendor(ctx(), req);
+    const { period } = z
+      .object({ period: z.enum(['today', '7d', '30d']).default('today') })
+      .parse(req.query);
+    return metrics(ctx(), await findVendorById(ctx(), s.vendorId), period);
   });
 };

@@ -32,6 +32,8 @@ const schema = z.object({
   RATE_SOURCES: z.string().default('kraken,coinbase'),
   SERVICE_TOKEN_AGENT: z.string().min(8).default(DEV_SERVICE_TOKEN_DEFAULT),
   SSE_POLL_MS: z.coerce.number().int().default(2000),
+  // How often the vendor's live stream checks that its session is still valid.
+  VENDOR_STREAM_SESSION_CHECK_MS: z.coerce.number().int().min(10).default(60_000),
   // Where core delivers its events (outbox) and the secret both sides sign them with.
   AGENT_URL: z.url().default('http://localhost:4100'),
   EVENTS_HMAC_SECRET: z.string().min(8).default(DEV_EVENTS_SECRET_DEFAULT),
