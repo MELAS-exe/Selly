@@ -64,6 +64,7 @@ export interface CoreClient {
   getMetrics(vendorId: string, period: 'today' | '7d' | '30d', ctx?: CallContext): Promise<Metrics>;
   upsertDraft(vendorId: string, body: DraftUpsertRequest, ctx?: CallContext): Promise<Draft>;
   confirmDraft(
+    vendorId: string,
     draftId: string,
     body: DraftConfirmRequest,
     ctx?: CallContext,
@@ -304,10 +305,15 @@ export class HttpCoreClient implements CoreClient {
       ctx,
     });
   }
-  async confirmDraft(draftId: string, body: DraftConfirmRequest, ctx?: CallContext) {
+  async confirmDraft(
+    vendorId: string,
+    draftId: string,
+    body: DraftConfirmRequest,
+    ctx?: CallContext,
+  ) {
     return this.request<VendorProduct>({
       method: 'POST',
-      path: `/internal/v1/product-drafts/${idSeg(draftId)}/confirm`,
+      path: `/internal/v1/vendors/${idSeg(vendorId)}/product-drafts/${idSeg(draftId)}/confirm`,
       body,
       timeoutMs: WRITE_MS,
       ctx,

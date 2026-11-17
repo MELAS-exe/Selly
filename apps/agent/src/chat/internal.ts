@@ -174,13 +174,20 @@ async function handleEvent(
     case 'draft.requested': {
       // A dashboard upload (restock-ai): extract in the background, core gets the draft back (section 5.3.6).
       const draftId = String(d.draft_id ?? '');
-      const imageKeys = (Array.isArray(d.image_keys) ? d.image_keys.map(String) : []).filter((k) =>
-        isVendorImageKey(k, event.vendor_id),
-      );
+      // Keys and core's private read links (image_urls) go together, so they are filtered together.
+      const keys = Array.isArray(d.image_keys) ? d.image_keys.map(String) : [];
+      const urls = Array.isArray(d.image_urls) ? d.image_urls.map(String) : [];
+      const pairs = keys
+        .map((k, i) => ({ k, u: urls[i] }))
+        .filter(
+          ({ k, u }) => isVendorImageKey(k, event.vendor_id) && (!u || /^https?:\/\//.test(u)),
+        );
+      const imageKeys = pairs.map((p) => p.k);
+      const imageUrls = pairs.map((p) => p.u ?? '');
       const text = typeof d.input_text === 'string' ? d.input_text : undefined;
       s.track(
         s.extractor
-          .extract({ imageKeys, text, vendorId: event.vendor_id })
+          .extract({ imageKeys, imageUrls, text, vendorId: event.vendor_id })
           .then(async (x) => {
             await s.core.upsertDraft(event.vendor_id, {
               draft_id: draftId,

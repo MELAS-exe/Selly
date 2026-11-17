@@ -607,8 +607,13 @@ export const vendorNotifications = core.table(
     /** Groups repeats (one per conversation every 5 minutes for handoffs). */
     dedupeKey: text('dedupe_key'),
     createdAt: createdAt(),
+    /** Set when the alert worker has handled it (Web Push, Nostr direct message, or nothing to send). */
+    deliveredAt: ts('delivered_at'),
   },
-  (t) => [index('vendor_notifications_stream').on(t.vendorId, t.id)],
+  (t) => [
+    index('vendor_notifications_stream').on(t.vendorId, t.id),
+    index('vendor_notifications_undelivered').on(t.id).where(sql`${t.deliveredAt} is null`),
+  ],
 );
 
 /** A browser that allowed Web Push for a vendor (PushManager.subscribe). The endpoint is unique per browser. */

@@ -5,6 +5,7 @@ import { type Context, type Database, silentLogger } from './context';
 import { seedDemo } from './dev/seed';
 import { PgLeader } from './leader';
 import { purgeOldChallenges } from './modules/auth/service';
+import { deliverAlerts, nostrDmSender, webPushSender } from './modules/events/alerts';
 import { dispatchOnce } from './modules/events/dispatcher';
 import { purgeOldNotifications } from './modules/events/notifications';
 import { failStaleDrafts } from './modules/inventory/drafts';
@@ -158,12 +159,33 @@ async function main() {
     await runSubscriptionJob(ctx);
     await failStaleDrafts(ctx);
   });
+  // Alerts outside the dashboard: Web Push and Nostr direct messages.
+  const senders = {
+    push: webPushSender(config),
+    dm: nostrDmSender(
+      config.SECRETS_PLATFORM_NOSTR_KEY,
+      config.NOSTR_DM_RELAYS.split(',')
+        .map((r) => r.trim())
+        .filter(Boolean),
+    ),
+  };
+  if (!senders.push) app.log.warn('No VAPID keys: Web Push alerts are off.');
+  every(config.ALERTS_INTERVAL_MS, 'alerts', () => deliverAlerts(ctx, senders));
   // Housekeeping: old dashboard notifications and sign-in challenges.
   every(3_600_000, 'cleanup', async () => {
     await purgeOldNotifications(db, now());
     await purgeOldChallenges(db, now());
   });
-  if (gateway) every(WALLET_REFRESH_MS, 'wallet refresh', () => (gateway as NwcGateway).refresh());
+  if (gateway) {
+    every(WALLET_REFRESH_MS, 'wallet refresh', () => (gateway as NwcGateway).refresh());
+    // A wallet linked on any process: the leader subscribes to its notifications at once.
+    signals.on('wallet', 'linked', () => {
+      if (leader.isLeader())
+        gateway
+          ?.refresh()
+          .catch((err) => app.log.warn({ err: String(err) }, 'wallet refresh failed'));
+    });
+  }
   if (pairing) every(5_000, 'pairing refresh', () => pairing.refresh());
 
   const shutdown = async () => {

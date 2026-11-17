@@ -18,11 +18,11 @@ Three switches choose the dependencies:
 | `AGENT_STORE`     | `memory`: no database                                       | PostgreSQL at `DATABASE_URL` |
 | `LLM_PRIMARY`     | `scripted` (tests), `demo` (rule-based, no key), `claude-…` | `scripted`                   |
 
-`.env.example` uses the real core (run `pnpm dev`: core migrates and loads the demo shop), the memory store and `demo`: open a chat on `awa-style` and ask « robe noire en 42 ? ». The compose uses the real core and PostgreSQL. For the real agent, set `LLM_PRIMARY=claude-opus-5-5` and `ANTHROPIC_API_KEY` (or sign in with `ant auth login`). `LLM_FALLBACK` names a second provider, used once when the first one fails.
+`.env.example` and the compose use the real core and PostgreSQL (`pnpm dev` or `docker compose up`: core migrates, the agent schema included, and loads the demo shop) with the `demo` model: open a chat on `awa-style` and ask « robe noire en 42 ? ». For the real agent, set `LLM_PRIMARY=claude-opus-5-5` and `ANTHROPIC_API_KEY` (or sign in with `ant auth login`). `LLM_FALLBACK` names a second provider, used once when the first one fails.
 
-With PostgreSQL, create the `agent` schema first: `pnpm --filter @selly/db db:migrate`. The agent refuses to start without it.
+With PostgreSQL the agent waits up to 60 seconds for the `agent` schema (core creates it at start with `MIGRATE_ON_START=true`, or run `pnpm --filter @selly/db db:migrate`), then stops with a clear message.
 
-The fake core's vendor session cookie is `selly_session=dev-vendor-session`, for the inbox and the assistant.
+Vendor sessions for the inbox and the assistant come from core's Nostr sign-in; the agent checks the `selly_session` cookie with `POST /internal/v1/sessions/introspect`. Only the fake core (`AGENT_CORE_MODE=fake`, for agent work without core) accepts `selly_session=dev-vendor-session` instead.
 
 ## Endpoints
 
@@ -74,25 +74,28 @@ src/
 
 ## The real core
 
-`src/e2e/real-core.test.ts` runs the agent's HTTP client against core's app (PGlite, simulated wallet) and core's outbox dispatcher against the agent's app. It covers: chat session by slug, search, product detail, negotiated quote (capped at 10 %), order with `discount_pct`, payment settled by core, `order.paid` delivered and shown in the chat, order status, the vendor tools (stock, price, orders, fulfilment, metrics), and the inbox and assistant on a real vendor session (`sessions/introspect`).
+`src/e2e/real-core.test.ts` runs the agent's HTTP client against core's app (`@selly/core/testing`: PGlite, simulated wallet, in-memory storage) and core's outbox dispatcher against the agent's app. Each test has its own shop, so they pass alone and in any order. They cover:
+
+- the customer chat: session by slug, search, product detail, negotiated quote (capped at 10 %), order with `discount_pct`, payment settled by core, `order.paid` delivered and shown in the chat, order status;
+- the vendor tools: stock, price, orders, fulfilment, metrics;
+- the inbox and the assistant on a real vendor session (`sessions/introspect`), and another vendor's session getting 404;
+- a photo in the assistant: upload to `/internal/v1/media`, draft, confirmation, new product in core's catalog;
+- a dashboard draft: `draft.requested` with core's private image links, extraction, draft back in `needs_review`;
+- a customer voice note stored in core, transcribed, and the handoff alert in `vendor_notifications`;
+- another shop's product (404), an invalid or unknown vendor id, and events signed with another secret.
 
 Also checked by hand with real processes on PostgreSQL 18: core's migrations create the `agent` schema, the chat answers from core's demo catalog over SSE, and core delivers signed events to the agent.
 
-Core does not serve these yet; the agent degrades as follows:
-
-| Route                                                                                            | Used for                 | Without it                             |
-| ------------------------------------------------------------------------------------------------ | ------------------------ | -------------------------------------- |
-| `POST /internal/v1/vendors/{id}/product-drafts`, `POST /internal/v1/product-drafts/{id}/confirm` | photo drafts             | the assistant says it cannot do it now |
-| `POST /internal/v1/media`                                                                        | customer voice notes     | the upload fails                       |
-| `POST /internal/v1/vendors/{id}/notifications`                                                   | handoff and quota alerts | logged, the chat goes on               |
+Core serves every internal route the agent uses.
 
 ## Points for Dev 3 (core) to check
 
 1. **Schema `agent`** (`packages/db/src/agent/schema.ts`, migration `0004_agent_schema.sql`, after the core migrations). Three additions to §4.3: `messages.author_label`, `messages.image_keys`, `messages.quick_reply_id`, and a `processed_events` table for core event deduplication. Ids are generated by the application (UUIDv7), like the core schema, so the migration also runs on PGlite.
 2. **Discounts.** `create_order` sends the `discount_pct` of the last `quote_cart`; core caps it again and requires `expected_total` to equal its own total (#2). The fake core does the same.
-3. **Images for extraction.** Image keys must start with `vendors/<vendor id>/` (no `..`, `?` or `#`); the agent refuses any other key. It turns a key into `MEDIA_BASE_URL/<key>` until core provides a presigned read URL.
+3. **Images for extraction.** Image keys must start with `vendors/<vendor id>/` (no `..`, `?` or `#`), as core's uploads do; the agent refuses any other key. For dashboard drafts it uses the private links of `draft.requested` (`image_urls`). For photos sent in the assistant chat it still builds `MEDIA_BASE_URL/<key>`: core could give the agent a read link there too.
 4. **Events.** `checkout_url` from `order.*` events is used only when it is on our own domain under `/c/`; otherwise the agent uses the URL it saved when it created the order.
-5. **Usage.** Customer replies count as `agent_turns`, photo drafts as `drafts`. Vendor assistant messages are not counted as agent turns.
+5. **Alerts.** The `url` of a vendor notification is a dashboard path (`/app/conversations/<id>`), as core requires.
+6. **Usage.** Customer replies count as `agent_turns`, photo drafts as `drafts`. Vendor assistant messages are not counted as agent turns.
 
 ## Points for Dev 1 (web)
 

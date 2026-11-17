@@ -87,6 +87,10 @@ services:
       AGENT_URL: http://agent:4100
       SECRETS_KEK_V1: ${SECRETS_KEK_V1:-}
       SECRETS_PLATFORM_NWC_URI: ${SECRETS_PLATFORM_NWC_URI:-}
+      # Alerts: Web Push (VAPID) and Nostr direct messages. Empty: dashboard only.
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      SECRETS_PLATFORM_NOSTR_KEY: ${SECRETS_PLATFORM_NOSTR_KEY:-}
       # Local stack: apply migrations, load the demo shop (awa-style), simulate Lightning invoices.
       # This stack is local: it runs the production build with the dev secrets above, on purpose.
       ALLOW_DEV_SECRETS: "true"

@@ -56,6 +56,8 @@ const schema = z.object({
   SUBSCRIPTION_JOB_INTERVAL_MS: z.coerce.number().int().min(0).default(300_000),
   RATE_SOURCES: z.string().default('kraken,coinbase'),
   SERVICE_TOKEN_AGENT: z.string().min(8).default(DEV_SERVICE_TOKEN_DEFAULT),
+  // More service tokens with fewer scopes, as JSON (scopes.ts): [{"name":"ops","token":"...","scopes":["orders:read"]}].
+  SERVICE_TOKENS: z.string().default(''),
   // Live streams wake on LISTEN/NOTIFY; this poll is the fallback when that connection is down.
   SSE_POLL_MS: z.coerce.number().int().default(10_000),
   // How often the vendor's live stream checks that its session is still valid.
@@ -65,6 +67,15 @@ const schema = z.object({
   EVENTS_HMAC_SECRET: z.string().min(8).default(DEV_EVENTS_SECRET_DEFAULT),
   // 0 turns the dispatcher off (events stay in the outbox).
   EVENTS_DISPATCH_INTERVAL_MS: z.coerce.number().int().min(0).default(1000),
+  // Web Push (VAPID). Without the keys, alerts stay on the dashboard. The web app needs the public key too.
+  VAPID_PUBLIC_KEY: z.string().default(''),
+  VAPID_PRIVATE_KEY: z.string().default(''),
+  VAPID_SUBJECT: z.string().default('mailto:support@selly.example'),
+  // Nostr direct-message alerts (NIP-17) are sent from this key (64 hex), to these relays.
+  SECRETS_PLATFORM_NOSTR_KEY: z.string().default(''),
+  NOSTR_DM_RELAYS: z.string().default('wss://relay.damus.io,wss://nos.lol,wss://relay.primal.net'),
+  // How often the alert worker runs. 0 turns it off.
+  ALERTS_INTERVAL_MS: z.coerce.number().int().min(0).default(5_000),
   // Migrations ship with the image at /app/migrations (see apps/core/Dockerfile). In a checkout they live in packages/db.
   MIGRATIONS_DIR: z.string().default(path.resolve(process.cwd(), '../../packages/db/migrations')),
   MIGRATE_ON_START: flag,
@@ -94,6 +105,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
         );
       }
     }
+  }
+  if (config.NODE_ENV === 'production' && config.SERVICE_TOKENS.trim()) {
+    const extra = JSON.parse(config.SERVICE_TOKENS) as { name?: string; token?: string }[];
+    const weak = extra.find((t) => (t.token ?? '').length < 32);
+    if (weak)
+      throw new Error(`SERVICE_TOKENS: the "${weak.name}" token must be at least 32 characters.`);
   }
   return config;
 }

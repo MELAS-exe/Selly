@@ -3,5 +3,5 @@
   "compilerOptions": {
     "types": ["node"]
   },
-  "include": ["src", "eval", "tsup.config.ts"]
+  "include": ["src", "eval", "tsup.config.ts", "vitest.config.ts"]
 }

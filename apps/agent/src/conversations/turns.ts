@@ -443,7 +443,8 @@ export class TurnService {
       await this.d.core.notifyVendor(conv.vendorId, {
         ...n,
         conversation_id: conv.id,
-        url: `${this.d.appBaseUrl}/app/conversations/${conv.id}`,
+        // A dashboard path (core accepts /app/... only): the dashboard opens it on its own domain.
+        url: `/app/conversations/${conv.id}`,
       });
     } catch (err) {
       this.d.log.warn({ err, conversationId: conv.id }, 'vendor notification failed');
