@@ -1,0 +1,26 @@
+{
+  "name": "@selly/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Drizzle schemas for the core and agent schemas, migrations and seed data (architecture.md section 4.3)",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.44.0",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@selly/config": "workspace:*",
+    "drizzle-kit": "^0.31.0",
+    "@types/pg": "^8.11.0",
+    "@types/node": "^24"
+  }
+}

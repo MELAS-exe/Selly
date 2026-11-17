@@ -1,0 +1,23 @@
+{
+  "name": "@selly/ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "React components, Tailwind preset and the chat widget",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@selly/config": "workspace:*",
+    "@types/react": "^19",
+    "react": "^19"
+  },
+  "peerDependencies": {
+    "react": "^19"
+  }
+}

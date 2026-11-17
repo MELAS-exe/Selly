@@ -1,0 +1,15 @@
+# Ownership from docs/architecture.md section 12.1.
+# TODO: replace the placeholders with your friends' GitHub handles.
+# Dev 1 = web, Dev 2 = agent, Dev 3 = core and shared packages.
+
+/apps/web/                @MELAS-exe
+/packages/ui/             @MELAS-exe
+/apps/agent/              @MELAS-exe
+/apps/core/               @MELAS-exe
+/packages/db/             @MELAS-exe
+/packages/nwc/            @MELAS-exe
+/packages/nostr/          @MELAS-exe
+/packages/money/          @MELAS-exe
+/packages/contracts/      @MELAS-exe
+/docs/api.json            @MELAS-exe
+/infra/                   @MELAS-exe

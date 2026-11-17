@@ -1,0 +1,26 @@
+{
+  "name": "@selly/agent",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../../.env src/index.ts",
+    "build": "tsup",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@selly/contracts": "workspace:*",
+    "@selly/db": "workspace:*",
+    "@selly/money": "workspace:*",
+    "fastify": "^5.0.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@selly/config": "workspace:*",
+    "@types/node": "^24",
+    "tsup": "^8.0.0",
+    "tsx": "^4.0.0"
+  }
+}

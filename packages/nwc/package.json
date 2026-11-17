@@ -1,0 +1,18 @@
+{
+  "name": "@selly/nwc",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "NWC client wrapper, URI parsing, permission policy and a fake wallet service for tests (architecture.md section 3.6)",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@selly/config": "workspace:*"
+  }
+}
