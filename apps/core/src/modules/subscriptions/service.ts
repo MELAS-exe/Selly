@@ -5,6 +5,7 @@
 import { core } from '@selly/db';
 import { and, eq, ne, sql } from '@selly/db/orm';
 import type { Context, Database } from '../../context';
+import { notifyVendor } from '../events/notifications';
 
 const { subscriptions, plans, usageCounters, products, idempotencyKeys } = core;
 
@@ -147,7 +148,25 @@ export async function reportUsage(
           eq(usageCounters.month, month),
         ),
       );
-    return row?.used ?? 0;
+    const after = row?.used ?? 0;
+    // Tell the vendor once when this report crosses 80 % of the month's quota, and once at 100 %.
+    if (fresh.length > 0 && limit > 0) {
+      const before = after - input.quantity;
+      for (const pct of [80, 100]) {
+        const mark = (limit * pct) / 100;
+        if (before < mark && after >= mark) {
+          await notifyVendor(tx, {
+            vendorId,
+            type: 'usage.warning',
+            data: { metric: input.metric, used: after, limit, percent: pct },
+            now,
+            dedupeKey: `usage:${input.metric}:${month}:${pct}`,
+            dedupeWindowMs: 32 * DAY_MS,
+          });
+        }
+      }
+    }
+    return after;
   });
 
   return {

@@ -44,6 +44,11 @@ These endpoints work, and their responses match `docs/api.json`:
   `/auth/logout`, `/auth/sessions`, `/vendors/me/keys`, step-up. Then `POST /api/v1/vendors`, `GET` and `PATCH /vendors/me`,
   and the wallet: `PUT`, `GET` and `DELETE /vendors/me/wallet`. State-changing requests need `Origin: <APP_BASE_URL>`.
 - For the agent's inbox and assistant: `POST /internal/v1/sessions/introspect`.
+- The dashboard: products (`GET`, `POST /api/v1/inventory`, `PATCH /inventory/{product_id}`), stock
+  (`POST /inventory/variants/{variant_id}/adjustments`), orders (`GET /api/v1/orders`, `/orders/{id}`,
+  `PATCH /orders/{id}/fulfill`, `POST /orders/{id}/cancel`), `GET /vendors/dashboard/metrics`,
+  `POST /vendors/me/push-subscriptions`, and the live stream `GET /vendors/me/events` (SSE).
+- `POST /internal/v1/vendors/{id}/notifications`: the agent alerts the vendor (shown on the live stream).
 - For the agent (service token), every route of group G except drafts, media, notifications and session introspection:
   `GET /internal/v1/stores/{slug}/vendor`, and under `/internal/v1/vendors/{id}/`: `agent-profile`, `entitlements`, `usage`,
   `products/search`, `products/{product_id}` (GET and PATCH), `variants/{variant_id}/adjustments`, `cart-quotes`,
@@ -54,7 +59,7 @@ These endpoints work, and their responses match `docs/api.json`:
 
 A shop is open only with a plan that is trialing, active or in grace. The demo shop has a year of Pro.
 
-By default Lightning is simulated (`INVOICE_PROVIDER=fake`): invoices look real but cannot be paid. Not built yet: the catalog, stock and order routes of the dashboard, photos and drafts, and paying for a subscription; mock them from `docs/api.json`.
+By default Lightning is simulated (`INVOICE_PROVIDER=fake`): invoices look real but cannot be paid. Not built yet: photos and drafts, sending Web Push, and paying for a subscription (a new shop has no plan, so it cannot add products yet); mock them from `docs/api.json`.
 
 ## Taking real payments on a wallet (NWC)
 
@@ -82,6 +87,12 @@ The dashboard links a wallet with `PUT /api/v1/vendors/me/wallet`. This command 
 | Dev 3 | apps/core, packages/db, nwc, nostr, money, contracts, docs/api.json | M0 and M1 (orders, NWC gateway)                      |
 
 Nobody edits another owner's folder without their review (see `.github/CODEOWNERS`).
+
+## Testing against core from another package
+
+Add `"@selly/core": "workspace:*"` to `devDependencies` and import from `@selly/core/testing`: `createTestApp`,
+`createShop`, `createVendorSession` (a session cookie for a vendor), `orderPayload`, `reconcileOnce`, `dispatchOnce`,
+`assertContract` and others. Core then runs in-process on PGlite with a fake wallet and a clock the test controls.
 
 ## Working agreements
 

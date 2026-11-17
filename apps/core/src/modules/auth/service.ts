@@ -4,7 +4,7 @@
 // the wallet or the keys.
 import { randomBytes } from 'node:crypto';
 import { core } from '@selly/db';
-import { and, eq, gt, isNull } from '@selly/db/orm';
+import { and, eq, gt, isNull, lt } from '@selly/db/orm';
 import {
   CHALLENGE_TTL_SECONDS,
   eventTemplate,
@@ -357,4 +357,9 @@ export async function removeKey(ctx: Context, s: Session, pubkey: string) {
       details: { pubkey },
     });
   });
+}
+
+/** Challenges are useless a day after they expire. */
+export async function purgeOldChallenges(db: Database, now: Date) {
+  await db.delete(ch).where(lt(ch.expiresAt, new Date(now.getTime() - 86_400_000)));
 }
