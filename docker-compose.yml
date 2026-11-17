@@ -82,6 +82,8 @@ services:
       SECRETS_KEK_V1: ${SECRETS_KEK_V1:-}
       SECRETS_PLATFORM_NWC_URI: ${SECRETS_PLATFORM_NWC_URI:-}
       # Local stack: apply migrations, load the demo shop (awa-style), simulate Lightning invoices.
+      # This stack is local: it runs the production build with the dev secrets above, on purpose.
+      ALLOW_DEV_SECRETS: "true"
       MIGRATE_ON_START: ${MIGRATE_ON_START:-true}
       SEED_DEMO: ${SEED_DEMO:-true}
       # fake: simulated invoices. nwc: each vendor's own wallet; needs SECRETS_KEK_V1 and a linked wallet.

@@ -310,7 +310,7 @@ export async function createOrder(ctx: Context, input: CreateOrderInput) {
         type: 'order.created',
         vendorId: vendor.id,
         key: o.id,
-        data: await orderEventData(tx, o),
+        data: orderEventData(ctx.config.APP_BASE_URL, o),
         now,
       });
       await audit(tx, { actor: input.actor, action: 'order.created', target: o.id });

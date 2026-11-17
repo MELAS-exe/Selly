@@ -1306,7 +1306,7 @@ Vendor endpoints served by the agent check the session cookie through `POST /int
 | GET    | `/internal/v1/vendors/{id}/products/search`                   | `catalog:read`        | `q`, `size`, `color`, `max_price_xof`, `limit` (at most 5); full text and trigram; returns availability               |
 | GET    | `/internal/v1/products/{id}`                                  | `catalog:read`        | Product detail                                                                                                        |
 | POST   | `/internal/v1/vendors/{id}/cart-quotes`                       | `orders:write`        | Totals for items, delivery zone and a requested discount                                                              |
-| POST   | `/internal/v1/vendors/{id}/orders`                            | `orders:write`        | Create an order for a chat customer (`conversation_ref`)                                                              |
+| POST   | `/internal/v1/vendors/{id}/orders`                            | `orders:write`        | Create an order for a chat customer (`conversation_ref`, and the negotiated `discount_pct`, capped again by core)     |
 | GET    | `/internal/v1/vendors/{id}/orders/{order_ref}`                | `orders:read`         | Status by id or short number, for "où en est ma commande ?"                                                           |
 | GET    | `/internal/v1/vendors/{id}/orders`                            | `orders:read`         | The vendor's "commandes du jour"                                                                                      |
 | POST   | `/internal/v1/vendors/{id}/orders/{order_ref}/fulfill`        | `orders:write`        | The vendor's "A7K2 livrée"                                                                                            |
@@ -1411,7 +1411,7 @@ Request: image keys and text. Response: 202 with a draft in `processing`. When e
 
 **5.3.8 Core → agent events**
 
-Signed, at least once, ordered per key (§7.1). Event types: `order.created`, `order.paid`, `order.expired`, `order.cancelled`, `order.fulfilled`, `draft.requested` (a dashboard upload the agent must extract), `wallet.degraded`, `wallet.restored`, `stock.low`, `entitlements.changed`. The agent ignores an `event_id` it has already seen. The body of each type is in `api.json`.
+Signed, at least once, ordered per key (§7.1). Event types: `order.created`, `order.paid`, `order.expired`, `order.cancelled`, `order.fulfilled`, `draft.requested` (a dashboard upload the agent must extract), `wallet.degraded`, `wallet.restored`, `stock.low`, `entitlements.changed`. The agent ignores an `event_id` it has already seen. Every `order.*` event carries `checkout_url`, so the agent can show the order card again. The body of each type is in `api.json`.
 
 ### 5.4 Contract source of truth
 
@@ -1932,7 +1932,7 @@ Targets for the pilot. Each one has a check.
 
 Environment variables (examples): `DATABASE_URL`, `DATABASE_DIRECT_URL`, `APP_BASE_URL`, `CDN_PURGE_TOKEN`, `S3_ENDPOINT`, `S3_BUCKET_PUBLIC`, `S3_BUCKET_PRIVATE`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `SECRETS_KEK_V1` (32-byte key, base64), `SECRETS_PLATFORM_NWC_URI` (the receive-only platform wallet), `PLATFORM_LUD16` (optional fallback), `SERVICE_TOKEN_AGENT`, `EVENTS_HMAC_SECRET`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (Web Push), `NOSTR_NOTIFIER_NSEC` (optional, for Nostr direct messages to vendors), `NOSTR_NOTIFIER_RELAYS`, `LLM_PRIMARY`, `LLM_FALLBACK`, `LLM_API_KEY_*`, `ASR_PROVIDER`, `ASR_API_KEY`, `PRICE_SOURCES`, `INVOICE_PROVIDER` (`fake` or `nwc`), `LIGHTNING_NETWORK`, `NWC_MIN_INTERVAL_MS`, `NWC_MAKE_INVOICE_TIMEOUT_MS`, `NWC_LOOKUP_TIMEOUT_MS`, `NWC_GET_INFO_TIMEOUT_MS`, `SUBSCRIPTION_GRACE_DAYS` (7), `TRIAL_DAYS` (14).
 
-Secrets come from the host's secret manager. `.env` files are for local development only and are git-ignored. Plan prices and limits are data (`core.plans`), not configuration.
+In production core refuses to start with a missing or dev `SERVICE_TOKEN_AGENT`. The local Docker stack runs the production build with dev values and says so with `ALLOW_DEV_SECRETS=true`; nothing else may set it. Secrets come from the host's secret manager. `.env` files are for local development only and are git-ignored. Plan prices and limits are data (`core.plans`), not configuration.
 
 ### 11.4 Observability
 
