@@ -3,6 +3,7 @@ import { buildApp } from './app';
 import { loadConfig } from './config';
 import { type Context, type Database, silentLogger } from './context';
 import { seedDemo } from './dev/seed';
+import { PgLeader } from './leader';
 import { purgeOldChallenges } from './modules/auth/service';
 import { dispatchOnce } from './modules/events/dispatcher';
 import { purgeOldNotifications } from './modules/events/notifications';
@@ -11,17 +12,19 @@ import { objectStoreFromConfig } from './modules/media/storage';
 import { FakeInvoiceProvider } from './modules/payments/fake';
 import { NwcGateway } from './modules/payments/nwc-gateway';
 import { singleProvider } from './modules/payments/provider';
-import { confirmPayment, reconcileOnce } from './modules/payments/service';
+import { confirmPayment, reconcileLateOnce, reconcileOnce } from './modules/payments/service';
 import { feedsFromConfig } from './modules/rates/feeds';
 import { RateService } from './modules/rates/service';
 import {
   confirmSubscriptionPayment,
+  reconcileLateSubscriptionInvoices,
   reconcileSubscriptionInvoices,
   runSubscriptionJob,
 } from './modules/subscriptions/billing';
 import { PairingWatcher } from './modules/wallet/pairing';
 import { linkWallet, liveWallet } from './modules/wallet/service';
 import { Keyring } from './secrets';
+import { PgSignals, Signals } from './signals';
 
 const WALLET_REFRESH_MS = 60_000;
 
@@ -35,7 +38,7 @@ async function main() {
     );
   }
 
-  const { db: pgDb, close } = createDb(config.DATABASE_URL);
+  const { db: pgDb, pool, close } = createDb(config.DATABASE_URL);
   const db = pgDb as unknown as Database;
   const now = () => new Date();
 
@@ -52,11 +55,15 @@ async function main() {
     rates: new RateService(db, feedsFromConfig(config.RATE_SOURCES), now),
     invoices: singleProvider(new FakeInvoiceProvider(now)),
     media: objectStoreFromConfig(config),
+    signals: new Signals(),
     keyring,
     log: silentLogger,
   };
   const app = buildApp(ctx);
   ctx.log = app.log;
+  const signals = new PgSignals(pool, app.log);
+  ctx.signals = signals;
+  await signals.start();
   if (config.NODE_ENV === 'production' && config.MEDIA_STORE === 'memory')
     app.log.warn(
       'MEDIA_STORE=memory: uploads live in this process and are lost on restart. Use s3.',
@@ -88,9 +95,6 @@ async function main() {
           app.log.error({ err: String(err) }, 'SECRETS_PLATFORM_NWC_URI could not be linked'),
         );
     }
-    await gateway
-      .refresh()
-      .catch((err) => app.log.warn({ err: String(err) }, 'wallet refresh failed'));
     app.log.info({ network: config.LIGHTNING_NETWORK }, 'NWC gateway ready');
   } else {
     app.log.warn(
@@ -100,91 +104,74 @@ async function main() {
 
   // Wallet pairing (nostr+walletauth): needs the key that encrypts the pairing secrets.
   const pairing = keyring ? new PairingWatcher(ctx) : null;
-  const pairingTimer = pairing
-    ? setInterval(() => {
-        pairing
-          .refresh()
-          .catch((err) => app.log.warn({ err: String(err) }, 'pairing refresh failed'));
-      }, 5_000)
-    : null;
+
+  // Background work runs on one process only, the job leader (advisory lock). Wallet notification subscriptions
+  // and the pairing watcher follow the leadership; HTTP requests are served by every process.
+  const leader = new PgLeader(pool, app.log, (leading) => {
+    if (leading) {
+      gateway
+        ?.refresh()
+        .catch((err) => app.log.warn({ err: String(err) }, 'wallet refresh failed'));
+    } else {
+      gateway?.unsubscribeAll();
+      pairing?.close();
+    }
+  });
+  await leader.start();
+
+  const timers: NodeJS.Timeout[] = [];
+  /** Runs `fn` every `ms` on the leader, never twice at once. */
+  const every = (ms: number, name: string, fn: () => Promise<unknown>) => {
+    if (ms <= 0) return;
+    let running = false;
+    timers.push(
+      setInterval(async () => {
+        if (running || !leader.isLeader()) return;
+        running = true;
+        try {
+          await fn();
+        } catch (err) {
+          app.log.error({ err }, `${name} failed`);
+        } finally {
+          running = false;
+        }
+      }, ms),
+    );
+  };
 
   // Reconciler: asks wallets about open invoices and expires unpaid orders (architecture.md 7.3).
-  // pg-boss will replace these timers when more than one instance runs.
-  let running = false;
-  const reconciler = setInterval(async () => {
-    if (running) return;
-    running = true;
-    try {
-      await reconcileOnce(ctx, app.log);
-      await reconcileSubscriptionInvoices(ctx, app.log);
-    } catch (err) {
-      app.log.error({ err }, 'reconciler failed');
-    } finally {
-      running = false;
-    }
-  }, config.RECONCILE_INTERVAL_MS);
+  every(config.RECONCILE_INTERVAL_MS, 'reconciler', async () => {
+    await reconcileOnce(ctx, app.log);
+    await reconcileSubscriptionInvoices(ctx, app.log);
+  });
+  // Invoices paid after they expired (architecture.md 4.4).
+  every(config.LATE_PAYMENT_INTERVAL_MS, 'late payment check', async () => {
+    await reconcileLateOnce(ctx, app.log);
+    await reconcileLateSubscriptionInvoices(ctx, app.log);
+  });
   // Event dispatcher: delivers the outbox to the agent, signed, in order per order.
-  let dispatching = false;
-  const dispatcher =
-    config.EVENTS_DISPATCH_INTERVAL_MS > 0
-      ? setInterval(async () => {
-          if (dispatching) return;
-          dispatching = true;
-          try {
-            await dispatchOnce(ctx, {
-              agentUrl: config.AGENT_URL,
-              secret: config.EVENTS_HMAC_SECRET,
-            });
-          } catch (err) {
-            app.log.error({ err }, 'event dispatch failed');
-          } finally {
-            dispatching = false;
-          }
-        }, config.EVENTS_DISPATCH_INTERVAL_MS)
-      : null;
-  // Subscription status job: grace, suspension, booked plans, reminders.
-  let subscriptionJobRunning = false;
-  const subscriptionJob =
-    config.SUBSCRIPTION_JOB_INTERVAL_MS > 0
-      ? setInterval(async () => {
-          if (subscriptionJobRunning) return;
-          subscriptionJobRunning = true;
-          try {
-            await runSubscriptionJob(ctx);
-            await failStaleDrafts(ctx);
-          } catch (err) {
-            app.log.error({ err }, 'subscription job failed');
-          } finally {
-            subscriptionJobRunning = false;
-          }
-        }, config.SUBSCRIPTION_JOB_INTERVAL_MS)
-      : null;
+  every(config.EVENTS_DISPATCH_INTERVAL_MS, 'event dispatch', () =>
+    dispatchOnce(ctx, { agentUrl: config.AGENT_URL, secret: config.EVENTS_HMAC_SECRET }),
+  );
+  // Subscription status job (grace, suspension, booked plans, reminders) and drafts the agent never answered.
+  every(config.SUBSCRIPTION_JOB_INTERVAL_MS, 'subscription job', async () => {
+    await runSubscriptionJob(ctx);
+    await failStaleDrafts(ctx);
+  });
   // Housekeeping: old dashboard notifications and sign-in challenges.
-  const cleanup = setInterval(async () => {
-    try {
-      await purgeOldNotifications(db, now());
-      await purgeOldChallenges(db, now());
-    } catch (err) {
-      app.log.warn({ err: String(err) }, 'cleanup failed');
-    }
-  }, 3_600_000);
-  const walletRefresh = gateway
-    ? setInterval(() => {
-        gateway
-          ?.refresh()
-          .catch((err) => app.log.warn({ err: String(err) }, 'wallet refresh failed'));
-      }, WALLET_REFRESH_MS)
-    : null;
+  every(3_600_000, 'cleanup', async () => {
+    await purgeOldNotifications(db, now());
+    await purgeOldChallenges(db, now());
+  });
+  if (gateway) every(WALLET_REFRESH_MS, 'wallet refresh', () => (gateway as NwcGateway).refresh());
+  if (pairing) every(5_000, 'pairing refresh', () => pairing.refresh());
 
   const shutdown = async () => {
-    clearInterval(reconciler);
-    clearInterval(cleanup);
-    if (dispatcher) clearInterval(dispatcher);
-    if (subscriptionJob) clearInterval(subscriptionJob);
-    if (walletRefresh) clearInterval(walletRefresh);
-    if (pairingTimer) clearInterval(pairingTimer);
+    for (const t of timers) clearInterval(t);
     pairing?.close();
     gateway?.close();
+    leader.close();
+    signals.close();
     await app.close();
     await close();
     process.exit(0);

@@ -12,10 +12,12 @@ import type { Context } from '../../context';
 import { walletAad } from '../../secrets';
 import { audit, publishEvent } from '../events/outbox';
 import { nwcOptions, requireKeyring } from '../wallet/service';
+import { lnurlInvoice, lnurlVerify } from './lnurl';
 import type {
   InvoiceGateway,
   InvoiceLookup,
   InvoiceProvider,
+  LookupRequest,
   MadeInvoice,
   MakeInvoiceRequest,
 } from './provider';
@@ -70,13 +72,17 @@ export class NwcGateway implements InvoiceGateway {
           .select()
           .from(wc)
           .where(and(eq(wc.owner, 'platform'), ne(wc.status, 'revoked')));
-        if (!row?.uriCiphertext)
+        const lud16 = row?.lud16 || this.deps.config.PLATFORM_LUD16 || null;
+        if (!row?.uriCiphertext) {
+          if (lud16) return this.fromAddress(row?.id ?? null, lud16, req);
           throw new WalletUnavailableError(
             'No platform wallet is linked (cli wallet:link --platform).',
           );
-        return this.made(row, req);
+        }
+        return this.made(row, req, lud16);
       },
       lookupInvoice: async (req) => {
+        if (req.verifyUrl) return this.verify(req.verifyUrl, req.paymentHash);
         if (!req.walletConnectionId) return { settled: false };
         const [row] = await this.deps.db.select().from(wc).where(eq(wc.id, req.walletConnectionId));
         if (!row || row.owner !== 'platform')
@@ -92,36 +98,79 @@ export class NwcGateway implements InvoiceGateway {
       .from(wc)
       .where(and(eq(wc.owner, 'vendor'), eq(wc.vendorId, req.vendorId), ne(wc.status, 'revoked')));
     if (!row?.uriCiphertext) throw new WalletUnavailableError('This vendor has no linked wallet.');
-    return this.made(row, req);
+    return this.made(row, req, row.lud16);
   }
 
-  private async made(row: Row, req: MakeInvoiceRequest): Promise<MadeInvoice> {
-    const made = await this.call(row, (c) =>
-      c.makeInvoice({
-        amountMsat: req.amountMsat,
-        description: req.description,
-        expirySeconds: req.expirySeconds,
-      }),
+  /**
+   * NWC first. When the wallet fails (timeout, error, breaker open) and it has a Lightning Address, the invoice
+   * comes from the address instead (LUD-16 with LUD-21 verify). The NWC error is the one reported if both fail.
+   */
+  private async made(
+    row: Row,
+    req: MakeInvoiceRequest,
+    lud16: string | null,
+  ): Promise<MadeInvoice> {
+    try {
+      const made = await this.call(row, (c) =>
+        c.makeInvoice({
+          amountMsat: req.amountMsat,
+          description: req.description,
+          expirySeconds: req.expirySeconds,
+        }),
+      );
+      return {
+        source: 'nwc',
+        walletConnectionId: row.id,
+        bolt11: made.bolt11,
+        paymentHash: made.paymentHash,
+        amountMsat: made.amountMsat,
+        expiresAt: made.expiresAt,
+      };
+    } catch (err) {
+      if (!lud16) throw err;
+      try {
+        return await this.fromAddress(row.id, lud16, req);
+      } catch (fallbackErr) {
+        this.deps.log.warn(
+          { walletConnectionId: row.id, err: String(fallbackErr) },
+          'Lightning Address fallback failed',
+        );
+        throw err;
+      }
+    }
+  }
+
+  private async fromAddress(
+    walletConnectionId: string | null,
+    lud16: string,
+    req: MakeInvoiceRequest,
+  ): Promise<MadeInvoice> {
+    const made = await lnurlInvoice(
+      lud16,
+      { amountMsat: req.amountMsat, expirySeconds: req.expirySeconds, comment: req.description },
+      {
+        network: this.deps.config.LIGHTNING_NETWORK,
+        allowInsecure: this.deps.config.LNURL_ALLOW_INSECURE,
+        now: this.deps.now,
+      },
     );
-    return {
-      source: 'nwc',
-      walletConnectionId: row.id,
-      bolt11: made.bolt11,
-      paymentHash: made.paymentHash,
-      amountMsat: made.amountMsat,
-      expiresAt: made.expiresAt,
-    };
+    this.deps.log.info({ walletConnectionId }, 'invoice made through the Lightning Address');
+    return { ...made, walletConnectionId };
   }
 
-  async lookupInvoice(req: {
-    vendorId: string;
-    walletConnectionId: string | null;
-    paymentHash: string;
-  }): Promise<InvoiceLookup> {
-    if (!req.walletConnectionId) return { settled: false };
+  private verify(verifyUrl: string, paymentHash: string) {
+    return lnurlVerify(verifyUrl, paymentHash, {
+      allowInsecure: this.deps.config.LNURL_ALLOW_INSECURE,
+    });
+  }
+
+  async lookupInvoice(req: LookupRequest): Promise<InvoiceLookup> {
+    if (!req.walletConnectionId)
+      return req.verifyUrl ? this.verify(req.verifyUrl, req.paymentHash) : { settled: false };
     const [row] = await this.deps.db.select().from(wc).where(eq(wc.id, req.walletConnectionId));
     if (!row || row.vendorId !== req.vendorId)
       throw new Error('wallet connection does not belong to this vendor');
+    if (req.verifyUrl) return this.verify(req.verifyUrl, req.paymentHash);
     return this.lookupOn(row, req.paymentHash);
   }
 
@@ -133,7 +182,6 @@ export class NwcGateway implements InvoiceGateway {
       ? { settled: true, ...(state.preimage ? { preimage: state.preimage } : {}) }
       : { settled: false };
   }
-
   /**
    * Subscribe to payment notifications of every live wallet that offers them (vendors' and the platform's), and drop
    * wallets that were unlinked. Called at start and then every minute, so a wallet linked from the CLI is picked up
@@ -174,9 +222,14 @@ export class NwcGateway implements InvoiceGateway {
     }
   }
 
-  close() {
+  /** Stops listening for payments (this process is no longer the job leader). Invoices still work. */
+  unsubscribeAll() {
     for (const unsub of this.subscriptions.values()) unsub();
     this.subscriptions.clear();
+  }
+
+  close() {
+    this.unsubscribeAll();
     for (const c of this.clients.values()) c.conn.close();
     this.clients.clear();
   }

@@ -5,7 +5,7 @@
 // (next_plan_id at next_plan_at): the plan bought during the trial, or a lower plan bought in the last 7 days.
 // While a plan is booked, only that plan can be bought again; other changes wait until it starts.
 import { core } from '@selly/db';
-import { and, desc, eq, inArray, isNotNull, lt, or } from '@selly/db/orm';
+import { and, desc, eq, gt, inArray, isNotNull, lt, or } from '@selly/db/orm';
 import { satToXofIndicative } from '@selly/money';
 import type { Context, Database } from '../../context';
 import { AppError } from '../../errors';
@@ -670,6 +670,7 @@ export async function confirmSubscriptionPayment(
     vendorId: inv.vendorId,
     walletConnectionId: inv.walletConnectionId,
     paymentHash: inv.paymentHash,
+    verifyUrl: inv.verifyUrl,
   });
   if (!state.settled) return 'pending';
   return settleSubscriptionInvoice(ctx, { invoiceId: inv.id, preimage: state.preimage });
@@ -678,8 +679,40 @@ export async function confirmSubscriptionPayment(
 /**
  * One pass over open subscription invoices: settle the paid ones, expire the others past their deadline after one
  * last look. A wallet that cannot be asked keeps its invoices open 30 more minutes.
- * Not covered yet: polling expired invoices for late payments (a notification still settles them).
  */
+/** Subscription invoices that expired in the last 24 hours: a late payment still buys its months. */
+export async function reconcileLateSubscriptionInvoices(
+  ctx: Context,
+  log?: { warn: (o: object, m: string) => void },
+) {
+  const now = ctx.now();
+  const stale = await ctx.db
+    .select()
+    .from(si)
+    .where(and(eq(si.status, 'expired'), gt(si.expiresAt, new Date(now.getTime() - DAY_MS))))
+    .limit(500);
+  let settled = 0;
+  for (const inv of stale) {
+    try {
+      const found = await ctx.invoices.forPlatform().lookupInvoice({
+        vendorId: inv.vendorId,
+        walletConnectionId: inv.walletConnectionId,
+        paymentHash: inv.paymentHash,
+        verifyUrl: inv.verifyUrl,
+      });
+      if (
+        found.settled &&
+        (await settleSubscriptionInvoice(ctx, { invoiceId: inv.id, preimage: found.preimage })) ===
+          'settled'
+      )
+        settled++;
+    } catch (err) {
+      log?.warn({ err: String(err), invoice: inv.id }, 'late subscription lookup failed');
+    }
+  }
+  return { checked: stale.length, settled };
+}
+
 export async function reconcileSubscriptionInvoices(
   ctx: Context,
   log?: { warn: (o: object, m: string) => void },
@@ -695,6 +728,7 @@ export async function reconcileSubscriptionInvoices(
         vendorId: inv.vendorId,
         walletConnectionId: inv.walletConnectionId,
         paymentHash: inv.paymentHash,
+        verifyUrl: inv.verifyUrl,
       });
       if (found.settled) {
         if (

@@ -2,7 +2,7 @@
 // Paid means the wallet that received the money confirmed it with lookup_invoice (ADR-06). Subscription
 // invoices will follow the same path once the subscriptions module is built.
 import { core } from '@selly/db';
-import { and, eq, lte, ne } from '@selly/db/orm';
+import { and, eq, gt, inArray, lte, ne } from '@selly/db/orm';
 import type { Context, Database } from '../../context';
 import { sha256Hex } from '../../util';
 import { audit, publishEvent } from '../events/outbox';
@@ -161,6 +161,7 @@ export async function confirmPayment(
     vendorId: n.vendorId,
     walletConnectionId: n.walletConnectionId,
     paymentHash: n.paymentHash,
+    verifyUrl: inv.verifyUrl,
   });
   if (!state.settled) return 'pending';
   return settleInvoice(ctx, {
@@ -178,7 +179,6 @@ const UNREACHABLE_WALLET_GRACE_MS = 30 * 60_000;
  * ones, then expires orders past their deadline after one last look. Notifications only make this faster.
  * An order whose wallet cannot be asked waits up to 30 more minutes: a payment that comes later is still recorded
  * as a late payment (architecture.md section 4.4).
- * Not yet covered: polling already-expired invoices for late payments.
  */
 export async function reconcileOnce(ctx: Context, log?: { warn: (o: object, m: string) => void }) {
   const now = ctx.now();
@@ -196,6 +196,7 @@ export async function reconcileOnce(ctx: Context, log?: { warn: (o: object, m: s
         vendorId: invoice.vendorId,
         walletConnectionId: invoice.walletConnectionId,
         paymentHash: invoice.paymentHash,
+        verifyUrl: invoice.verifyUrl,
       });
       if (found.settled) {
         await settleInvoice(ctx, {
@@ -222,4 +223,53 @@ export async function reconcileOnce(ctx: Context, log?: { warn: (o: object, m: s
   }
 
   return { checked: open.length, expired };
+}
+
+/** How long after its expiry an invoice is still looked up: payers sometimes pay a stale invoice. */
+export const LATE_PAYMENT_WINDOW_MS = 24 * 60 * 60_000;
+
+/**
+ * Looks up invoices that expired or were cancelled in the last 24 hours (architecture.md section 4.4). A regular
+ * Lightning invoice cannot be withdrawn, so one paid late is still recorded: the order becomes paid if stock allows,
+ * or is flagged for a refund. Runs every few minutes on the job leader; wallet notifications catch most of these
+ * sooner.
+ */
+export async function reconcileLateOnce(
+  ctx: Context,
+  log?: { warn: (o: object, m: string) => void },
+) {
+  const now = ctx.now();
+  const stale = await ctx.db
+    .select()
+    .from(invoices)
+    .where(
+      and(
+        inArray(invoices.status, ['expired', 'cancelled']),
+        gt(invoices.expiresAt, new Date(now.getTime() - LATE_PAYMENT_WINDOW_MS)),
+      ),
+    )
+    .limit(500);
+  let settled = 0;
+  for (const inv of stale) {
+    try {
+      const found = await ctx.invoices.forVendor(inv.vendorId).lookupInvoice({
+        vendorId: inv.vendorId,
+        walletConnectionId: inv.walletConnectionId,
+        paymentHash: inv.paymentHash,
+        verifyUrl: inv.verifyUrl,
+      });
+      if (
+        found.settled &&
+        (await settleInvoice(ctx, {
+          vendorId: inv.vendorId,
+          paymentHash: inv.paymentHash,
+          preimage: found.preimage,
+        })) === 'settled'
+      )
+        settled++;
+    } catch (err) {
+      log?.warn({ err: String(err), invoice: inv.id }, 'late lookup_invoice failed');
+    }
+  }
+  return { checked: stale.length, settled };
 }

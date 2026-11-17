@@ -23,14 +23,20 @@ export interface InvoiceLookup {
   preimage?: string;
 }
 
+export interface LookupRequest {
+  vendorId: string;
+  walletConnectionId: string | null;
+  paymentHash: string;
+  verifyUrl?: string | null;
+}
+
 export interface InvoiceProvider {
   makeInvoice(req: MakeInvoiceRequest): Promise<MadeInvoice>;
-  /** walletConnectionId is the connection that made the invoice (null for the fake provider). */
-  lookupInvoice(req: {
-    vendorId: string;
-    walletConnectionId: string | null;
-    paymentHash: string;
-  }): Promise<InvoiceLookup>;
+  /**
+   * walletConnectionId is the connection that made the invoice (null for the fake provider). verifyUrl is set for
+   * an invoice from the Lightning Address fallback: settlement is checked there (LUD-21).
+   */
+  lookupInvoice(req: LookupRequest): Promise<InvoiceLookup>;
 }
 
 /**

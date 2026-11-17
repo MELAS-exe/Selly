@@ -5,6 +5,7 @@ import type { ObjectStore } from './modules/media/storage';
 import type { InvoiceGateway } from './modules/payments/provider';
 import type { RateService } from './modules/rates/service';
 import type { Keyring } from './secrets';
+import type { Signals } from './signals';
 
 type Schema = { [K in keyof typeof core]: (typeof core)[K] };
 
@@ -19,6 +20,8 @@ export interface Context {
   invoices: InvoiceGateway;
   /** Images and voice notes (S3-compatible storage, or memory in tests). */
   media: ObjectStore;
+  /** Wake-ups for live streams (LISTEN/NOTIFY). */
+  signals: Signals;
   /** Null when no SECRETS_KEK_V<n> is set: wallets cannot be linked or used. */
   keyring: Keyring | null;
   log: Logger;
