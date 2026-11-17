@@ -13,7 +13,12 @@ let cookie = '';
 async function call(method, path, body, extra = {}) {
   const res = await fetch(base + path, {
     method,
-    headers: { 'content-type': 'application/json', origin, ...(cookie ? { cookie } : {}), ...extra },
+    headers: {
+      'content-type': 'application/json',
+      origin,
+      ...(cookie ? { cookie } : {}),
+      ...extra,
+    },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
   const set = res.headers.get('set-cookie');
@@ -23,21 +28,34 @@ async function call(method, path, body, extra = {}) {
 }
 
 const c = await call('POST', '/api/v1/auth/nostr/challenges', { purpose: 'sign_in' });
-await call('POST', '/api/v1/auth/nostr/sessions', { challenge_id: c.body.challenge_id, event: finalizeEvent(c.body.event_template, sk) });
-const v = await call('POST', '/api/v1/vendors', { display_name: 'Smoke Dash', slug: `dash-${getPublicKey(sk).slice(0, 8)}` });
+await call('POST', '/api/v1/auth/nostr/sessions', {
+  challenge_id: c.body.challenge_id,
+  event: finalizeEvent(c.body.event_template, sk),
+});
+const v = await call('POST', '/api/v1/vendors', {
+  display_name: 'Smoke Dash',
+  slug: `dash-${getPublicKey(sk).slice(0, 8)}`,
+});
 console.log('shop', v.status, v.body.live_blockers);
 
 const p = await call(
   'POST',
   '/api/v1/inventory',
-  { title: 'Pagne tissé', price: { amount: 9000, currency: 'XOF' }, variants: [{ options: {}, on_hand: 3 }] },
+  {
+    title: 'Pagne tissé',
+    price: { amount: 9000, currency: 'XOF' },
+    variants: [{ options: {}, on_hand: 3 }],
+  },
   { 'idempotency-key': crypto.randomUUID() },
 );
 console.log('create product without a plan', p.status, p.body.code, '-', p.body.detail);
 
 // Live stream on the new shop, fed by an agent notification.
 const ctrl = new AbortController();
-const res = await fetch(`${base}/api/v1/vendors/me/events`, { headers: { cookie }, signal: ctrl.signal });
+const res = await fetch(`${base}/api/v1/vendors/me/events`, {
+  headers: { cookie },
+  signal: ctrl.signal,
+});
 console.log('stream', res.status, res.headers.get('content-type'));
 const reader = res.body.getReader();
 const dec = new TextDecoder();
@@ -51,13 +69,30 @@ const read = (async () => {
     }
   } catch {}
 })();
-const n = await call('POST', `/internal/v1/vendors/${v.body.id}/notifications`, { type: 'conversation.handoff', conversation_id: crypto.randomUUID(), title: 'Fatou veut vous parler' }, { authorization: `Bearer ${token}` });
+const n = await call(
+  'POST',
+  `/internal/v1/vendors/${v.body.id}/notifications`,
+  {
+    type: 'conversation.handoff',
+    conversation_id: crypto.randomUUID(),
+    title: 'Fatou veut vous parler',
+  },
+  { authorization: `Bearer ${token}` },
+);
 console.log('agent notification', n.status);
-for (let i = 0; i < 40 && !text.includes('conversation.handoff'); i++) await new Promise((r) => setTimeout(r, 100));
+for (let i = 0; i < 40 && !text.includes('conversation.handoff'); i++)
+  await new Promise((r) => setTimeout(r, 100));
 console.log('stream received:', (text.match(/event: \S+/g) ?? []).join(', ') || 'nothing');
 ctrl.abort();
 await read;
 
 const orders = await call('GET', '/api/v1/orders');
 const metrics = await call('GET', '/api/v1/vendors/dashboard/metrics?period=7d');
-console.log('orders', orders.status, orders.body.data.length, '| metrics', metrics.status, metrics.body.orders);
+console.log(
+  'orders',
+  orders.status,
+  orders.body.data.length,
+  '| metrics',
+  metrics.status,
+  metrics.body.orders,
+);
