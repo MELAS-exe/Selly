@@ -2,6 +2,7 @@
 // Owned by Dev 2 (apps/agent), reviewed by Dev 3. The agent never reads or writes the core schema.
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   check,
   customType,
   index,
@@ -128,4 +129,13 @@ export const processedEvents = agentSchema.table('processed_events', {
   eventId: uuid('event_id').primaryKey(),
   type: text('type').notNull(),
   receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Per-vendor agent switches that must survive a restart and be shared by every agent instance. */
+export const vendorSettings = agentSchema.table('vendor_settings', {
+  vendorId: uuid('vendor_id').primaryKey(),
+  // "Pause all chats" from the vendor assistant: paused when set; null `bot_paused_until` means until resumed.
+  botPaused: boolean('bot_paused').notNull().default(false),
+  botPausedUntil: timestamp('bot_paused_until', { withTimezone: true }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

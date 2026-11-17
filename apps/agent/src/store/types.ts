@@ -32,6 +32,8 @@ export interface ConversationState {
   orders?: Record<string, string>;
   /** Vendor assistant: draft under review. */
   draftId?: string;
+  /** Vendor assistant: the last risky change, undoable with the « Annuler » button for 5 minutes. */
+  undo?: UndoAction & { id: string; expiresAt: string };
   /** Vendor assistant: answers to the draft's questions, sent on confirmation. */
   draftAnswers?: Record<string, string>;
   /** Count of turns since the summary was refreshed. */
@@ -203,6 +205,21 @@ export interface AgentStore {
 
   recordLlmCall(c: LlmCallRecord): Promise<void>;
   hasProcessedEvent(eventId: string): Promise<boolean>;
+
+  /** "Pause all chats": null when the bot answers; `until` null means until the vendor resumes it. */
+  getVendorPause(vendorId: string): Promise<{ until: Date | null } | null>;
+  setVendorPause(vendorId: string, paused: boolean, until: Date | null): Promise<void>;
+
+  /**
+   * Runs `fn` while holding a lock on the conversation, so two agent instances never run a turn of
+   * the same conversation at once. The memory store needs none: one process serialises its turns.
+   */
+  withConversationLock<T>(conversationId: string, fn: () => Promise<T>): Promise<T>;
   /** Returns true the first time an event id is seen. */
   markEventProcessed(eventId: string, type: string): Promise<boolean>;
 }
+
+/** A change the vendor can undo (section 8.4): a large price change, or a stock set to 0. */
+export type UndoAction =
+  | { kind: 'price'; productId: string; title: string; previous: { amount: number; currency: 'XOF' | 'SAT' } }
+  | { kind: 'stock'; productId: string; variantId: string; title: string; previousOnHand: number };

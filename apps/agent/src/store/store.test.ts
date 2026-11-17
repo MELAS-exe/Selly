@@ -240,6 +240,24 @@ describe.each(stores)('%s store', (_name, make) => {
     void old;
   });
 
+  it('stores the vendor pause, with or without an end', async () => {
+    const store = make();
+    const v = vendorId();
+    expect(await store.getVendorPause(v)).toBeNull();
+    const until = new Date(Date.now() + 60_000);
+    await store.setVendorPause(v, true, until);
+    expect((await store.getVendorPause(v))?.until?.getTime()).toBe(until.getTime());
+    await store.setVendorPause(v, true, null);
+    expect(await store.getVendorPause(v)).toEqual({ until: null });
+    await store.setVendorPause(v, false, null);
+    expect(await store.getVendorPause(v)).toBeNull();
+  });
+
+  it('runs a function under the conversation lock and returns its result', async () => {
+    const store = make();
+    expect(await store.withConversationLock(randomUUID(), async () => 42)).toBe(42);
+  });
+
   it('remembers processed core events', async () => {
     const store = make();
     const id = randomUUID();

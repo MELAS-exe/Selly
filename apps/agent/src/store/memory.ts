@@ -184,6 +184,21 @@ export class MemoryStore implements AgentStore {
     this.llmCalls.push(c);
   }
 
+  readonly pauses = new Map<string, Date | null>();
+
+  async getVendorPause(vendorId: string) {
+    return this.pauses.has(vendorId) ? { until: this.pauses.get(vendorId) ?? null } : null;
+  }
+
+  async setVendorPause(vendorId: string, paused: boolean, until: Date | null) {
+    if (paused) this.pauses.set(vendorId, until);
+    else this.pauses.delete(vendorId);
+  }
+
+  withConversationLock<T>(_conversationId: string, fn: () => Promise<T>) {
+    return fn();
+  }
+
   async hasProcessedEvent(eventId: string) {
     return this.events.has(eventId);
   }

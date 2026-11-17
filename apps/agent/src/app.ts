@@ -1,14 +1,15 @@
 import { ERROR_CODES, type ErrorCode } from '@selly/contracts';
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
-import { type AsrProvider, AudioUploads, NoAsr } from './asr';
+import { type AsrProvider, AudioUploads, asrFromEnv } from './asr';
 import { registerAssistantRoutes } from './chat/assistant';
 import { VendorAuth } from './chat/auth';
+import { PgBus } from './chat/bus';
 import { EventHub } from './chat/hub';
 import { registerInboxRoutes } from './chat/inbox';
 import { registerInternalRoutes } from './chat/internal';
 import { registerChatRoutes } from './chat/routes';
 import { type AgentConfig, loadConfig } from './config';
-import { ConversationService } from './conversations';
+import { ConversationService, toChatMessage } from './conversations';
 import { TurnService } from './conversations/turns';
 import { type CoreClient, HttpCoreClient } from './core/client';
 import { FakeCore } from './core/fake';
@@ -67,7 +68,11 @@ export interface BuildOptions {
 export function providerFor(name: string): LlmProvider {
   if (name === 'scripted') return new ScriptedProvider();
   if (name === 'demo') return new DemoProvider();
-  if (name.startsWith('claude-')) return new ClaudeProvider({ model: name });
+  if (name.startsWith('claude-'))
+    return new ClaudeProvider({
+      model: name,
+      effort: (process.env.LLM_EFFORT as 'low' | 'medium' | 'high' | undefined) || 'low',
+    });
   throw new Error(`Unknown LLM provider "${name}". Use scripted, demo or a Claude model id.`);
 }
 
@@ -152,7 +157,7 @@ export function buildApp(opts: BuildOptions = {}): FastifyInstance & { services:
     entitlements,
     usage,
     profiles,
-    asr: opts.asr ?? new NoAsr(),
+    asr: opts.asr ?? asrFromEnv(),
     uploads,
     turnLimiter: new RateLimiter(30, 60 * 60_000),
     mergeWindowMs: config.mergeWindowMs,
@@ -228,9 +233,22 @@ export function buildApp(opts: BuildOptions = {}): FastifyInstance & { services:
   }, 10 * 60_000);
   housekeeping.unref();
 
+  // With PostgreSQL, chat events fan out to every agent instance (LISTEN/NOTIFY).
+  const bus = store instanceof PostgresStore && store.pool ? new PgBus(store.pool, app.log) : null;
+  if (bus) {
+    app.addHook('onReady', async () => {
+      await hub.attachBus(bus, async (conversationId, messageId) => {
+        const recent = await store.recentMessages(conversationId, 50);
+        const m = recent.find((x) => x.id === messageId);
+        return m ? toChatMessage(m) : null;
+      });
+    });
+  }
+
   app.addHook('onClose', async () => {
     clearInterval(housekeeping);
     await turns.idle();
+    await bus?.close();
     if (store instanceof PostgresStore) await store.close();
   });
 
