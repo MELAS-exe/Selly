@@ -1,6 +1,7 @@
 import { core } from '@selly/db';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { loadConfig } from './config';
 import { reconcileOnce, settleInvoice } from './modules/payments/service';
 import { RateService } from './modules/rates/service';
 import {
@@ -481,6 +482,118 @@ describe('internal API (agent)', () => {
     expect(res.statusCode).toBe(201);
     expect(res.json()).toMatchObject({ total: { amount: 16000 }, total_sat: 27103 });
     const [row] = await t.db.select().from(core.orders).where(eq(core.orders.vendorId, s.vendorId));
-    expect(row!.conversationRef).toBe(conv);
+    expect(row?.conversationRef).toBe(conv);
+  });
+
+  it('keeps a negotiated discount when the agent creates the order', async () => {
+    const s = await createShop(t.db, 'boutique-r', { negotiate: true });
+    const headers = { authorization: `Bearer ${SERVICE_TOKEN}` };
+    const base = {
+      conversation_ref: '0193a8f4-6f7a-7b8c-9d0e-1f2a3b4c5d70',
+      customer: { display_name: 'Fatou', phone_e164: '+221771234567' },
+      items: [{ variant_id: s.variantId, quantity: 1 }],
+      delivery: { method: 'pickup' },
+    };
+    const url = `/internal/v1/vendors/${s.vendorId}/orders`;
+
+    // The customer asked for 15 %; the vendor allows 10 %: 15,000 - 1,500 = 13,500, pickup is free.
+    const quote = (
+      await post(
+        `/internal/v1/vendors/${s.vendorId}/cart-quotes`,
+        { items: base.items, delivery: base.delivery, discount_pct: 15 },
+        headers,
+      )
+    ).json();
+    expect(quote.total).toEqual({ amount: 13500, currency: 'XOF' });
+
+    const res = await post(
+      url,
+      { ...base, discount_pct: 15, expected_total: quote.total },
+      { ...headers, 'idempotency-key': idemKey() },
+    );
+    expect(res.statusCode, res.body).toBe(201);
+    expect(res.json().total).toEqual({ amount: 13500, currency: 'XOF' });
+    const [row] = await t.db.select().from(core.orders).where(eq(core.orders.vendorId, s.vendorId));
+    expect(row).toMatchObject({ subtotalXof: 15000, discountXof: 1500, totalXof: 13500 });
+
+    // Without discount_pct the discounted total is refused: core never takes a price from the agent.
+    const noDiscount = await post(
+      url,
+      { ...base, expected_total: quote.total },
+      { ...headers, 'idempotency-key': idemKey() },
+    );
+    expect(noDiscount.json()).toMatchObject({ code: 'PRICE_CHANGED' });
+  });
+
+  it('gives no discount in a fixed-price shop, whatever the agent sends', async () => {
+    const s = await createShop(t.db, 'boutique-s');
+    const res = await post(
+      `/internal/v1/vendors/${s.vendorId}/orders`,
+      {
+        conversation_ref: '0193a8f4-6f7a-7b8c-9d0e-1f2a3b4c5d71',
+        customer: { display_name: 'Fatou', phone_e164: '+221771234567' },
+        items: [{ variant_id: s.variantId, quantity: 1 }],
+        delivery: { method: 'pickup' },
+        discount_pct: 50,
+        expected_total: { amount: 7500, currency: 'XOF' },
+      },
+      { authorization: `Bearer ${SERVICE_TOKEN}`, 'idempotency-key': idemKey() },
+    );
+    expect(res.json()).toMatchObject({
+      code: 'PRICE_CHANGED',
+      errors: [{ actual: { amount: 15000 } }],
+    });
+  });
+
+  it('puts the checkout URL in order events', async () => {
+    const s = await createShop(t.db, 'boutique-t');
+    const o = (
+      await post('/api/v1/orders', orderPayload('boutique-t', s.variantId), {
+        'idempotency-key': idemKey(),
+      })
+    ).json();
+    t.clock.advance(23 * 60_000);
+    await reconcileOnce(t.ctx);
+    const events = (await t.db.select().from(core.outbox)).filter(
+      (e) => (e.payload as { data: { order_id?: string } }).data.order_id === o.order.id,
+    );
+    expect(events.map((e) => e.topic).sort()).toEqual(['order.created', 'order.expired']);
+    for (const e of events)
+      expect((e.payload as { data: { checkout_url: string } }).data.checkout_url).toBe(
+        o.checkout_url,
+      );
+  });
+});
+
+describe('config', () => {
+  it('refuses the dev service token in production, unless the local stack says so', () => {
+    expect(() => loadConfig({ NODE_ENV: 'production' } as NodeJS.ProcessEnv)).toThrow(
+      /SERVICE_TOKEN_AGENT/,
+    );
+    expect(() =>
+      loadConfig({
+        NODE_ENV: 'production',
+        SERVICE_TOKEN_AGENT: 'dev-agent-token',
+      } as NodeJS.ProcessEnv),
+    ).toThrow(/SERVICE_TOKEN_AGENT/);
+    expect(() =>
+      loadConfig({
+        NODE_ENV: 'production',
+        SERVICE_TOKEN_AGENT: 'short-token-123',
+      } as NodeJS.ProcessEnv),
+    ).toThrow(/32 characters/);
+    expect(
+      loadConfig({ NODE_ENV: 'production', ALLOW_DEV_SECRETS: 'true' } as NodeJS.ProcessEnv)
+        .SERVICE_TOKEN_AGENT,
+    ).toBe('dev-agent-token');
+    expect(
+      loadConfig({
+        NODE_ENV: 'production',
+        SERVICE_TOKEN_AGENT: 'x'.repeat(40),
+      } as NodeJS.ProcessEnv).NODE_ENV,
+    ).toBe('production');
+    expect(loadConfig({ NODE_ENV: 'development' } as NodeJS.ProcessEnv).SERVICE_TOKEN_AGENT).toBe(
+      'dev-agent-token',
+    );
   });
 });

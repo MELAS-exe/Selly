@@ -12,7 +12,8 @@ const { invoices, orders, orderItems } = core;
 
 export type SettleResult = 'settled' | 'duplicate' | 'unknown';
 
-export async function orderEventData(tx: Database, order: typeof orders.$inferSelect) {
+/** The data of every order.* event. checkout_url lets the agent show the order card again. */
+export function orderEventData(appBaseUrl: string, order: typeof orders.$inferSelect) {
   return {
     order_id: order.id,
     number: order.number,
@@ -20,6 +21,7 @@ export async function orderEventData(tx: Database, order: typeof orders.$inferSe
     conversation_ref: order.conversationRef,
     total: { amount: order.totalXof, currency: order.pricingCurrency },
     total_sat: order.totalMsat / 1000,
+    checkout_url: `${appBaseUrl}/c/${order.publicToken}`,
   };
 }
 
@@ -100,7 +102,7 @@ export async function settleInvoice(
         type: 'order.paid',
         vendorId: order.vendorId,
         key: order.id,
-        data: await orderEventData(tx, order),
+        data: orderEventData(ctx.config.APP_BASE_URL, order),
         now,
       });
     }
@@ -128,12 +130,7 @@ export async function expireOrder(ctx: Context, orderId: string): Promise<boolea
       type: 'order.expired',
       vendorId: order.vendorId,
       key: order.id,
-      data: {
-        order_id: order.id,
-        number: order.number,
-        channel: order.channel,
-        conversation_ref: order.conversationRef,
-      },
+      data: orderEventData(ctx.config.APP_BASE_URL, order),
       now,
     });
     return true;

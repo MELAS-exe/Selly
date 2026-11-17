@@ -1,6 +1,8 @@
 import path from 'node:path';
 import { z } from 'zod';
 
+const DEV_SERVICE_TOKEN_DEFAULT = 'dev-agent-token';
+
 const flag = z
   .enum(['true', 'false'])
   .default('false')
@@ -25,7 +27,7 @@ const schema = z.object({
   NWC_GET_INFO_TIMEOUT_MS: z.coerce.number().int().default(8_000),
   RECONCILE_INTERVAL_MS: z.coerce.number().int().default(5000),
   RATE_SOURCES: z.string().default('kraken,coinbase'),
-  SERVICE_TOKEN_AGENT: z.string().min(8).default('dev-agent-token'),
+  SERVICE_TOKEN_AGENT: z.string().min(8).default(DEV_SERVICE_TOKEN_DEFAULT),
   SSE_POLL_MS: z.coerce.number().int().default(2000),
   // Migrations ship with the image at /app/migrations (see apps/core/Dockerfile). In a checkout they live in packages/db.
   MIGRATIONS_DIR: z.string().default(path.resolve(process.cwd(), '../../packages/db/migrations')),
@@ -35,6 +37,23 @@ const schema = z.object({
 
 export type Config = z.infer<typeof schema>;
 
+export const DEV_SERVICE_TOKEN = DEV_SERVICE_TOKEN_DEFAULT;
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
-  return schema.parse(env);
+  const config = schema.parse(env);
+  // A production process must not run on the dev token that ships in this repository. The local Docker stack runs
+  // NODE_ENV=production with dev values on purpose, and says so with ALLOW_DEV_SECRETS=true.
+  if (config.NODE_ENV === 'production' && env.ALLOW_DEV_SECRETS !== 'true') {
+    if (
+      !env.SERVICE_TOKEN_AGENT ||
+      config.SERVICE_TOKEN_AGENT === DEV_SERVICE_TOKEN ||
+      config.SERVICE_TOKEN_AGENT.length < 32
+    ) {
+      throw new Error(
+        'SERVICE_TOKEN_AGENT must be set to a random value of at least 32 characters in production ' +
+          '(set ALLOW_DEV_SECRETS=true only for a local stack).',
+      );
+    }
+  }
+  return config;
 }
