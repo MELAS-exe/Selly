@@ -487,9 +487,15 @@ export class FakeCore implements CoreClient {
     return draft;
   }
 
-  async confirmDraft(draftId: string, body: DraftConfirmRequest): Promise<VendorProduct> {
+  async confirmDraft(
+    vendorId: string,
+    draftId: string,
+    body: DraftConfirmRequest,
+  ): Promise<VendorProduct> {
     const draft = this.drafts.get(draftId);
-    if (!draft || draft.status !== 'needs_review') throw new CoreError(404, 'NOT_FOUND', null);
+    // Like core: another shop's draft is not found.
+    if (!draft || draft.vendorId !== vendorId || draft.status !== 'needs_review')
+      throw new CoreError(404, 'NOT_FOUND', null);
     const x = (draft.extracted ?? {}) as Record<string, { value?: unknown }>;
     const variants = (x.variants?.value as
       | { options: Record<string, string>; stock: number }[]

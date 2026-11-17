@@ -8892,166 +8892,6 @@
         ]
       }
     },
-    "/internal/v1/product-drafts/{id}/confirm": {
-      "post": {
-        "servers": [
-          {
-            "url": "http://core.internal:4000",
-            "description": "core, private network only"
-          }
-        ],
-        "security": [
-          {
-            "serviceToken": []
-          }
-        ],
-        "operationId": "internalConfirmDraft",
-        "summary": "Confirm a draft from the vendor's reply",
-        "description": "Scope `drafts:write`. Same effect as `POST /api/v1/inventory/drafts/{id}/confirm`. The draft names its vendor.",
-        "parameters": [
-          {
-            "name": "X-Request-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string"
-            },
-            "example": "4bf92f3577b34da6a3ce929d0e0e4736"
-          },
-          {
-            "name": "X-Actor",
-            "in": "header",
-            "required": false,
-            "description": "`customer:<conversation id>` or `vendor:<id>`, for the audit log.",
-            "schema": {
-              "type": "string"
-            },
-            "example": "customer:0193a8f4-6f7a-7b8c-9d0e-1f2a3b4c5d6e"
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "example": "0193a8f3-5e6f-7a8b-9c0d-1e2f3a4b5c6d"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DraftConfirmRequest"
-              },
-              "example": {
-                "answers": {
-                  "stock_split": "5 par pointure"
-                },
-                "edits": {},
-                "mode": "new",
-                "target_product_id": null
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "The product.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/VendorProduct"
-                },
-                "example": {
-                  "id": "0193a8f0-7c1e-7d3b-8a1d-4f2b1c0d4e60",
-                  "title": "Baskets blanches",
-                  "description": "Baskets en toile blanche, semelle claire.",
-                  "category": "chaussures",
-                  "price": {
-                    "amount": 20000,
-                    "currency": "XOF"
-                  },
-                  "status": "active",
-                  "images": [
-                    {
-                      "url": "https://cdn.selly.example/p/0193a8f0/640.webp",
-                      "width": 640,
-                      "height": 853,
-                      "dominant": "#1b1b1f"
-                    }
-                  ],
-                  "variants": [
-                    {
-                      "id": "0193a8f8-0000-7000-8000-000000000000",
-                      "sku": null,
-                      "options": {
-                        "size": "40"
-                      },
-                      "price_override": null,
-                      "on_hand": 5,
-                      "reserved": 0,
-                      "available": 5
-                    }
-                  ],
-                  "created_at": "2026-11-17T09:14:00Z",
-                  "updated_at": "2026-11-17T09:14:00Z"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                },
-                "example": {
-                  "type": "https://app.selly.example/problems/not-found",
-                  "title": "Not found",
-                  "status": 404,
-                  "code": "NOT_FOUND",
-                  "detail": "No such draft.",
-                  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Open questions",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                },
-                "example": {
-                  "type": "https://app.selly.example/problems/validation-failed",
-                  "title": "Open questions",
-                  "status": 422,
-                  "code": "VALIDATION_FAILED",
-                  "detail": "Answer \"stock_split\" before confirming.",
-                  "errors": [
-                    {
-                      "question_id": "stock_split"
-                    }
-                  ],
-                  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Internal"
-        ]
-      }
-    },
     "/internal/v1/vendors/{id}/variants/{variant_id}/adjustments": {
       "post": {
         "servers": [
@@ -10207,6 +10047,178 @@
           },
           "422": {
             "$ref": "#/components/responses/ValidationFailed"
+          }
+        },
+        "tags": [
+          "Internal"
+        ]
+      }
+    },
+    "/internal/v1/vendors/{id}/product-drafts/{draft_id}/confirm": {
+      "post": {
+        "servers": [
+          {
+            "url": "http://core.internal:4000",
+            "description": "core, private network only"
+          }
+        ],
+        "security": [
+          {
+            "serviceToken": []
+          }
+        ],
+        "operationId": "internalConfirmDraft",
+        "summary": "Confirm a draft from the vendor's reply",
+        "description": "Scope `drafts:write`. Same effect as `POST /api/v1/inventory/drafts/{id}/confirm`. Scoped to the vendor of the path, like every agent route: another shop's draft is a 404.",
+        "parameters": [
+          {
+            "name": "X-Request-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "4bf92f3577b34da6a3ce929d0e0e4736"
+          },
+          {
+            "name": "X-Actor",
+            "in": "header",
+            "required": false,
+            "description": "`customer:<conversation id>` or `vendor:<id>`, for the audit log.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "customer:0193a8f4-6f7a-7b8c-9d0e-1f2a3b4c5d6e"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Vendor id.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "0193a000-0000-7000-8000-000000000001"
+          },
+          {
+            "name": "draft_id",
+            "in": "path",
+            "required": true,
+            "description": "Draft id.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "0193a8f3-5e6f-7a8b-9c0d-1e2f3a4b5c6d"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftConfirmRequest"
+              },
+              "example": {
+                "answers": {
+                  "stock_split": "5 par pointure"
+                },
+                "edits": {},
+                "mode": "new",
+                "target_product_id": null
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The product.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VendorProduct"
+                },
+                "example": {
+                  "id": "0193a8f0-7c1e-7d3b-8a1d-4f2b1c0d4e60",
+                  "title": "Baskets blanches",
+                  "description": "Baskets en toile blanche, semelle claire.",
+                  "category": "chaussures",
+                  "price": {
+                    "amount": 20000,
+                    "currency": "XOF"
+                  },
+                  "status": "active",
+                  "images": [
+                    {
+                      "url": "https://cdn.selly.example/p/0193a8f0/640.webp",
+                      "width": 640,
+                      "height": 853,
+                      "dominant": "#1b1b1f"
+                    }
+                  ],
+                  "variants": [
+                    {
+                      "id": "0193a8f8-0000-7000-8000-000000000000",
+                      "sku": null,
+                      "options": {
+                        "size": "40"
+                      },
+                      "price_override": null,
+                      "on_hand": 5,
+                      "reserved": 0,
+                      "available": 5
+                    }
+                  ],
+                  "created_at": "2026-11-17T09:14:00Z",
+                  "updated_at": "2026-11-17T09:14:00Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "example": {
+                  "type": "https://app.selly.example/problems/not-found",
+                  "title": "Not found",
+                  "status": 404,
+                  "code": "NOT_FOUND",
+                  "detail": "No such draft.",
+                  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Open questions",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "example": {
+                  "type": "https://app.selly.example/problems/validation-failed",
+                  "title": "Open questions",
+                  "status": 422,
+                  "code": "VALIDATION_FAILED",
+                  "detail": "Answer \"stock_split\" before confirming.",
+                  "errors": [
+                    {
+                      "question_id": "stock_split"
+                    }
+                  ],
+                  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+                }
+              }
+            }
           }
         },
         "tags": [

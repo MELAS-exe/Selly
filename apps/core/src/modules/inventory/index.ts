@@ -17,7 +17,6 @@ import {
   discardDraft,
   draftView,
   findDraft,
-  findDraftById,
   listDrafts,
   upsertBody,
   upsertDraft,
@@ -172,13 +171,13 @@ export const inventoryModule: FastifyPluginAsync = async (app) => {
     },
   );
 
-  // The path names only the draft (api.json); the draft names its vendor.
-  app.post<{ Params: { id: string } }>(
-    '/internal/v1/product-drafts/:id/confirm',
+  // Scoped to the vendor of the path, like every other agent route: another shop's draft is a 404.
+  app.post<{ Params: { id: string; draft_id: string } }>(
+    '/internal/v1/vendors/:id/product-drafts/:draft_id/confirm',
     async (req, reply) => {
       const body = confirmBody.parse(req.body);
-      const d = await findDraftById(ctx(), req.params.id);
-      const vendor = await findVendorById(ctx(), d.vendorId);
+      const vendor = await findVendorById(ctx(), req.params.id);
+      const d = await findDraft(ctx(), vendor.id, req.params.draft_id);
       return reply
         .code(201)
         .send(
