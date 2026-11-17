@@ -1,0 +1,238 @@
+/*
+ * Building blocks for the pages to come (cart, payment, chat). Imported by globals.css.
+ * Only transform, opacity, clip-path and stroke-dashoffset move. Each block has its calm
+ * version at the bottom; continuous motion stops under reduced motion.
+ */
+
+/* NumberRoll: one reel of 0-9 per digit, moved by --n (the digit). */
+.roll-col {
+  display: inline-block;
+  height: 1lh;
+  overflow: hidden;
+  vertical-align: top;
+}
+.roll-reel {
+  display: flex;
+  flex-direction: column;
+  transform: translateY(calc(var(--n) * -1lh));
+  transition: transform var(--dur-hero) var(--ease-out-expo) calc(var(--p) * var(--dur-tap) / 5);
+}
+.roll-reel > span {
+  height: 1lh;
+}
+
+/* CountdownRing */
+.ring-track {
+  stroke: var(--color-line);
+}
+.ring-left {
+  stroke: var(--color-indigo);
+  stroke-dasharray: 1;
+  transition:
+    stroke-dashoffset var(--tick) linear,
+    stroke var(--dur-ui) linear;
+}
+.ring-expired .ring-left {
+  stroke: var(--color-muted);
+}
+
+/* ListeningPulse: two rings breathe out of the QR while we wait. */
+.listen {
+  position: relative;
+  isolation: isolate;
+}
+.listen.is-listening::before,
+.listen.is-listening::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  z-index: -1;
+  border-radius: calc(var(--radius-tile) + 8px);
+  border: 2px solid var(--color-indigo);
+  opacity: 0;
+  animation: breathe 3.2s var(--ease-out-expo) infinite;
+}
+.listen.is-listening::after {
+  animation-delay: 1.6s;
+}
+@keyframes breathe {
+  0% {
+    transform: scale(0.97);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1.08);
+    opacity: 0;
+  }
+}
+
+/* PaymentSuccess: bolt across the QR, QR becomes a big green check. */
+.pay-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+.pay-stage > * {
+  grid-area: 1 / 1;
+}
+.pay-bolt {
+  width: 45%;
+  height: auto;
+  color: var(--color-ochre);
+  /* A white halo keeps the bolt readable over the black and white of the QR. */
+  filter: drop-shadow(0 0 6px rgb(255 255 255 / 0.95));
+  opacity: 0;
+  pointer-events: none;
+}
+.pay-stage[data-paid="true"] .pay-bolt {
+  animation: bolt calc(var(--dur-hero) * 0.7) ease-in-out both;
+}
+/* Strikes across (left to right), holds a beat, leaves to the right. */
+@keyframes bolt {
+  0% {
+    opacity: 1;
+    clip-path: inset(0 100% 0 0);
+  }
+  35% {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+  60% {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+  100% {
+    opacity: 0;
+    clip-path: inset(0 0 0 100%);
+  }
+}
+.pay-qr {
+  transition:
+    transform var(--dur-ui) var(--ease-out-expo) calc(var(--dur-hero) * 0.3),
+    opacity var(--dur-ui) linear calc(var(--dur-hero) * 0.3);
+}
+.pay-stage[data-paid="true"] .pay-qr {
+  transform: scale(0.6);
+  opacity: 0;
+}
+.pay-check {
+  animation: check-in var(--dur-ui) var(--ease-snap) calc(var(--dur-hero) * 0.4) both;
+}
+.pay-check path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw var(--dur-ui) var(--ease-out-expo) calc(var(--dur-hero) * 0.55) forwards;
+}
+@keyframes check-in {
+  from {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+}
+
+/* TypingDots */
+.typing-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: var(--color-muted);
+  animation: typing 1.2s ease-in-out infinite;
+  animation-delay: calc(var(--k) * 0.15s);
+}
+@keyframes typing {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+/* ChatBubbleIn: bubbles arrive on a spring, from their own corner. */
+.bubble-in {
+  transform-origin: bottom left;
+  transition:
+    opacity var(--dur-ui) linear,
+    transform var(--dur-hero) var(--ease-spring);
+}
+.bubble-in[data-from="customer"] {
+  transform-origin: bottom right;
+}
+@starting-style {
+  .bubble-in {
+    opacity: 0;
+    transform: translateY(12px) scale(0.92);
+  }
+}
+
+/* WaxSkeleton: a pale print with a light sweeping across it. */
+.wax-skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-tile);
+}
+.wax-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    rgb(255 255 255 / 0.65) 50%,
+    transparent 80%
+  );
+  transform: translateX(-100%);
+  animation: sweep 1.6s var(--ease-out-expo) infinite;
+}
+@keyframes sweep {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .roll-reel {
+    transition: none;
+  }
+  .ring-left {
+    transition: stroke var(--dur-ui) linear;
+  }
+  .listen.is-listening::before,
+  .listen.is-listening::after,
+  .typing-dot,
+  .wax-skeleton::after {
+    animation: none;
+  }
+  .wax-skeleton::after {
+    display: none;
+  }
+  .pay-stage[data-paid="true"] .pay-bolt {
+    animation: none;
+  }
+  .pay-qr {
+    transition: opacity var(--dur-ui) linear;
+  }
+  .pay-stage[data-paid="true"] .pay-qr {
+    transform: none;
+  }
+  .pay-check {
+    animation: settle var(--dur-ui) linear both;
+  }
+  .pay-check path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .bubble-in {
+    transition: opacity var(--dur-ui) linear;
+  }
+  @starting-style {
+    .bubble-in {
+      transform: none;
+    }
+  }
+}

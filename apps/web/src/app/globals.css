@@ -1,1 +1,393 @@
 @import "tailwindcss";
+@import "../components/motion/motion.css";
+
+/*
+ * Selly design tokens.
+ * Indigo is the dye of the wax prints our first vendors sell; bissap and ochre come from the same cloth.
+ * One bold element per page: the wax band at the top of a shop. Everything else stays quiet.
+ * System fonts only (architecture.md 3.4): no web font download on a mobile network.
+ */
+@theme {
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", Ubuntu, sans-serif;
+
+  --color-paper: #ffffff;
+  --color-mist: #eef0f6;
+  --color-line: #d9dcea;
+  --color-ink: #161a33;
+  --color-muted: #555b78;
+  --color-indigo: #2c3ba8;
+  --color-indigo-deep: #1f2a7c;
+  --color-bissap: #a3214f;
+  --color-ochre: #c8902e;
+  --color-leaf: #1c7a4a;
+  --color-leaf-soft: #e3f3ea;
+  --color-alert: #b3261e;
+  --color-alert-soft: #fbe9e7;
+
+  --radius-tile: 14px;
+  --radius-control: 10px;
+}
+
+/*
+ * Motion tokens. Every animation reads these, never raw values.
+ * `static` keeps them on :root even when no utility uses them: the Web Animations API reads them too.
+ */
+@theme static {
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  /* A light spring: one small overshoot (about 7 %), settled by 45 %. */
+  --ease-spring: linear(
+    0,
+    0.06 2.6%,
+    0.23 5.6%,
+    0.58 10%,
+    0.86 15%,
+    1.04 21%,
+    1.07 25%,
+    1.05 30%,
+    1.01 38%,
+    0.995 46%,
+    1
+  );
+  --ease-snap: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-tap: 160ms;
+  --dur-ui: 260ms;
+  --dur-hero: 600ms;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    color-scheme: light;
+  }
+  body {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-indigo);
+    outline-offset: 2px;
+  }
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* The wax band: a repeating print drawn with gradients, zero bytes of image. */
+.wax {
+  --a: var(--color-indigo);
+  --b: var(--color-indigo-deep);
+  --c: var(--color-ochre);
+  --d: var(--color-bissap);
+  background-color: var(--b);
+  background-image:
+    radial-gradient(circle at 50% 50%, var(--c) 0 18%, transparent 19%),
+    radial-gradient(circle at 50% 50%, transparent 0 30%, var(--d) 31% 36%, transparent 37%),
+    conic-gradient(from 45deg, var(--a) 0 25%, var(--b) 0 50%, var(--a) 0 75%, var(--b) 0);
+  background-size:
+    44px 44px,
+    44px 44px,
+    22px 22px;
+  background-position:
+    0 0,
+    22px 22px,
+    0 0;
+}
+
+/* Product tiles without a photo: the same cloth, in one of four colourways. */
+.wax-tile {
+  background-color: var(--b);
+  background-image:
+    radial-gradient(circle at 50% 50%, var(--c) 0 14%, transparent 15%),
+    radial-gradient(circle at 50% 50%, transparent 0 26%, var(--c) 27% 31%, transparent 32%),
+    conic-gradient(from 45deg, var(--a) 0 25%, var(--b) 0 50%, var(--a) 0 75%, var(--b) 0);
+  background-size:
+    36px 36px,
+    36px 36px,
+    18px 18px;
+  background-position:
+    0 0,
+    18px 18px,
+    0 0;
+}
+/* Pale washes, so the shop's own band stays the loudest thing on the page. */
+.wax-0 {
+  --a: #e6e9f7;
+  --b: #d9def3;
+  --c: #8f9ad6;
+}
+.wax-1 {
+  --a: #f6e4ea;
+  --b: #efd3dd;
+  --c: #c77b97;
+}
+.wax-2 {
+  --a: #e2f1e8;
+  --b: #d2e9dc;
+  --c: #73b08e;
+}
+.wax-3 {
+  --a: #f6ecd9;
+  --b: #efdfc2;
+  --c: #c8a35e;
+}
+
+/*
+ * Reduced motion. No blanket 0.01ms: each animation declares its calm version next to it
+ * (a short fade, or nothing). Continuous motion (spin, float, pulse, breathing) carries
+ * `.motion-loop` and stops completely here.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .motion-loop {
+    animation: none !important;
+  }
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* Shop motion. One strong moment: the band weaves itself, the card rises out of it.          */
+/* Entrances play once per visit: <Woven /> in the shop layout sets html[data-woven].          */
+/* ------------------------------------------------------------------------------------------ */
+
+/* The loom: a plain indigo ground; six strips of print arrive from alternating sides. */
+.loom {
+  position: relative;
+  background-color: var(--color-indigo-deep);
+}
+.loom-strip {
+  position: absolute;
+  inset: 0;
+  /* --clip-* names: .wax already uses --a to --d for its colours. */
+  --clip-t: calc(var(--r) * 100% / 6);
+  --clip-b: calc(100% - (var(--r) + 1) * 100% / 6 - 0.5px);
+  clip-path: inset(var(--clip-t) 0 var(--clip-b) 0);
+  animation: weave calc(var(--dur-hero) * 0.6) var(--ease-out-expo)
+    calc(var(--r) * var(--dur-hero) * 0.08) both;
+}
+.loom-strip:nth-child(even) {
+  --from-l: 100%;
+  --from-r: 0%;
+}
+.loom-strip:nth-child(odd) {
+  --from-l: 0%;
+  --from-r: 100%;
+}
+@keyframes weave {
+  from {
+    clip-path: inset(var(--clip-t) var(--from-r) var(--clip-b) var(--from-l));
+  }
+}
+
+/* The shop card rises out of the band while its shadow settles (opacity on a pseudo, never box-shadow). */
+.card-rise {
+  position: relative;
+  animation: rise var(--dur-hero) var(--ease-out-expo) calc(var(--dur-hero) * 0.4) both;
+}
+.card-rise::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 8px 24px rgb(22 26 51 / 0.18);
+  pointer-events: none;
+  animation: settle var(--dur-hero) linear calc(var(--dur-hero) * 0.4) both;
+}
+@keyframes rise {
+  from {
+    transform: translateY(24px);
+  }
+}
+@keyframes settle {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Product tiles: a short cascade for the first six; prices are legible from the first frame. */
+.tile-in {
+  animation: tile-in calc(var(--dur-hero) * 0.7) var(--ease-out-expo)
+    calc(var(--dur-hero) * 0.3 + var(--i) * var(--dur-tap) / 3) both;
+}
+@keyframes tile-in {
+  from {
+    opacity: 0.5;
+    transform: translateY(16px);
+  }
+}
+.tile-press {
+  transition: transform var(--dur-tap) var(--ease-out-expo);
+}
+.tile-press:active {
+  transform: scale(0.97);
+}
+
+html[data-woven] :is(.loom-strip, .card-rise, .tile-in),
+html[data-woven] .card-rise::after {
+  animation: none;
+}
+
+/* Shared element: the tile photo becomes the product hero, and back. */
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-group(.morph) {
+  animation-duration: var(--dur-hero);
+  animation-timing-function: var(--ease-out-expo);
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--dur-ui);
+}
+/* The header is the fixed reference while the content changes. */
+::view-transition-group(shop-header) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(shop-header) {
+  display: none;
+}
+::view-transition-new(shop-header) {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loom-strip,
+  .card-rise,
+  .card-rise::after {
+    animation: none;
+  }
+  .tile-in {
+    animation: settle var(--dur-ui) linear both;
+  }
+  .tile-press:active {
+    transform: none;
+  }
+  /* No travel: the photo swaps in place, the page only crossfades. */
+  ::view-transition-group(.morph) {
+    animation-duration: 0s;
+  }
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* Product page motion. Feedback stays within --dur-tap..--dur-ui; adding to cart is the one   */
+/* strong moment (the photo flies to the cart, see components/motion/fly-to-cart.ts).          */
+/* ------------------------------------------------------------------------------------------ */
+
+/* A chosen option settles with a small bounce. */
+.opt[aria-pressed="true"] {
+  animation: pop var(--dur-ui) var(--ease-snap);
+}
+@keyframes pop {
+  from {
+    transform: scale(0.94);
+  }
+}
+/* The bar under the chosen value: 1px wide, stretched with scaleX, moved with translate. */
+.opt-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 3px;
+  background: var(--color-indigo);
+  transform-origin: left;
+  opacity: 0;
+  pointer-events: none;
+  transition: transform var(--dur-ui) var(--ease-out-expo);
+}
+
+/* Rolling digits (quantity, cart badge). */
+.roll-up {
+  animation: roll-in var(--dur-ui) var(--ease-out-expo) both;
+  --from: 70%;
+}
+.roll-down {
+  animation: roll-in var(--dur-ui) var(--ease-out-expo) both;
+  --from: -70%;
+}
+.roll-out-up {
+  animation: roll-out var(--dur-ui) var(--ease-out-expo) both;
+  --to: -70%;
+}
+.roll-out-down {
+  animation: roll-out var(--dur-ui) var(--ease-out-expo) both;
+  --to: 70%;
+}
+@keyframes roll-in {
+  from {
+    transform: translateY(var(--from));
+    opacity: 0;
+  }
+}
+@keyframes roll-out {
+  to {
+    transform: translateY(var(--to));
+    opacity: 0;
+  }
+}
+
+/* Buttons give under the finger. */
+.press {
+  transition: transform var(--dur-tap) var(--ease-out-expo);
+}
+.press:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* A check mark that draws itself (path with pathLength=1). */
+.check-draw path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw var(--dur-ui) var(--ease-out-expo) calc(var(--dur-tap) / 2) forwards;
+}
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* A block that opens in height when it is inserted (grid rows 0fr to 1fr, @starting-style). */
+.open-rows {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition:
+    grid-template-rows var(--dur-ui) var(--ease-out-expo),
+    opacity var(--dur-ui) linear;
+}
+.open-rows > * {
+  min-height: 0;
+  overflow: hidden;
+}
+@starting-style {
+  .open-rows {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opt[aria-pressed="true"],
+  .roll-up,
+  .roll-down {
+    animation: none;
+  }
+  .roll-out-up,
+  .roll-out-down {
+    animation: none;
+    opacity: 0;
+  }
+  .opt-bar {
+    transition: none;
+  }
+  .press:active:not(:disabled) {
+    transform: none;
+  }
+  .check-draw path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .open-rows {
+    transition: opacity var(--dur-ui) linear;
+  }
+}
