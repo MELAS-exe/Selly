@@ -1,0 +1,70 @@
+# The stack the CI job "stack-e2e" runs (apps/core/scripts/stack-e2e.mts): PostgreSQL 18, RustFS for S3, a Nostr
+# relay and two core processes. Test values only. Locally:
+#   SECRETS_KEK_V1=$(openssl rand -base64 32) docker compose -f infra/e2e/compose.yml up -d --build
+#   cd infra/e2e && STACK_DIR=. pnpm --filter @selly/core exec tsx scripts/stack-e2e.mts
+name: selly-e2e
+services:
+  postgres:
+    image: postgres:18
+    environment: { POSTGRES_USER: selly, POSTGRES_PASSWORD: selly, POSTGRES_DB: selly }
+    healthcheck:
+      { test: ["CMD-SHELL", "pg_isready -U selly"], interval: 3s, timeout: 3s, retries: 20 }
+  storage:
+    image: rustfs/rustfs:latest
+    environment:
+      { RUSTFS_ACCESS_KEY: selly, RUSTFS_SECRET_KEY: selly-secret-key, RUSTFS_ADDRESS: ":9000" }
+    ports: ["9000:9000"]
+  # Buckets, public read on selly-public only, 30-day expiry on selly-private.
+  storage-init:
+    image: amazon/aws-cli:latest
+    depends_on: [storage]
+    environment:
+      {
+        AWS_ACCESS_KEY_ID: selly,
+        AWS_SECRET_ACCESS_KEY: selly-secret-key,
+        AWS_DEFAULT_REGION: us-east-1,
+      }
+    volumes: ["./storage-init.sh:/init/storage.sh:ro"]
+    entrypoint: ["/bin/sh", "/init/storage.sh"]
+  relay:
+    image: scsibug/nostr-rs-relay:latest
+    ports: ["7000:8080"]
+  core: &core
+    build: { context: ../.., dockerfile: apps/core/Dockerfile }
+    depends_on:
+      postgres: { condition: service_healthy }
+      storage-init: { condition: service_completed_successfully }
+    environment: &coreenv
+      NODE_ENV: production
+      ALLOW_DEV_SECRETS: "true"
+      CORE_PORT: 4000
+      APP_BASE_URL: http://localhost:3000
+      CDN_BASE_URL: http://localhost:9000/selly-public
+      DATABASE_URL: postgres://selly:selly@postgres:5432/selly
+      MIGRATE_ON_START: "true"
+      SEED_DEMO: "true"
+      MEDIA_STORE: s3
+      S3_ENDPOINT: http://storage:9000
+      S3_PRESIGN_ENDPOINT: http://localhost:9000
+      S3_ACCESS_KEY_ID: selly
+      S3_SECRET_ACCESS_KEY: selly-secret-key
+      INVOICE_PROVIDER: nwc
+      # Set by the CI job (openssl rand -base64 32). Core refuses to start with INVOICE_PROVIDER=nwc without it.
+      SECRETS_KEK_V1: ${SECRETS_KEK_V1:-}
+      NWC_ALLOW_INSECURE_RELAYS: "true"
+      NWC_PAIRING_RELAYS: ws://relay:8080
+      # A one-minute poll: live streams that update within the test were woken by LISTEN/NOTIFY.
+      SSE_POLL_MS: "60000"
+      # No agent in this stack: events wait in the outbox and are retried.
+      AGENT_URL: http://agent-absent:4100
+    ports: ["4000:4000"]
+  # A second process: serves requests, leaves the jobs to the leader.
+  core2:
+    <<: *core
+    depends_on:
+      core: { condition: service_started }
+    environment:
+      <<: *coreenv
+      MIGRATE_ON_START: "false"
+      SEED_DEMO: "false"
+    ports: ["4001:4000"]

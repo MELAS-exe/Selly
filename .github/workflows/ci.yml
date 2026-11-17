@@ -45,6 +45,46 @@ jobs:
         env:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
 
+  # The whole stack in Docker (infra/e2e): two core processes, PostgreSQL, S3, a relay, then 35 checks from the
+  # outside with fake NWC wallets (apps/core/scripts/stack-e2e.mts).
+  stack-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Start the stack
+        working-directory: infra/e2e
+        run: |
+          export SECRETS_KEK_V1=$(openssl rand -base64 32)
+          echo "SECRETS_KEK_V1=$SECRETS_KEK_V1" >> "$GITHUB_ENV"
+          docker compose up -d --build
+          for port in 4000 4001; do
+            for i in $(seq 1 90); do
+              curl -fs "http://localhost:$port/healthz" >/dev/null && break
+              sleep 2
+            done
+            curl -fs "http://localhost:$port/healthz"
+          done
+      - name: End-to-end checks
+        working-directory: infra/e2e
+        run: pnpm --filter @selly/core exec tsx scripts/stack-e2e.mts
+        env:
+          STACK_DIR: ${{ github.workspace }}/infra/e2e
+      - name: Logs
+        if: failure()
+        working-directory: infra/e2e
+        run: docker compose logs --no-color --tail 200
+      - name: Stop
+        if: always()
+        working-directory: infra/e2e
+        run: docker compose down -v
+
   api-contract:
     runs-on: ubuntu-latest
     steps:
