@@ -8,6 +8,7 @@ import { iso } from '../../util';
 import type { Session } from '../auth/service';
 import { alertSettings, type Vendor, vendorSettings } from '../catalog/store';
 import { audit } from '../events/outbox';
+import { processUpload } from '../media/images';
 import { currentSubscription } from '../subscriptions/service';
 import { liveWallet } from '../wallet/service';
 
@@ -66,6 +67,13 @@ export async function vendorView(ctx: Context, v: Vendor) {
         tone: s.tone,
         negotiation: { mode: s.negotiation.mode, max_discount_pct: s.negotiation.maxDiscountPct },
         keep_logs: raw.agent?.keep_logs ?? true,
+      },
+      branding: {
+        logo_key: s.branding.logoKey,
+        logo_url: s.branding.logoKey ? `${ctx.config.CDN_BASE_URL}/${s.branding.logoKey}` : null,
+        primary_color: s.branding.primaryColor,
+        accent_color: s.branding.accentColor,
+        banner: s.branding.banner,
       },
       alerts: alertSettings(v),
     },
@@ -191,6 +199,26 @@ const settingsPatch = z.strictObject({
       keep_logs: z.boolean().optional(),
     })
     .optional(),
+  branding: z
+    .strictObject({
+      logo_key: z.string().max(200).nullable().optional(),
+      primary_color: z
+        .string()
+        .regex(/^#[0-9a-fA-F]{6}$/, 'Use a hex colour, e.g. #173B32')
+        .optional(),
+      accent_color: z
+        .string()
+        .regex(/^#[0-9a-fA-F]{6}$/, 'Use a hex colour, e.g. #8AAE4A')
+        .optional(),
+      banner: z
+        .strictObject({
+          text: z.string().trim().max(140),
+          href: z.string().url().max(500).nullable().optional(),
+        })
+        .nullable()
+        .optional(),
+    })
+    .optional(),
   alerts: z
     .strictObject({
       web_push: z.boolean().optional(),
@@ -227,7 +255,25 @@ export function mergeSettings(old: Record<string, unknown>, patch: Record<string
 }
 
 export async function patchVendor(ctx: Context, v: Vendor, body: z.infer<typeof patchBody>) {
-  const settings = body.settings ? mergeSettings(v.settings, body.settings) : v.settings;
+  // A new logo upload is processed (resized, re-encoded, EXIF dropped) before anything is stored, like a product
+  // image: a bad photo must change nothing. Only a freshly uploaded key is processed; a key already on the vendor
+  // (unchanged) or null (removed) passes straight through.
+  const currentLogoKey = vendorSettings(v).branding.logoKey;
+  let patchedSettings = body.settings;
+  if (
+    patchedSettings?.branding &&
+    'logo_key' in patchedSettings.branding &&
+    patchedSettings.branding.logo_key &&
+    patchedSettings.branding.logo_key !== currentLogoKey
+  ) {
+    const prepared = await processUpload(ctx.media, v.id, patchedSettings.branding.logo_key);
+    patchedSettings = {
+      ...patchedSettings,
+      branding: { ...patchedSettings.branding, logo_key: prepared.storageKey },
+    };
+  }
+
+  const settings = patchedSettings ? mergeSettings(v.settings, patchedSettings) : v.settings;
   const next = vendorSettings({ ...v, settings });
 
   if (

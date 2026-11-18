@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 // The landing page's paper and green design system (fonts, colours, paper grain, the S stamp).
 import '../landing/landing.css';
+import { SiteHeader } from './site-header';
 
 /**
  * The frame for the public and sign-in pages: the same paper background, wordmark and hairlines as the landing page.
@@ -13,27 +14,7 @@ export function PageShell({ children }: { children: ReactNode }) {
       lang="en"
       className="theme-paper-vermilion min-h-screen w-full flex flex-col selection:bg-[#E3342F] selection:text-[#F6F4F0]"
     >
-      <header className="sticky top-0 z-40 py-4 backdrop-blur-xl backdrop-saturate-150 border-b bg-[#F6F4F0]/70 border-[#1111111f]">
-        <div className="max-w-7xl mx-auto px-6 md:px-12 flex justify-between items-center gap-6">
-          <Link href="/" aria-label="Selly, home" className="block">
-            <img src="/brand/selly-wordmark.png" alt="Selly" className="h-7 md:h-8 w-auto" />
-          </Link>
-          <nav aria-label="Main" className="flex items-center gap-6 md:gap-8">
-            <Link
-              href="/tarifs"
-              className="pv-sans text-xs uppercase tracking-widest font-medium hover:text-[#719541] transition-colors"
-            >
-              Pricing
-            </Link>
-            <Link
-              href="/app/login"
-              className="pv-sans text-xs uppercase tracking-widest font-medium hover:text-[#719541] transition-colors"
-            >
-              Sign in
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader sticky />
       <div className="flex-1 w-full">{children}</div>
       <footer className="py-12 px-6 md:px-12 max-w-7xl mx-auto w-full border-x border-t border-b border-[#1111111f] flex flex-col md:flex-row justify-between items-center gap-8">
         <img src="/brand/selly-wordmark.png" alt="Selly" className="h-9 w-auto" />

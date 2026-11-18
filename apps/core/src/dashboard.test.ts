@@ -108,7 +108,6 @@ describe('catalog in the dashboard', () => {
   const product = {
     title: 'Robe wax noire',
     description: 'Deuxième modèle',
-    category: 'robes',
     price: { amount: 18000, currency: 'XOF' },
     variants: [
       { options: { size: '40' }, on_hand: 2 },

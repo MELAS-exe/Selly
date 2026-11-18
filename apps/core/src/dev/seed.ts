@@ -30,6 +30,15 @@ export async function seedDemo(db: Database) {
           tone: 'friendly',
           negotiation: { mode: 'allow', max_discount_pct: 10 },
         },
+        branding: {
+          logo_key: null,
+          primary_color: '#173B32',
+          accent_color: '#8AAE4A',
+          banner: {
+            text: 'Livraison gratuite à Dakar Plateau cette semaine.',
+            href: null,
+          },
+        },
       },
     })
     .returning();
@@ -44,6 +53,21 @@ export async function seedDemo(db: Database) {
     currentPeriodStart: now,
     currentPeriodEnd: new Date(now.getTime() + 365 * 86_400_000),
   });
+
+  const categoryDefs = [
+    { slug: 'robes', name: 'Robes', position: 0 },
+    { slug: 'chaussures', name: 'Chaussures', position: 1 },
+    { slug: 'sacs', name: 'Sacs', position: 2 },
+  ];
+  const categoryRows = await db
+    .insert(core.categories)
+    .values(
+      categoryDefs.map((c) => ({ vendorId, name: c.name, slug: c.slug, position: c.position })),
+    )
+    .returning();
+  const categoryIdBySlug = new Map(
+    categoryRows.map((c) => [(c as { slug: string }).slug, (c as { id: string }).id]),
+  );
 
   const catalog = [
     {
@@ -81,7 +105,7 @@ export async function seedDemo(db: Database) {
         vendorId,
         title: c.title,
         slug: c.slug,
-        category: c.category,
+        categoryId: categoryIdBySlug.get(c.category) ?? null,
         description: c.description,
         priceAmount: c.price,
       })

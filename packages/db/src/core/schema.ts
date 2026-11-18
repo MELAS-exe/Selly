@@ -191,6 +191,27 @@ export const walletPairings = core.table(
 );
 // ---------------------------------------------------------------- catalog and stock
 
+/** A vendor's own list of categories, for the storefront's filter and the dashboard's catalog. */
+export const categories = core.table(
+  'categories',
+  {
+    id: id(),
+    vendorId: uuid('vendor_id')
+      .notNull()
+      .references(() => vendors.id),
+    name: text('name').notNull(),
+    // URL and filter part: /s/{store}?category={slug}. Unique per vendor.
+    slug: text('slug').notNull(),
+    position: smallint('position').notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check('categories_name_len', sql`length(${t.name}) between 1 and 40`),
+    unique('categories_vendor_slug').on(t.vendorId, t.slug),
+    index('categories_by_vendor').on(t.vendorId, t.position),
+  ],
+);
+
 export const products = core.table(
   'products',
   {
@@ -202,7 +223,7 @@ export const products = core.table(
     // URL part of the product page: /s/{store}/p/{slug}. Unique per vendor.
     slug: text('slug').notNull(),
     description: text('description').notNull().default(''),
-    category: text('category'),
+    categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'set null' }),
     priceAmount: num('price_amount').notNull(),
     priceCurrency: currency('price_currency').notNull().default('XOF'),
     status: text('status', { enum: ['active', 'hidden', 'archived'] })
@@ -219,6 +240,7 @@ export const products = core.table(
     check('products_price_positive', sql`${t.priceAmount} > 0`),
     unique('products_vendor_slug').on(t.vendorId, t.slug),
     index('products_by_vendor').on(t.vendorId, t.status),
+    index('products_by_category').on(t.categoryId),
     index('products_search').using('gin', t.search),
     index('products_title_trgm').using('gin', sql`public.unaccent_i(${t.title}) gin_trgm_ops`),
   ],

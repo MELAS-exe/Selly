@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ViewTransition } from 'react';
 import { AddToCart } from '@/components/add-to-cart';
 import { Availability } from '@/components/availability';
+import { AskSelly } from '@/components/chat/ask-selly';
 import { ProductVisual } from '@/components/product-visual';
 import { getProduct, getStore } from '@/lib/core';
 import { formatMoney } from '@/lib/format';
@@ -30,7 +31,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 export default async function ProductPage({ params }: Params) {
   const { slug, product: p } = await params;
-  const product = await getProduct(slug, p);
+  const [{ store }, product] = await Promise.all([getStore(slug), getProduct(slug, p)]);
   const [first, ...rest] = product.images;
 
   return (
@@ -81,6 +82,17 @@ export default async function ProductPage({ params }: Params) {
 
         <div className="mt-6">
           <AddToCart slug={slug} product={product} />
+        </div>
+
+        <div className="mt-4">
+          <AskSelly
+            slug={slug}
+            storeName={store.display_name}
+            whatsappLink={store.whatsapp_link}
+            productId={product.id}
+            productTitle={product.title}
+            variant="inline"
+          />
         </div>
       </div>
     </main>

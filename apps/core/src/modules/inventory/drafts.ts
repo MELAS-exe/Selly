@@ -14,6 +14,7 @@ import { z } from 'zod';
 import type { Context, Database } from '../../context';
 import { AppError } from '../../errors';
 import { decodeCursor, encodeCursor, iso } from '../../util';
+import { categoryIdForName } from '../catalog/categories';
 import { findVendorProduct, vendorProductView } from '../catalog/internal';
 import { isUuid, type Vendor } from '../catalog/store';
 import { createVendorProduct } from '../catalog/vendor';
@@ -415,7 +416,7 @@ export async function confirmDraft(
       {
         title: x.title,
         description: x.description ?? undefined,
-        category: x.category ?? undefined,
+        categoryId: x.category ? await categoryIdForName(ctx, vendor, x.category) : undefined,
         price: x.price,
         image_keys: d.imageKeys,
         variants: x.variants.map((v) => ({ options: v.options, on_hand: v.stock })),
