@@ -153,6 +153,12 @@ export function ChatPanel({
             </button>
           </header>
 
+          {productTitle && (
+            <p className="border-b border-line bg-mist px-4 py-2 text-[0.9375rem] text-muted">
+              À propos de <span className="font-semibold text-ink">{productTitle}</span>
+            </p>
+          )}
+
           {status === 'loading' && (
             <p role="status" className="p-4 text-muted">
               Connexion…

@@ -317,7 +317,7 @@ function Card({
         </Link>
         {tag && (
           <span
-            className={`pointer-events-none absolute top-3 left-3 px-2.5 py-1.5 text-xs font-semibold tracking-[0.16em] uppercase ${
+            className={`pointer-events-none absolute top-2 left-2 px-2 py-1.5 text-xs font-semibold tracking-[0.08em] whitespace-nowrap uppercase sm:top-3 sm:left-3 sm:px-2.5 sm:tracking-[0.16em] ${
               tag.quiet ? 'bg-d-paper text-d-ink-soft' : 'bg-[var(--sf-ink)] text-d-paper'
             }`}
           >
