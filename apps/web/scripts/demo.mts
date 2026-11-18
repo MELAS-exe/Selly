@@ -13,6 +13,7 @@
 // 3. Listens on http://localhost:4310:
 //      POST /order?pay_after=3   a customer (Fatou) orders the white sneakers and pays 3 s later
 //      POST /pay?hash=<payment_hash>   pay an invoice of this wallet
+//      POST /chat?text=...&text=...   a customer opens a chat on the shop and writes (one message per text)
 // Stop with Ctrl+C: the shop's wallet goes offline and the dashboard shows it.
 
 import { execFileSync, spawn } from 'node:child_process';
@@ -28,6 +29,7 @@ import { generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '../../..');
 const CORE = process.env.CORE_URL ?? 'http://localhost:4000';
+const AGENT = process.env.AGENT_URL ?? 'http://localhost:4100';
 const RELAY = process.env.DEMO_RELAY ?? 'ws://localhost:7777';
 const SLUG = process.env.DEMO_SLUG ?? 'awa-style';
 const PORT = Number(process.env.DEMO_PORT ?? 4310);
@@ -158,6 +160,32 @@ async function order(payAfterSec: number) {
   return created;
 }
 
+type ChatSession = { session_token: string; conversation_id: string };
+
+async function chat(texts: string[]) {
+  const open = await fetch(`${AGENT}/api/v1/chat/sessions`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ store_slug: SLUG, locale: 'fr' }),
+  });
+  if (!open.ok) throw new Error(`chat session: ${open.status} ${await open.text()}`);
+  const session = (await open.json()) as ChatSession;
+  for (const text of texts) {
+    const sent = await fetch(`${AGENT}/api/v1/chat/messages`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${session.session_token}`,
+      },
+      body: JSON.stringify({ client_message_id: randomUUID(), kind: 'text', text }),
+    });
+    if (!sent.ok) throw new Error(`chat message: ${sent.status} ${await sent.text()}`);
+    // Let the assistant answer before the next message.
+    await new Promise((r) => setTimeout(r, 2500));
+  }
+  return { conversation_id: session.conversation_id };
+}
+
 createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', `http://localhost:${PORT}`);
   try {
@@ -167,6 +195,8 @@ createServer(async (req, res) => {
     else if (req.method === 'POST' && url.pathname === '/pay') {
       await wallet.pay(url.searchParams.get('hash') ?? '');
       out = { paid: true };
+    } else if (req.method === 'POST' && url.pathname === '/chat') {
+      out = await chat(url.searchParams.getAll('text'));
     } else if (url.pathname === '/key')
       out = { pubkey: state.pubkey, secret_hex: state.secret_hex };
     else {

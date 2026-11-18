@@ -170,6 +170,11 @@
   }
 }
 
+/* A bubble that was already there when the thread loaded: no arrival. */
+.bubble-in.bubble-still {
+  transition: none;
+}
+
 /* WaxSkeleton: a pale print with a light sweeping across it. */
 .wax-skeleton {
   position: relative;
