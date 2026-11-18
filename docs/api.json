@@ -11255,6 +11255,18 @@
             "type": "string",
             "pattern": "^#[0-9a-fA-F]{6}$"
           },
+          "background_color": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^#[0-9a-fA-F]{6}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The shop page background (its paper). null: Selly’s paper (#F6F4F0). A colour too dark for the shop’s ink text (under 7:1 against #173B32) is ignored by the storefront."
+          },
           "banner": {
             "oneOf": [
               {
@@ -11366,6 +11378,7 @@
           "logo_url",
           "primary_color",
           "accent_color",
+          "background_color",
           "banner",
           "hero"
         ],
@@ -12849,6 +12862,18 @@
                 "type": "string",
                 "pattern": "^#[0-9a-fA-F]{6}$"
               },
+              "background_color": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The shop page background (its paper). null: Selly’s paper (#F6F4F0). A colour too dark for the shop’s ink text (under 7:1 against #173B32) is ignored by the storefront."
+              },
               "banner": {
                 "oneOf": [
                   {
@@ -12971,6 +12996,7 @@
               "logo_url",
               "primary_color",
               "accent_color",
+              "background_color",
               "banner",
               "hero"
             ],

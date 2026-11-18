@@ -68,6 +68,8 @@ export interface Branding {
   logo_url: string | null;
   primary_color: string;
   accent_color: string;
+  /** null: Selly paper. Missing on an older core. */
+  background_color?: string | null;
   /** image_url: missing on an older core. */
   banner: { text: string; href: string | null; image_url?: string | null } | null;
   /** Missing on an older core. */

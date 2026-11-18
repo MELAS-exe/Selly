@@ -378,6 +378,27 @@ describe('shop creation', () => {
     expect(store.body.store.branding.hero).toMatchObject({ eyebrow: 'Bienvenue chez Voom' });
     const tooLong = { cta: 'x'.repeat(31) };
     expect((await patch({ settings: { branding: { hero: tooLong } } })).status).toBe(422);
+
+    // The page background, and back to Selly's paper.
+    const bg = await patch({ settings: { branding: { background_color: '#FFF8EE' } } });
+    expect(bg.body.settings.branding.background_color).toBe('#FFF8EE');
+    expect(
+      (await patch({ settings: { branding: { background_color: null } } })).body.settings.branding
+        .background_color,
+    ).toBeNull();
+
+    // One name, one price: "Sacré Coeur" and "sacre  coeur" are the same zone.
+    const zone = (id: string, label: string, amount: number) => ({
+      id,
+      label,
+      fee: { amount, currency: 'XOF' },
+    });
+    const twice = await patch({
+      settings: {
+        delivery: { zones: [zone('a', 'Sacré Coeur', 4000), zone('b', 'sacre  coeur', 1500)] },
+      },
+    });
+    expect(twice.status).toBe(422);
   });
 });
 

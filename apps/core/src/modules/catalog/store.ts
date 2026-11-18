@@ -53,6 +53,7 @@ export function vendorSettings(v: Vendor) {
       logo_key?: string | null;
       primary_color?: string | null;
       accent_color?: string | null;
+      background_color?: string | null;
       banner?: { text?: string; href?: string | null; image_key?: string | null } | null;
       hero?: {
         eyebrow?: string | null;
@@ -85,6 +86,8 @@ export function vendorSettings(v: Vendor) {
       logoKey: s.branding?.logo_key ?? null,
       primaryColor: s.branding?.primary_color ?? '#173B32',
       accentColor: s.branding?.accent_color ?? '#8AAE4A',
+      // The page's paper. null: Selly's paper; the storefront ignores a colour too dark for its text.
+      backgroundColor: s.branding?.background_color ?? null,
       banner: s.branding?.banner
         ? {
             text: s.branding.banner.text ?? '',
@@ -352,6 +355,7 @@ export async function storeProfile(ctx: Context, v: Vendor) {
       logo_url: s.branding.logoKey ? `${ctx.config.CDN_BASE_URL}/${s.branding.logoKey}` : null,
       primary_color: s.branding.primaryColor,
       accent_color: s.branding.accentColor,
+      background_color: s.branding.backgroundColor,
       banner: bannerView(ctx, s.branding.banner),
       hero: s.branding.hero,
     },

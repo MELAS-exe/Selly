@@ -79,6 +79,7 @@ export async function vendorView(ctx: Context, v: Vendor) {
         logo_url: s.branding.logoKey ? `${ctx.config.CDN_BASE_URL}/${s.branding.logoKey}` : null,
         primary_color: s.branding.primaryColor,
         accent_color: s.branding.accentColor,
+        background_color: s.branding.backgroundColor,
         banner: s.branding.banner
           ? { ...bannerView(ctx, s.branding.banner), image_key: s.branding.banner.imageKey }
           : null,
@@ -165,6 +166,10 @@ export async function createVendor(ctx: Context, s: Session, body: z.infer<typeo
   return vendorView(ctx, vendor);
 }
 
+/** A zone name without case, accents or extra spaces: "Sacré  Coeur" and "sacre coeur" are one zone. */
+const zoneKey = (label: string) =>
+  label.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
 const heroLine = (max: number) =>
   z
     .string()
@@ -183,11 +188,16 @@ const settingsPatch = z.strictObject({
         .array(
           z.strictObject({
             id: z.string().regex(/^[a-z0-9-]{1,40}$/),
-            label: z.string().min(1).max(60),
+            label: z.string().trim().min(1).max(60),
             fee: money,
           }),
         )
         .max(20)
+        // One name, one price: the assistant matches a customer's place on the name.
+        .refine(
+          (zones) => new Set(zones.map((z) => zoneKey(z.label))).size === zones.length,
+          'Two delivery zones have the same name.',
+        )
         .optional(),
       pickup: z
         .strictObject({ available: z.boolean(), address_text: z.string().max(200).nullable() })
@@ -233,6 +243,11 @@ const settingsPatch = z.strictObject({
       accent_color: z
         .string()
         .regex(/^#[0-9a-fA-F]{6}$/, 'Use a hex colour, e.g. #8AAE4A')
+        .optional(),
+      background_color: z
+        .string()
+        .regex(/^#[0-9a-fA-F]{6}$/, 'Use a hex colour, e.g. #F6F4F0')
+        .nullable()
         .optional(),
       banner: z
         .strictObject({

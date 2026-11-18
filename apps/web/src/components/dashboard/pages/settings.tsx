@@ -11,7 +11,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { storefrontStyle } from '@/lib/brand-colors';
+import { storefrontStyle, usableBackground } from '@/lib/brand-colors';
 import { ApiError } from '@/lib/browser-api';
 import { toE164 } from '@/lib/format';
 import {
@@ -168,6 +168,9 @@ function ShopSection({ vendor, save }: { vendor: Vendor; save: Save }) {
   );
 }
 
+/** A zone name as the assistant matches it: no accents, no case, single spaces. */
+const zoneKey = (label: string) => slugify(label.replace(/s+/g, ' ').trim());
+
 function DeliverySection({ vendor, save }: { vendor: Vendor; save: Save }) {
   const d = vendor.settings.delivery;
   const [zones, setZones] = useState<DeliveryZone[]>(d?.zones ?? []);
@@ -175,11 +178,18 @@ function DeliverySection({ vendor, save }: { vendor: Vendor; save: Save }) {
   const [address, setAddress] = useState(d?.pickup.address_text ?? '');
   const [label, setLabel] = useState('');
   const [fee, setFee] = useState('');
+  // Two zones with one name leave the assistant two prices for the same place: never add one, flag old ones.
+  const count = new Map<string, number>();
+  for (const z of zones) count.set(zoneKey(z.label), (count.get(zoneKey(z.label)) ?? 0) + 1);
+  const doubled = [...count.values()].some((n) => n > 1);
+  const taken = label.trim() !== '' && count.has(zoneKey(label));
   return (
     <Section
       title="Livraison"
       sub="Les frais que l’assistant ajoute au total"
+      busy={doubled}
       onSubmit={() =>
+        !doubled &&
         patch(
           save,
           {
@@ -194,32 +204,39 @@ function DeliverySection({ vendor, save }: { vendor: Vendor; save: Save }) {
         )
       }
     >
-      <div className="info-list" style={{ padding: 0 }}>
-        {zones.map((z) => (
-          <div className="info-row" key={z.id}>
-            <span>{z.label}</span>
-            <b style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              {z.fee.amount ? fmtXof(z.fee.amount) : 'Offerte'}
-              <button
-                type="button"
-                className="button small ghost"
-                aria-label={`Retirer ${z.label}`}
-                onClick={() => setZones((all) => all.filter((x) => x.id !== z.id))}
-              >
-                <X size={12} />
-              </button>
-            </b>
-          </div>
-        ))}
-      </div>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 110px auto',
-          gap: 10,
-          alignItems: 'end',
-        }}
-      >
+      {zones.length > 0 ? (
+        <div className="zone-list" aria-label="Zones de livraison">
+          {zones.map((z) => {
+            const twice = (count.get(zoneKey(z.label)) ?? 0) > 1;
+            return (
+              <div className={`zone-row${twice ? ' doubled' : ''}`} key={z.id}>
+                <span>
+                  {z.label}
+                  {twice && <em>en double</em>}
+                </span>
+                <b>{z.fee.amount ? fmtXof(z.fee.amount) : 'Offerte'}</b>
+                <button
+                  type="button"
+                  className="button small ghost"
+                  aria-label={`Retirer ${z.label}`}
+                  onClick={() => setZones((all) => all.filter((x) => x.id !== z.id))}
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="form-hint">Aucune zone : ajoutez les quartiers où vous livrez.</p>
+      )}
+      {doubled && (
+        <p className="form-error">
+          Une zone apparaît deux fois avec des frais différents. Retirez celle qui n’est plus bonne
+          pour enregistrer.
+        </p>
+      )}
+      <div className="zone-add">
         <div>
           <label className="form-label" htmlFor="z-label">
             Zone
@@ -227,9 +244,12 @@ function DeliverySection({ vendor, save }: { vendor: Vendor; save: Save }) {
           <input
             id="z-label"
             className="form-control"
+            maxLength={60}
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            placeholder="Pikine"
+            placeholder="Ex. Mermoz"
+            aria-invalid={taken}
+            aria-describedby={taken ? 'z-taken' : undefined}
           />
         </div>
         <div>
@@ -240,16 +260,17 @@ function DeliverySection({ vendor, save }: { vendor: Vendor; save: Save }) {
             id="z-fee"
             className="form-control"
             type="number"
+            inputMode="numeric"
             min="0"
             value={fee}
             onChange={(e) => setFee(e.target.value)}
-            placeholder="2000"
+            placeholder="Ex. 1500"
           />
         </div>
         <button
           type="button"
           className="button small"
-          disabled={!label.trim() || zones.length >= 20}
+          disabled={!label.trim() || taken || zones.length >= 20}
           onClick={() => {
             let id = slugify(label);
             while (zones.some((z) => z.id === id)) id = `${id}-2`.slice(0, 40);
@@ -264,6 +285,11 @@ function DeliverySection({ vendor, save }: { vendor: Vendor; save: Save }) {
           <Plus size={12} /> Ajouter
         </button>
       </div>
+      {taken && (
+        <p className="form-error" id="z-taken">
+          Cette zone existe déjà. Retirez-la d’abord pour changer ses frais.
+        </p>
+      )}
       <label className="form-label" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
         <input
           type="checkbox"
@@ -369,6 +395,8 @@ function AgentSection({ vendor, save }: { vendor: Vendor; save: Save }) {
   );
 }
 
+/** Selly's paper: the shop's background when the vendor has not chosen one. */
+const PAPER = '#f6f4f0';
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
@@ -459,6 +487,8 @@ function BrandingSection({ vendor, save }: { vendor: Vendor; save: Save }) {
   const [name, setName] = useState(vendor.display_name);
   const [primary, setPrimary] = useState(b?.primary_color ?? '#173b32');
   const [accent, setAccent] = useState(b?.accent_color ?? '#8aae4a');
+  const [background, setBackground] = useState(b?.background_color ?? PAPER);
+  const darkBackground = !usableBackground(background);
   const [banner, setBanner] = useState(b?.banner?.text ?? '');
   const [href, setHref] = useState(b?.banner?.href ?? '');
   // The shop page's opening words; an empty field keeps the storefront's default (shown as the placeholder).
@@ -494,6 +524,9 @@ function BrandingSection({ vendor, save }: { vendor: Vendor; save: Save }) {
                 logo_key: logoKey,
                 primary_color: primary,
                 accent_color: accent,
+                // Selly's paper is stored as "none", so a later change of the default reaches the shop.
+                background_color:
+                  background.toLowerCase() === PAPER || darkBackground ? null : background,
                 banner: hasBanner
                   ? { text: banner.trim(), href: href.trim() || null, image_key: coverKey }
                   : null,
@@ -550,6 +583,7 @@ function BrandingSection({ vendor, save }: { vendor: Vendor; save: Save }) {
               [
                 ['Couleur principale', primary, setPrimary],
                 ['Couleur d’accent', accent, setAccent],
+                ['Fond de la boutique', background, setBackground],
               ] as const
             ).map(([label, value, set]) => (
               <label key={label} className="form-label" style={{ display: 'grid', gap: 8 }}>
@@ -574,6 +608,18 @@ function BrandingSection({ vendor, save }: { vendor: Vendor; save: Save }) {
               </label>
             ))}
           </div>
+          {darkBackground ? (
+            <p className="form-error">
+              Ce fond est trop foncé : le texte de la boutique ne serait plus lisible. Choisissez
+              une couleur plus claire, sinon la boutique garde son fond actuel.
+            </p>
+          ) : (
+            background.toLowerCase() !== PAPER && (
+              <button type="button" className="text-link" onClick={() => setBackground(PAPER)}>
+                Revenir au fond d’origine
+              </button>
+            )
+          )}
           <label className="form-label" htmlFor="b-banner">
             Message du bandeau, facultatif
           </label>
@@ -666,6 +712,7 @@ function BrandingSection({ vendor, save }: { vendor: Vendor; save: Save }) {
           logo={logo.url}
           primary={primary}
           accent={accent}
+          background={background}
           banner={banner.trim()}
           cover={cover.url}
           url={vendor.store_url}
@@ -682,6 +729,7 @@ function ShopPreview({
   logo,
   primary,
   accent,
+  background,
   banner,
   cover,
   url,
@@ -691,6 +739,7 @@ function ShopPreview({
   logo: string | null;
   primary: string;
   accent: string;
+  background: string;
   banner: string;
   cover: string | null;
   url: string;
@@ -699,6 +748,7 @@ function ShopPreview({
     logo_url: logo,
     primary_color: primary,
     accent_color: accent,
+    background_color: background,
     banner: null,
   });
   const copy = heroCopy(name, hero);

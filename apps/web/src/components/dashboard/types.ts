@@ -19,6 +19,7 @@ export interface Branding {
   logo_url: string | null;
   primary_color: string;
   accent_color: string;
+  background_color?: string | null;
   banner: {
     text: string;
     href: string | null;

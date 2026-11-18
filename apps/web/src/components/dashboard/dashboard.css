@@ -1732,7 +1732,7 @@ select.form-control {
 }
 .color-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
 }
 .hours-grid {
@@ -1779,19 +1779,21 @@ select.form-control {
 .shop-preview-frame {
   overflow: hidden;
   color: var(--sf-ink);
-  background: #f6f4f0;
+  /* storefrontStyle sets the vendor paper here, as on the shop. */
+  background: var(--color-d-paper, #f6f4f0);
   border: 1px solid var(--line);
   box-shadow: 0 18px 40px -28px rgba(23, 59, 50, 0.45);
 }
 .sp-announce {
   display: flex;
+  /* Light text on the ink band: the paper colour, as on the shop. */
   align-items: center;
   justify-content: center;
   gap: 8px;
   padding: 7px 12px;
   font-size: 11px;
   text-align: center;
-  color: #f6f4f0;
+  color: var(--color-d-paper, #f6f4f0);
   background: var(--sf-ink);
 }
 .sp-dot {
@@ -1895,6 +1897,9 @@ select.form-control {
 @media (max-width: 960px) {
   .identity-layout {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .color-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .shop-preview {
     position: static;
@@ -2374,6 +2379,59 @@ a.popover-item:hover {
 .empty-state svg {
   display: block;
   margin: 0 auto;
+}
+
+/* -------------------------------------------------------------------------- settings: delivery zones */
+
+/* The list scrolls past about four and a half rows, so the panel keeps its height as zones are added. */
+.zone-list {
+  max-height: 236px;
+  margin-bottom: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-top: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+}
+.zone-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.zone-row:last-child {
+  border-bottom: 0;
+}
+.zone-row > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.zone-row b {
+  font-weight: 500;
+  white-space: nowrap;
+}
+.zone-row em {
+  padding: 2px 6px;
+  font-size: 10px;
+  font-style: normal;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bissap);
+  background: var(--bissap-wash);
+}
+.zone-row.doubled b {
+  color: var(--bissap);
+}
+.zone-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 110px) auto;
+  gap: 10px;
+  align-items: end;
 }
 
 /* -------------------------------------------------------------------------- new product: photos */

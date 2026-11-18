@@ -50,11 +50,21 @@ function luminance(hex: string): number {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
-/** Contrast ratio of a colour on the shop's paper (#f6f4f0). */
-export function contrastOnPaper(hex: string): number {
-  const paper = luminance('#f6f4f0');
-  const c = luminance(hex);
-  return (paper + 0.05) / (c + 0.05);
+const SELLY_PAPER = '#f6f4f0';
+const SELLY_INK = '#173b32';
+
+/** Contrast ratio of a colour on the shop's paper (#f6f4f0, or the vendor's background). */
+export function contrastOnPaper(hex: string, paperHex = SELLY_PAPER): number {
+  const [a, b] = [luminance(paperHex), luminance(hex)];
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
+/**
+ * Can this colour be the shop's paper? The text falls back to Selly's ink, so that ink must read at 7:1 on it (the
+ * level --sf-ink keeps). A darker colour is ignored: the page keeps Selly's paper rather than become unreadable.
+ */
+export function usableBackground(hex: string | null | undefined): hex is string {
+  return !!hex && !!parseHex(hex) && contrastOnPaper(SELLY_INK, hex) >= 7;
 }
 
 /**
@@ -64,16 +74,20 @@ export function contrastOnPaper(hex: string): number {
  * The storefront tokens of brandStyle are set too, for the components that still read them (add to cart, chat).
  */
 export function storefrontStyle(branding: Branding | null | undefined): Record<string, string> {
-  const primary = branding && parseHex(branding.primary_color) ? branding.primary_color : '#173b32';
+  const primary = branding && parseHex(branding.primary_color) ? branding.primary_color : SELLY_INK;
   const accent = branding && parseHex(branding.accent_color) ? branding.accent_color : '#8aae4a';
-  const ink = contrastOnPaper(primary) >= 7 ? primary : '#173b32';
+  const paper = usableBackground(branding?.background_color) ? branding.background_color : null;
+  const on = paper ?? SELLY_PAPER;
+  const ink = contrastOnPaper(primary, on) >= 7 ? primary : SELLY_INK;
   let accentText = accent;
-  for (let i = 0; i < 8 && contrastOnPaper(accentText) < 4.5; i++)
+  for (let i = 0; i < 8 && contrastOnPaper(accentText, on) < 4.5; i++)
     accentText = darken(accentText, 0.15);
   return {
     ...brandStyle({ logo_url: null, primary_color: ink, accent_color: accent, banner: null }),
     '--sf-ink': ink,
     '--sf-accent': accent,
     '--sf-accent-text': accentText,
+    // The vendor's paper replaces Selly's for the whole page: sections, header, cards and light text on dark bands.
+    ...(paper ? { '--color-d-paper': paper, '--color-d-paper-deep': darken(paper, 0.05) } : {}),
   };
 }
