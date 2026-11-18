@@ -168,7 +168,12 @@ async function main() {
   );
   const slug = `e2e-${getPublicKey(signed.sk).slice(0, 8)}`;
   const shop = await v.call(A, 'POST', '/api/v1/vendors', { display_name: 'Boutique E2E', slug });
-  check('shop created', shop.status === 201, JSON.stringify(shop.body.live_blockers));
+  // The trial starts with the shop: live at once, orders wait for the wallet.
+  check(
+    'shop created, live on its trial without a wallet',
+    shop.status === 201 && shop.body.live === true && shop.body.accepting_orders === false,
+    JSON.stringify(shop.body.live_blockers),
+  );
   const patched = await v.call(B, 'PATCH', '/api/v1/vendors/me', {
     settings: {
       delivery: {
@@ -189,12 +194,21 @@ async function main() {
     linked.status === 200,
     JSON.stringify(linked.body).slice(0, 120),
   );
-  const trial = await v.call(A, 'POST', '/api/v1/vendors/me/subscription/trial', {
+  const trial = await v.call(A, 'GET', '/api/v1/vendors/me/subscription');
+  check(
+    '14-day Pro trial started with the shop',
+    trial.body.subscription?.status === 'trialing' && trial.body.subscription?.plan_id === 'pro',
+  );
+  const again = await v.call(A, 'POST', '/api/v1/vendors/me/subscription/trial', {
     plan_id: 'pro',
   });
-  check('14-day Pro trial', trial.status === 201 && trial.body.subscription?.status === 'trialing');
+  check('no second trial', again.status === 409, again.body.code);
   const me = await v.call(B, 'GET', '/api/v1/vendors/me');
-  check('shop is live', me.body.live === true, JSON.stringify(me.body.live_blockers));
+  check(
+    'shop is live and takes orders',
+    me.body.live === true && me.body.accepting_orders === true,
+    JSON.stringify(me.body.live_blockers),
+  );
 
   // ------------------------------------------------------------------ photo upload and product
   const photo = await sharp({
