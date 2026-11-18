@@ -18,7 +18,7 @@ import {
 } from 'react';
 import { ApiError, api } from '@/lib/browser-api';
 import { demoRequest } from './demo';
-import type { Vendor } from './types';
+import type { Upload, Vendor } from './types';
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 export interface RequestInit {
@@ -299,3 +299,24 @@ export const newKey = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+/**
+ * Photos → presigned uploads (POST /media/uploads, then PUT straight to storage). Returns the storage keys; core
+ * processes them (resize, re-encode, EXIF dropped) when a product, a draft or the branding uses them.
+ */
+export async function uploadImages(
+  request: DashboardState['request'],
+  files: File[],
+): Promise<string[]> {
+  const keys: string[] = [];
+  for (const f of files) {
+    const up = await request<Upload>('/media/uploads', {
+      method: 'POST',
+      body: { content_type: f.type, size_bytes: f.size },
+    });
+    const res = await fetch(up.upload_url, { method: up.method, headers: up.headers, body: f });
+    if (!res.ok) throw new Error('upload');
+    keys.push(up.storage_key);
+  }
+  return keys;
+}

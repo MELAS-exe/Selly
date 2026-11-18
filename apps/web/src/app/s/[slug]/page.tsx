@@ -382,6 +382,15 @@ export default async function StorePage({ params, searchParams }: Params) {
 
   return (
     <main>
+      {store.branding?.banner?.image_url && (
+        <div className="mx-auto max-w-[1260px] border-x border-d-hairline">
+          <img
+            src={store.branding.banner.image_url}
+            alt=""
+            className="block aspect-[8/3] w-full object-cover sm:aspect-[16/5]"
+          />
+        </div>
+      )}
       <Hero store={store} slug={slug} featured={featured} second={second} />
       <InfoBand store={store} />
       <Ticker store={store} />

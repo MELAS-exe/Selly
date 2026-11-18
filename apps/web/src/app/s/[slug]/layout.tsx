@@ -22,9 +22,12 @@ export default async function ShopLayout({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const { store } = await getStore(slug);
-  // Trial over or plan suspended: the link opens on this notice only, nothing of the shop behind it.
-  if (store.status !== 'active') return <ClosedShop name={store.display_name} />;
+  const { store, preview } = await getStore(slug);
+  const unpublished = store.ordering?.reason === 'wallet_missing';
+  // Not published (no wallet yet) or closed (trial over, plan suspended): customers get this notice only, nothing
+  // of the shop behind it. The owner sees the whole shop, with the preview bar.
+  if (store.status !== 'active' && !preview)
+    return <ClosedShop name={store.display_name} soon={unpublished} />;
   const banner = store.branding?.banner;
   const delivery = deliveryLabel(store);
   const announce =
@@ -39,6 +42,7 @@ export default async function ShopLayout({
       style={storefrontStyle(store.branding) as CSSProperties}
     >
       <div aria-hidden="true" className="sf-progress" />
+      {preview && <PreviewBar unpublished={unpublished} />}
       <div className="bg-[var(--sf-ink)] px-4 py-2.5 text-center text-[0.9375rem] text-d-paper">
         <span className="inline-flex items-center justify-center gap-2.5">
           <span aria-hidden="true" className="size-1.5 shrink-0 bg-[var(--sf-accent)]" />
@@ -131,13 +135,37 @@ export default async function ShopLayout({
   );
 }
 
-function ClosedShop({ name }: { name: string }) {
+/** Only the owner sees this: what customers see instead, and how to publish. */
+function PreviewBar({ unpublished }: { unpublished: boolean }) {
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 bg-[#E3342F] px-4 py-2.5 text-center text-[0.9375rem] text-white">
+      <span>
+        <strong>Aperçu.</strong>{' '}
+        {unpublished
+          ? 'Vos clients ne voient pas encore la boutique : liez un portefeuille pour la publier.'
+          : 'La boutique est fermée au public : choisissez une formule pour la rouvrir.'}
+      </span>
+      <a
+        href={unpublished ? '/app/portefeuille' : '/app/abonnement'}
+        className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4"
+      >
+        {unpublished ? 'Lier un portefeuille' : 'Voir les formules'}
+      </a>
+    </div>
+  );
+}
+
+function ClosedShop({ name, soon }: { name: string; soon: boolean }) {
   return (
     <div className={`sf ${storefrontSerif.variable} min-h-dvh text-[var(--sf-ink)]`}>
       <main className="mx-auto max-w-xl px-5 pt-24 pb-20">
-        <h1 className="text-[1.75rem] leading-tight font-bold">Boutique momentanément fermée</h1>
+        <h1 className="text-[1.75rem] leading-tight font-bold">
+          {soon ? 'Bientôt en ligne' : 'Boutique momentanément fermée'}
+        </h1>
         <p className="mt-3 text-d-ink-soft">
-          {name} ne reçoit pas de visites pour le moment. Revenez un peu plus tard.
+          {soon
+            ? `${name} prépare sa boutique. Revenez très bientôt.`
+            : `${name} ne reçoit pas de visites pour le moment. Revenez un peu plus tard.`}
         </p>
         <a href="/" className="mt-8 inline-flex min-h-11 items-center gap-2 text-[0.9375rem]">
           Une boutique portée par{' '}

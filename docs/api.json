@@ -11106,7 +11106,7 @@
               "active",
               "paused"
             ],
-            "description": "`paused` while the subscription is suspended or the shop is not live yet."
+            "description": "active: published. paused: not published (no wallet yet) or closed (trial over, plan suspended, operator); ordering.reason says which."
           },
           "whatsapp_link": {
             "oneOf": [
@@ -11175,7 +11175,7 @@
           },
           "ordering": {
             "type": "object",
-            "description": "Can customers order now? An open shop without a linked wallet shows its catalog and its chat, but takes no orders (ORDERS_NOT_OPEN).",
+            "description": "Can customers order now? Same as status: wallet_missing means the shop is not published yet (its page says it opens soon), store_paused that it is closed.",
             "properties": {
               "enabled": {
                 "type": "boolean"
@@ -11274,11 +11274,24 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "image_url": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "The banner picture (wide image across the top of the shop page), or null."
                   }
                 },
                 "required": [
                   "text",
-                  "href"
+                  "href",
+                  "image_url"
                 ],
                 "additionalProperties": false
               },
@@ -11553,6 +11566,11 @@
                 "type": "null"
               }
             ]
+          },
+          "preview": {
+            "type": "boolean",
+            "const": true,
+            "description": "Present when the shop is not published (no wallet yet, trial over, plan suspended) and the request carries its owner’s session: the owner sees the whole shop. Sent with Cache-Control: private, no-store."
           }
         },
         "required": [
@@ -12788,6 +12806,29 @@
                             "type": "null"
                           }
                         ]
+                      },
+                      "image_key": {
+                        "oneOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Processed public storage key. Set with a key from POST /api/v1/media/uploads; send the banner whole (text, href, image_key) on each change."
+                      },
+                      "image_url": {
+                        "oneOf": [
+                          {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "The banner picture (wide image across the top of the shop page), or null."
                       }
                     },
                     "required": [
@@ -12867,11 +12908,11 @@
           },
           "live": {
             "type": "boolean",
-            "description": "True when the shop is online: a plan that is not suspended (the free trial counts). A wallet is not needed to be live."
+            "description": "True when the shop is published: a plan that is not suspended (the free trial counts) and a linked wallet. Without a wallet the vendor works on the shop and sees it in preview."
           },
           "accepting_orders": {
             "type": "boolean",
-            "description": "True when the shop is live and a wallet is linked: customers can order and pay."
+            "description": "Same as live: a published shop takes orders."
           },
           "live_blockers": {
             "type": "array",

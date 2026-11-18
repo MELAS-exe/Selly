@@ -227,8 +227,8 @@ describe('shop creation', () => {
     expect(v.body).toMatchObject({
       slug: 'awa-mode',
       store_url: 'http://localhost:3000/s/awa-mode',
-      // The free trial starts with the shop: live without a wallet, but no orders until one is linked.
-      live: true,
+      // The free trial starts with the shop; it is published once a wallet is linked.
+      live: false,
       accepting_orders: false,
       live_blockers: ['wallet_missing'],
       settings: { agent: { enabled: false } },
@@ -244,6 +244,17 @@ describe('shop creation', () => {
       status: 'trialing',
       trial: true,
     });
+    // Not published: customers see it closed, the owner sees it in preview.
+    const STORE = '/api/v1/stores/{slug}';
+    const pub = await call('GET', STORE, '/api/v1/stores/awa-mode');
+    expect(pub.body.store).toMatchObject({
+      status: 'paused',
+      ordering: { enabled: false, reason: 'wallet_missing' },
+    });
+    expect(pub.body.preview).toBeUndefined();
+    const own = await call('GET', STORE, '/api/v1/stores/awa-mode', { cookie: s.cookie });
+    expect(own.body.preview).toBe(true);
+    expect(own.res.headers['cache-control']).toBe('private, no-store');
     const me = await call('GET', '/api/v1/vendors/me', '/api/v1/vendors/me', { cookie: s.cookie });
     expect(me.body.id).toBe(v.body.id);
     const keys = await call('GET', '/api/v1/vendors/me/keys', '/api/v1/vendors/me/keys', {

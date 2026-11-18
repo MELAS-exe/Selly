@@ -1227,6 +1227,8 @@ select.form-control {
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+  /* Under the sticky top bar when it is scrolled into view. */
+  scroll-margin-top: 68px;
 }
 .chat-head {
   display: flex;
@@ -1716,13 +1718,212 @@ select.form-control {
   }
 }
 
+/* -------------------------------------------------------------------------- settings: identity and preview */
+
+.identity-panel {
+  grid-column: 1 / -1;
+}
+.identity-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 360px);
+  gap: 28px;
+  padding: 4px 22px 22px;
+  align-items: start;
+}
+.color-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.hours-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+.picture-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.picture-thumb {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 56px;
+  height: 56px;
+  overflow: hidden;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px dashed var(--line-strong);
+}
+.picture-row.wide .picture-thumb {
+  width: 120px;
+  aspect-ratio: 8 / 3;
+  height: auto;
+}
+.picture-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.picture-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.shop-preview {
+  position: sticky;
+  top: 88px;
+}
+.shop-preview-frame {
+  overflow: hidden;
+  color: var(--sf-ink);
+  background: #f6f4f0;
+  border: 1px solid var(--line);
+  box-shadow: 0 18px 40px -28px rgba(23, 59, 50, 0.45);
+}
+.sp-announce {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 7px 12px;
+  font-size: 11px;
+  text-align: center;
+  color: #f6f4f0;
+  background: var(--sf-ink);
+}
+.sp-dot {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  background: var(--sf-accent);
+}
+.sp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.sp-mark {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.sp-mark img,
+.sp-mark > span {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  object-fit: cover;
+  border-radius: 50%;
+  font-size: 12px;
+  color: #f6f4f0;
+  background: var(--sf-ink);
+}
+.sp-mark b {
+  overflow: hidden;
+  font-family: var(--serif);
+  font-size: 17px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.sp-cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 8 / 3;
+  object-fit: cover;
+}
+.sp-hero {
+  padding: 18px 16px 20px;
+}
+.sp-eyebrow {
+  margin: 0 0 6px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--sf-accent-text);
+}
+.sp-title {
+  margin: 0 0 14px;
+  font-family: var(--serif);
+  font-size: 24px;
+  line-height: 1.05;
+}
+.sp-button {
+  display: inline-block;
+  padding: 8px 14px;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #f6f4f0;
+  background: var(--sf-ink);
+}
+@media (max-width: 960px) {
+  .identity-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .shop-preview {
+    position: static;
+    max-width: 420px;
+  }
+}
+
 /* --------------------------------------------------------------------------------------- responsive */
 
 @media (max-width: 1100px) {
   .content-grid,
   .overview-grid,
-  .lower-grid {
+  .lower-grid,
+  /* Settings, wallet and subscription: two columns left 190 px panels next to the sidebar on a tablet. */
+  .wallet-page-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Touch screens: 44 px targets (WCAG 2.5.5, Apple and Android guidance), and 16 px fields so iOS does not zoom
+   the page when one is tapped. The desktop sizes stay for a mouse. */
+@media (pointer: coarse), (max-width: 700px) {
+  .button.small,
+  .period {
+    min-height: 44px;
+  }
+  .icon-button,
+  .row-action {
+    width: 44px;
+    height: 44px;
+  }
+  .text-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .form-control,
+  .select,
+  .search,
+  .chat-compose input,
+  .chat-compose textarea {
+    font-size: 16px;
+  }
+  .period {
+    font-size: 16px;
+    letter-spacing: 0.04em;
+  }
+  .selly-shell input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+  }
+  .selly-shell input[type="color"] {
+    width: 44px !important;
+    height: 44px !important;
   }
 }
 @media (max-width: 960px) {
@@ -1754,7 +1955,18 @@ select.form-control {
     display: block;
     height: 26px;
     width: auto;
-    margin-right: 4px;
+    margin-right: 10px;
+  }
+  /* Alerts: the message across the screen, the action under it (beside it, the text was a narrow column). */
+  .banner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+  .banner .button {
+    justify-content: center;
+    width: 100%;
   }
   .topbar .demo-chip {
     display: none;
@@ -1860,8 +2072,10 @@ select.form-control {
     border-bottom: 0;
     border-right: 1px solid var(--line-soft);
   }
+  /* The open thread fills the screen between the top bar and the bottom menu, so the reply box is in reach. */
   .chat-pane {
-    height: 520px;
+    height: calc(100dvh - 58px - 68px - 24px);
+    min-height: 420px;
   }
   .chat-thread {
     padding: 14px;
@@ -2135,4 +2349,53 @@ a.popover-item:hover {
 .empty-state svg {
   display: block;
   margin: 0 auto;
+}
+
+/* -------------------------------------------------------------------------- new product: photos */
+
+.photo-picks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 8px;
+}
+.photo-pick {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
+.photo-pick img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.photo-pick button {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--on-dark);
+  background: rgba(23, 59, 50, 0.82);
+  border: 0;
+  cursor: pointer;
+}
+.photo-pick.add {
+  gap: 4px;
+  align-content: center;
+  padding: 6px;
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--ink);
+  border-style: dashed;
+  border-color: var(--line-strong);
+  cursor: pointer;
 }

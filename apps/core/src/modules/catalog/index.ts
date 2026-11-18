@@ -1,8 +1,8 @@
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { AppError } from '../../errors';
 import { withIdempotency } from '../../idempotency';
-import { requireVendor } from '../auth/http';
+import { currentSession, requireVendor } from '../auth/http';
 import {
   createCategory,
   deleteCategory,
@@ -19,6 +19,7 @@ import {
   productDetail,
   storeProfile,
   storeStatus,
+  type Vendor,
 } from './store';
 import { createVendorProduct, listVendorProducts } from './vendor';
 
@@ -82,22 +83,39 @@ const reorderBody = z.strictObject({ ids: z.array(z.uuid()).min(1).max(200) });
 export const catalogModule: FastifyPluginAsync = async (app) => {
   const ctx = () => app.ctx;
 
+  /**
+   * Who sees the catalog: everyone when the shop is published; only its owner, in preview, when it is not (no
+   * wallet yet, trial over, plan suspended). A preview is never cached by a CDN or shared.
+   */
+  async function access(req: FastifyRequest, reply: FastifyReply, vendor: Vendor) {
+    if ((await storeStatus(ctx(), vendor)) === 'active') {
+      reply.header('Cache-Control', PUBLIC_CACHE);
+      return { open: true, preview: false };
+    }
+    const owner = (await currentSession(ctx(), req))?.vendorId === vendor.id;
+    reply.header('Cache-Control', owner ? 'private, no-store' : PUBLIC_CACHE);
+    return { open: owner, preview: owner };
+  }
+
   app.get<{ Params: { slug: string } }>('/api/v1/stores/:slug', async (req, reply) => {
     const vendor = await findVendorBySlug(ctx(), req.params.slug);
     const store = await storeProfile(ctx(), vendor);
     const q = page.parse(req.query);
-    const products =
-      store.status === 'active'
-        ? await listProducts(ctx(), vendor.id, q)
-        : { data: [], next_cursor: null };
-    reply.header('Cache-Control', PUBLIC_CACHE);
-    return { store, products: products.data, next_cursor: products.next_cursor };
+    const { open, preview } = await access(req, reply, vendor);
+    const products = open
+      ? await listProducts(ctx(), vendor.id, q)
+      : { data: [], next_cursor: null };
+    return {
+      store,
+      products: products.data,
+      next_cursor: products.next_cursor,
+      ...(preview ? { preview: true } : {}),
+    };
   });
 
   app.get<{ Params: { slug: string } }>('/api/v1/stores/:slug/products', async (req, reply) => {
     const vendor = await findVendorBySlug(ctx(), req.params.slug);
-    reply.header('Cache-Control', PUBLIC_CACHE);
-    if ((await storeStatus(ctx(), vendor)) !== 'active') return { data: [], next_cursor: null };
+    if (!(await access(req, reply, vendor)).open) return { data: [], next_cursor: null };
     return listProducts(ctx(), vendor.id, page.parse(req.query));
   });
 
@@ -106,10 +124,9 @@ export const catalogModule: FastifyPluginAsync = async (app) => {
     async (req, reply) => {
       const vendor = await findVendorBySlug(ctx(), req.params.slug);
       const { variant_id } = z.object({ variant_id: z.uuid().optional() }).parse(req.query);
-      // A closed shop (trial over, plan suspended) shows no products, not even by direct link.
-      if ((await storeStatus(ctx(), vendor)) !== 'active')
+      // A shop that is not published shows no products, not even by direct link, except to its owner.
+      if (!(await access(req, reply, vendor)).open)
         throw new AppError('STORE_PAUSED', 'This shop is temporarily closed.');
-      reply.header('Cache-Control', PUBLIC_CACHE);
       return productDetail(ctx(), vendor, req.params.product_id, variant_id);
     },
   );

@@ -17,7 +17,12 @@ export interface Branding {
   logo_url: string | null;
   primary_color: string;
   accent_color: string;
-  banner: { text: string; href: string | null } | null;
+  banner: {
+    text: string;
+    href: string | null;
+    image_key?: string | null;
+    image_url?: string | null;
+  } | null;
 }
 
 export interface DeliveryZone {

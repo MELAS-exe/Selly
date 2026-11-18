@@ -184,7 +184,14 @@ function Frame({ children }: { children: ReactNode }) {
           <div style={{ minWidth: 0 }}>
             <strong>{name}</strong>
             <span>
-              {demo ? 'Boutique de démonstration' : vendor?.live ? 'En ligne' : 'Hors ligne'}
+              {demo
+                ? 'Boutique de démonstration'
+                : vendor?.live
+                  ? 'En ligne'
+                  : vendor?.live_blockers.includes('wallet_missing') &&
+                      !vendor.live_blockers.some((b) => b.startsWith('subscription_'))
+                    ? 'Non publiée'
+                    : 'Hors ligne'}
             </span>
           </div>
           <button
@@ -325,7 +332,7 @@ function LiveBanner() {
         ]
       : b.includes('wallet_missing')
         ? [
-            'Votre boutique est en ligne, mais les clients ne peuvent pas encore commander : liez un portefeuille pour recevoir les paiements.',
+            'Votre boutique n’est pas encore publiée : liez un portefeuille pour l’ouvrir aux clients. En attendant, préparez-la et ouvrez-la en aperçu.',
             '/app/portefeuille',
             'Lier un portefeuille',
           ]

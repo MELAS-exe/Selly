@@ -168,10 +168,12 @@ async function main() {
   );
   const slug = `e2e-${getPublicKey(signed.sk).slice(0, 8)}`;
   const shop = await v.call(A, 'POST', '/api/v1/vendors', { display_name: 'Boutique E2E', slug });
-  // The trial starts with the shop: live at once, orders wait for the wallet.
+  // The trial starts with the shop; it is published (live) once a wallet is linked.
   check(
-    'shop created, live on its trial without a wallet',
-    shop.status === 201 && shop.body.live === true && shop.body.accepting_orders === false,
+    'shop created on its trial, not published without a wallet',
+    shop.status === 201 &&
+      shop.body.live === false &&
+      JSON.stringify(shop.body.live_blockers) === '["wallet_missing"]',
     JSON.stringify(shop.body.live_blockers),
   );
   const patched = await v.call(B, 'PATCH', '/api/v1/vendors/me', {

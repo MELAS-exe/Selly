@@ -365,7 +365,7 @@ function vendor(): Vendor {
     locale: 'fr',
     status: 'active',
     store_url: 'https://selly.sn/s/atelier-niani',
-    live: true,
+    live: wallet !== null,
     accepting_orders: wallet !== null,
     live_blockers: wallet ? [] : ['wallet_missing'],
     created_at: ago(40 * DAY),

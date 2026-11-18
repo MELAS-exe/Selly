@@ -6,9 +6,9 @@ import type { Context } from '../../context';
 import { AppError } from '../../errors';
 import { iso } from '../../util';
 import type { Session } from '../auth/service';
-import { alertSettings, type Vendor, vendorSettings } from '../catalog/store';
+import { alertSettings, bannerView, type Vendor, vendorSettings } from '../catalog/store';
 import { audit } from '../events/outbox';
-import { processUpload } from '../media/images';
+import { DISPLAY_WIDTH, processUpload, WIDTHS } from '../media/images';
 import { startTrial, TRIAL_PLAN } from '../subscriptions/billing';
 import { currentSubscription } from '../subscriptions/service';
 import { liveWallet } from '../wallet/service';
@@ -46,8 +46,11 @@ export async function vendorView(ctx: Context, v: Vendor) {
   else if (wallet.status === 'degraded') blockers.push('wallet_degraded');
   if (!sub) blockers.push('subscription_required');
   else if (sub.status === 'suspended') blockers.push('subscription_suspended');
-  // The shop is online with a running plan; a wallet is only needed to take orders.
-  const live = v.status === 'active' && !blockers.some((b) => b.startsWith('subscription_'));
+  // Published: a running plan and a wallet (storeState). A wallet that stopped answering keeps the shop online,
+  // with its own blocker. Without a wallet the vendor works on the shop and sees it in preview.
+  const live =
+    v.status === 'active' &&
+    !blockers.some((b) => b.startsWith('subscription_') || b === 'wallet_missing');
   const s = vendorSettings(v);
   const raw = v.settings as {
     agent?: { keep_logs?: boolean };
@@ -76,12 +79,14 @@ export async function vendorView(ctx: Context, v: Vendor) {
         logo_url: s.branding.logoKey ? `${ctx.config.CDN_BASE_URL}/${s.branding.logoKey}` : null,
         primary_color: s.branding.primaryColor,
         accent_color: s.branding.accentColor,
-        banner: s.branding.banner,
+        banner: s.branding.banner
+          ? { ...bannerView(ctx, s.branding.banner), image_key: s.branding.banner.imageKey }
+          : null,
       },
       alerts: alertSettings(v),
     },
     live,
-    accepting_orders: live && !!wallet,
+    accepting_orders: live,
     live_blockers: blockers,
     created_at: iso(v.createdAt) as string,
   };
@@ -223,6 +228,7 @@ const settingsPatch = z.strictObject({
         .strictObject({
           text: z.string().trim().max(140),
           href: z.string().url().max(500).nullable().optional(),
+          image_key: z.string().max(200).nullable().optional(),
         })
         .nullable()
         .optional(),
@@ -279,6 +285,27 @@ export async function patchVendor(ctx: Context, v: Vendor, body: z.infer<typeof 
     patchedSettings = {
       ...patchedSettings,
       branding: { ...patchedSettings.branding, logo_key: prepared.storageKey },
+    };
+  }
+  // The banner's picture, the same way.
+  const banner = patchedSettings?.branding?.banner;
+  if (
+    banner?.image_key &&
+    banner.image_key !== vendorSettings(v).branding.banner?.imageKey &&
+    patchedSettings?.branding
+  ) {
+    const prepared = await processUpload(ctx.media, v.id, banner.image_key);
+    // A full-width picture: the widest variant, not the 640 px one product cards use.
+    const widest = prepared.storageKey.replace(
+      `/${DISPLAY_WIDTH}.webp`,
+      `/${Math.max(...WIDTHS)}.webp`,
+    );
+    patchedSettings = {
+      ...patchedSettings,
+      branding: {
+        ...patchedSettings.branding,
+        banner: { ...banner, image_key: widest },
+      },
     };
   }
 

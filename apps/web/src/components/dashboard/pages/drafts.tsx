@@ -6,10 +6,10 @@
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '@/lib/browser-api';
-import { errorText, newKey, useDashboard, useResource } from '../data';
+import { errorText, newKey, uploadImages, useDashboard, useResource } from '../data';
 import { fmtAgo, fmtXof, formatOptions } from '../format';
 import { Camera, Check, CircleCheck, ImagePlus, TriangleAlert } from '../icons';
-import type { Draft, Page, Upload } from '../types';
+import type { Draft, Page } from '../types';
 import { Badge, Empty, Failed, Loading, PageTitle } from '../ui';
 
 const FROM: Record<string, string> = {
@@ -91,16 +91,7 @@ function PhotoForm({ autoOpen }: { autoOpen: boolean }) {
   async function send() {
     setBusy(true);
     try {
-      const keys: string[] = [];
-      for (const f of files) {
-        const up = await request<Upload>('/media/uploads', {
-          method: 'POST',
-          body: { content_type: f.type, size_bytes: f.size },
-        });
-        const res = await fetch(up.upload_url, { method: up.method, headers: up.headers, body: f });
-        if (!res.ok) throw new Error('upload');
-        keys.push(up.storage_key);
-      }
+      const keys = await uploadImages(request, files);
       await request('/inventory/restock-ai', {
         method: 'POST',
         idempotencyKey: newKey(),

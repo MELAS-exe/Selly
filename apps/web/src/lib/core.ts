@@ -1,10 +1,13 @@
 // Server components only: never import this file from a 'use client' module.
+import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import type { CheckoutView, ProductDetail, ProductSummary, StorePage } from './types';
 import type { PlansResponse } from './vendor-types';
 
 // Server components call core directly. The browser goes through the /api/v1 rewrites in next.config.ts.
 const CORE_URL = process.env.CORE_URL ?? 'http://localhost:4000';
+/** Core's vendor session cookie (set on this origin through the /api/v1 rewrites). */
+const SESSION_COOKIE = 'selly_session';
 
 export class CoreError extends Error {
   constructor(
@@ -30,13 +33,23 @@ async function get<T>(path: string, init: RequestInit & { next?: { revalidate?: 
 
 const enc = encodeURIComponent;
 
-// Storefront: CDN 30 s in production (architecture.md 3.4); here, the Next.js data cache for 30 s.
+/**
+ * Storefront reads: CDN 30 s in production (architecture.md 3.4); here, the Next.js data cache for 30 s. A signed-in
+ * vendor's session goes along, uncached, so the owner of a shop that is not published sees it in preview (core
+ * answers `preview: true` only to the owner; anyone else gets the public answer).
+ */
+async function storefront<T>(path: string) {
+  const session = (await cookies()).get(SESSION_COOKIE)?.value;
+  if (!session) return get<T>(path, { next: { revalidate: 30 } });
+  return get<T>(path, { cache: 'no-store', headers: { cookie: `${SESSION_COOKIE}=${session}` } });
+}
+
 export const getStore = (slug: string, query?: { category?: string; cursor?: string }) => {
   const qs = new URLSearchParams();
   if (query?.category) qs.set('category', query.category);
   if (query?.cursor) qs.set('cursor', query.cursor);
   const suffix = qs.size > 0 ? `?${qs}` : '';
-  return get<StorePage>(`/api/v1/stores/${enc(slug)}${suffix}`, { next: { revalidate: 30 } });
+  return storefront<StorePage>(`/api/v1/stores/${enc(slug)}${suffix}`);
 };
 
 /** Catalog search for the storefront (`q`, `category`): GET /stores/{slug}/products. */
@@ -44,16 +57,13 @@ export const searchProducts = (slug: string, query: { q?: string; category?: str
   const qs = new URLSearchParams();
   if (query.q) qs.set('q', query.q);
   if (query.category) qs.set('category', query.category);
-  return get<{ data: ProductSummary[]; next_cursor: string | null }>(
+  return storefront<{ data: ProductSummary[]; next_cursor: string | null }>(
     `/api/v1/stores/${enc(slug)}/products?${qs}`,
-    { next: { revalidate: 30 } },
   );
 };
 
 export const getProduct = (slug: string, product: string) =>
-  get<ProductDetail>(`/api/v1/stores/${enc(slug)}/products/${enc(product)}`, {
-    next: { revalidate: 30 },
-  });
+  storefront<ProductDetail>(`/api/v1/stores/${enc(slug)}/products/${enc(product)}`);
 
 // Pricing: prices live in the database and the rate moves, so the pricing page asks core every 5 minutes.
 export const getPlans = () => get<PlansResponse>('/api/v1/plans', { next: { revalidate: 300 } });
