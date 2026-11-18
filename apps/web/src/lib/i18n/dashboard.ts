@@ -64,7 +64,7 @@ export const dash = {
     sales: 'Sales',
     orders: (n: number) => (n === 1 ? '1 order' : `${n} orders`),
     paidOrders: (n: number) => (n === 1 ? '1 paid' : `${n} paid`),
-    sats: 'received in sats',
+    sats: 'received',
     todo: 'To do',
     todoShip: (n: number) => (n === 1 ? '1 paid order to deliver' : `${n} paid orders to deliver`),
     todoChats: (n: number) => (n === 1 ? '1 chat waiting for you' : `${n} chats waiting for you`),
