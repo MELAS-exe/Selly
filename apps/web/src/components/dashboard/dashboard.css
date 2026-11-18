@@ -1938,3 +1938,199 @@ select.form-control {
   font-size: 9px;
   fill: var(--ink-40);
 }
+
+/* ------------------------------------------------------------------- bell, phone sheet, links as buttons */
+
+.brand {
+  text-decoration: none;
+}
+a.nav-item,
+a.mobile-nav-item,
+a.icon-button,
+a.button {
+  text-decoration: none;
+}
+.popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 40;
+  width: min(340px, calc(100vw - 32px));
+  max-height: 420px;
+  overflow: auto;
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  animation: dash-pop var(--dur-ui, 260ms) var(--ease-out-expo, ease-out) both;
+}
+.popover-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  border-bottom: 1px solid var(--line);
+}
+.popover-item {
+  display: block;
+  padding: 12px 16px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink);
+  border-bottom: 1px solid var(--line-soft);
+}
+a.popover-item:hover {
+  background: var(--leaf-wash);
+}
+.popover-item small {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink-55);
+}
+.popover-empty {
+  margin: 0;
+  padding: 16px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink-55);
+}
+.sheet {
+  display: none;
+}
+@media (max-width: 700px) {
+  .sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 64px;
+    z-index: 29;
+    display: block;
+    background: var(--ink);
+    border-top: 1px solid var(--on-dark-line);
+    animation: dash-pop var(--dur-ui, 260ms) var(--ease-out-expo, ease-out) both;
+  }
+  .sheet .nav-item {
+    padding: 16px 20px;
+  }
+}
+
+/* The connected chart: HTML labels around a stretched SVG. */
+.chart-box {
+  position: relative;
+  padding-left: 40px;
+}
+.chart-plot {
+  position: relative;
+  height: 230px;
+}
+.chart-plot .chart {
+  height: 100%;
+}
+.chart-box .chart-y {
+  left: -40px;
+}
+.chart-ticks {
+  position: relative;
+  height: 18px;
+  margin-top: 8px;
+}
+.chart-ticks span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 10px;
+  white-space: nowrap;
+  color: var(--ink-55);
+}
+.chart-ticks span:first-child {
+  transform: none;
+}
+.chart-ticks span:last-child {
+  transform: translateX(-100%);
+}
+@media (max-width: 700px) {
+  .chart-plot {
+    height: 170px;
+  }
+}
+
+/* Without a photo, the picture area is a band, not a big empty frame. */
+.product-art.no-image,
+.product-art.draft-art {
+  aspect-ratio: auto;
+  height: 104px;
+}
+.money .text-link {
+  font-family: var(--sans);
+}
+.field-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+/* Phones: each order is a card (number and total, customer and state, items, actions), no sideways scroll. */
+@media (max-width: 700px) {
+  .orders-table {
+    min-width: 0;
+  }
+  .orders-table thead {
+    display: none;
+  }
+  .orders-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .orders-table tr:last-child {
+    border-bottom: 0;
+  }
+  .orders-table td {
+    display: block;
+    padding: 0;
+    border: 0;
+  }
+  .orders-table td:nth-child(1) {
+    grid-area: 1 / 1;
+  }
+  .orders-table td:nth-child(6) {
+    grid-area: 1 / 2;
+    text-align: right;
+  }
+  .orders-table td:nth-child(2) {
+    grid-area: 2 / 1;
+  }
+  .orders-table td:nth-child(4) {
+    grid-area: 2 / 2;
+    justify-self: end;
+    align-self: center;
+  }
+  .orders-table td:nth-child(3) {
+    grid-area: 3 / 1 / 4 / 3;
+    font-size: 12px;
+  }
+  .orders-table td:nth-child(5) {
+    display: none;
+  }
+  .orders-table td:nth-child(7) {
+    grid-area: 4 / 1 / 5 / 3;
+  }
+  .orders-table td:nth-child(7) .table-actions {
+    justify-content: flex-start;
+  }
+  .chart-ticks span:nth-child(even):not(:last-child) {
+    display: none;
+  }
+}
+/* Tailwind's reset makes svg a block: centre the empty-state icon explicitly. */
+.empty-state svg {
+  display: block;
+  margin: 0 auto;
+}

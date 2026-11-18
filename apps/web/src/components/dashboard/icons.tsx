@@ -212,3 +212,74 @@ export const Zap = icon([
     },
   ],
 ]);
+
+// Added for the connected dashboard (same Lucide set).
+export const LogOut = icon([
+  ['path', { d: 'm16 17 5-5-5-5' }],
+  ['path', { d: 'M21 12H9' }],
+  ['path', { d: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4' }],
+]);
+export const Truck = icon([
+  ['path', { d: 'M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2' }],
+  ['path', { d: 'M15 18H9' }],
+  [
+    'path',
+    { d: 'M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14' },
+  ],
+  ['circle', { cx: '17', cy: '18', r: '2' }],
+  ['circle', { cx: '7', cy: '18', r: '2' }],
+]);
+export const ExternalLink = icon([
+  ['path', { d: 'M15 3h6v6' }],
+  ['path', { d: 'M10 14 21 3' }],
+  ['path', { d: 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' }],
+]);
+export const Camera = icon([
+  [
+    'path',
+    {
+      d: 'M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z',
+    },
+  ],
+  ['circle', { cx: '12', cy: '13', r: '3' }],
+]);
+export const Pause = icon([
+  ['rect', { x: '14', y: '4', width: '4', height: '16', rx: '1' }],
+  ['rect', { x: '6', y: '4', width: '4', height: '16', rx: '1' }],
+]);
+export const Eye = icon([
+  [
+    'path',
+    {
+      d: 'M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0',
+    },
+  ],
+  ['circle', { cx: '12', cy: '12', r: '3' }],
+]);
+export const Menu = icon([
+  ['path', { d: 'M4 12h16' }],
+  ['path', { d: 'M4 18h16' }],
+  ['path', { d: 'M4 6h16' }],
+]);
+export const Copy = icon([
+  ['rect', { width: '14', height: '14', x: '8', y: '8', rx: '2', ry: '2' }],
+  ['path', { d: 'M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2' }],
+]);
+export const TriangleAlert = icon([
+  ['path', { d: 'm21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3' }],
+  ['path', { d: 'M12 9v4' }],
+  ['path', { d: 'M12 17h.01' }],
+]);
+export const ArrowLeft = icon([
+  ['path', { d: 'm12 19-7-7 7-7' }],
+  ['path', { d: 'M19 12H5' }],
+]);
+export const Minus = icon([['path', { d: 'M5 12h14' }]]);
+export const Bot = icon([
+  ['path', { d: 'M12 8V4H8' }],
+  ['rect', { width: '16', height: '12', x: '4', y: '8', rx: '2' }],
+  ['path', { d: 'M2 14h2' }],
+  ['path', { d: 'M20 14h2' }],
+  ['path', { d: 'M15 13v2' }],
+  ['path', { d: 'M9 13v2' }],
+]);

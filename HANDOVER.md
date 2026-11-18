@@ -70,7 +70,10 @@ This works correctly under Strict Mode because each updater call sees the actual
 
 The sign-in page only supports NIP-07 browser extension and local key (NIP-49). Amber (Android, same-device via intent) and remote bunker (NIP-46) are deferred. The architecture and the `nostr-signers.ts` module already document this gap.
 
-### 4. Vendor dashboard UI for branding/categories
+### 4. Vendor dashboard UI for branding/categories — done on `web/dashboard`
+
+`/app/reglages` sets the colours, the banner, the categories, delivery zones, the assistant and alerts. The logo upload is still missing there.
+
 
 The API for setting branding, colors, the banner, and managing categories exists and is tested. The dashboard UI pages (under `/app/*`) to actually let vendors do it are not built. Right now you can only set branding/categories by patching the database or calling the API directly with a session cookie.
 
