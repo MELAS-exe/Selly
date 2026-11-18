@@ -302,7 +302,7 @@ export const CASES: EvalCase[] = [
   }),
   fr('nego-04', ['Dernier prix pour le boubou ?', 'Non, 20 000 ou rien'], {
     intent: 'negotiation_over_limit',
-    tools: ['handoff_to_vendor'],
+    tools: [],
     handoff: true,
   }),
   fr('nego-05', 'Vous pouvez baisser un peu le sac ?', {
@@ -382,29 +382,29 @@ export const CASES: EvalCase[] = [
   }),
   fr('status-02', "J'ai payé mais je n'ai rien reçu", {
     intent: 'order_problem',
-    tools: ['handoff_to_vendor'],
+    tools: [],
     handoff: true,
   }),
   fr('status-03', 'Ma commande est arrivée abîmée', {
     intent: 'complaint',
-    tools: ['handoff_to_vendor'],
+    tools: [],
     handoff: true,
   }),
 
   // ------------------------------------------------------------ handoff
   fr('handoff-01', 'Je veux parler au vendeur', {
     intent: 'handoff',
-    tools: ['handoff_to_vendor'],
+    tools: [],
     handoff: true,
   }),
   fr('handoff-02', 'Passez-moi Awa svp', {
     intent: 'handoff',
-    tools: ['handoff_to_vendor'],
+    tools: [],
     handoff: true,
   }),
   fr('handoff-03', 'Vous êtes un robot ? Je veux un humain', {
     intent: 'handoff',
-    tools: ['handoff_to_vendor'],
+    tools: [],
     handoff: true,
   }),
 
@@ -480,7 +480,7 @@ export const CASES: EvalCase[] = [
   en('en-04', 'Can I pay with Lightning?', { intent: 'payment', tools: [] }),
   en('en-05', 'I want to talk to the owner', {
     intent: 'handoff',
-    tools: ['handoff_to_vendor'],
+    tools: [],
     handoff: true,
   }),
 
@@ -498,7 +498,7 @@ export const CASES: EvalCase[] = [
   }),
   wo('wo-04', 'Dama bëgg wax ak boroom bitik bi', {
     intent: 'handoff',
-    tools: ['handoff_to_vendor'],
+    tools: [],
     handoff: true,
   }),
   wo('wo-05', 'Sac bi, ñaata la ?', { intent: 'price', tools: SEARCH, mustInclude: ['18 000'] }),
@@ -544,7 +544,7 @@ export const CASES: EvalCase[] = [
   }),
   mix('mix-06', 'Dama bëgg parler ak vendeur bi', {
     intent: 'handoff',
-    tools: ['handoff_to_vendor'],
+    tools: [],
     handoff: true,
   }),
 

@@ -15,6 +15,7 @@ import {
 } from '../tools';
 import type { ProductExtractor } from '../vision';
 import { extractQuickReplies, filterReply, unbackedAmounts, unbackedOrderNumbers } from './filter';
+import { asksForHuman, claimsOrder, negotiates, totalsIn } from './intents';
 import type { LlmBlock, LlmMessage, LlmProvider } from './llm';
 import { textOf } from './llm';
 import { SUMMARY_PROMPT, systemPrompt } from './prompt';
@@ -98,8 +99,15 @@ export class AgentEngine {
     const messages = toLlmMessages(history, req.transcripts ?? {});
     // Amounts already in the visible conversation may be repeated back: the person's own words, and
     // replies that passed this check in an earlier turn.
-    for (const m of history)
+    const lastText = req.inbound.map((m) => req.transcripts?.[m.id] ?? m.text ?? '').join(' ');
+    // A customer who bargains names a price: that price must not count as backed, or « d'accord pour
+    // 10 000 » would pass the amounts check (seen on ollama:qwen2.5:7b).
+    const negotiating = role === 'customer' && negotiates(lastText);
+    const thisTurn = new Set(req.inbound.map((m) => m.id));
+    for (const m of history) {
+      if (negotiating && thisTurn.has(m.id)) continue;
       for (const n of numbersIn(req.transcripts?.[m.id] ?? m.text ?? '')) ctx.out.amounts.add(n);
+    }
     // Order numbers the reply may name: orders of this chat, the ones tools return this turn (added
     // below), and the ones the person wrote. Any other is an order the model made up.
     const knownOrders = new Set<string>(Object.keys(conv.state.orders ?? {}));
@@ -109,13 +117,31 @@ export class AgentEngine {
 
     // Delivery fees of the shop profile are server facts in the prompt: a reply may quote them.
     for (const z of profile.delivery.zones) ctx.out.amounts.add(z.fee.amount);
-    const lastText = req.inbound.map((m) => req.transcripts?.[m.id] ?? m.text ?? '').join(' ');
     // Small models answer in French whatever the rule says: name the language when it is English.
     const replyLanguage =
       role === 'customer' && profile.languages.includes('en') && looksEnglish(lastText)
         ? ('en' as const)
         : undefined;
-    const system = systemPrompt(role, profile, conv, this.now(), replyLanguage);
+    const system = systemPrompt(role, profile, conv, this.now(), replyLanguage, negotiating);
+    // Totals the reply may state: the last quote's, and those tools return this turn (added below).
+    const knownTotals = new Set<number>(
+      conv.state.lastQuoteTotal ? [conv.state.lastQuoteTotal.amount] : [],
+    );
+
+    // A customer who asks for a person gets the vendor, decided by code: small models said « je passe la
+    // main » without calling handoff_to_vendor, or kept selling.
+    if (role === 'customer' && asksForHuman(lastText)) {
+      clearTimeout(timer);
+      return this.handoffResult(
+        ctx,
+        [],
+        0,
+        0,
+        started,
+        'customer_request',
+        `Le client demande à parler au vendeur : « ${lastText.slice(0, 300)} »`,
+      );
+    }
     const tools = toolDefinitions(role);
     const toolCalls: Omit<ToolOutcome, 'result'>[] = [];
     let inputTokens = 0;
@@ -176,6 +202,17 @@ export class AgentEngine {
           const text = textOf(res.content);
           const badAmounts = unbackedAmounts(text, ctx.out.amounts);
           const badOrders = unbackedOrderNumbers(text, knownOrders);
+          // An order claimed without a number, or a total no quote gave, is made up as well.
+          const created = toolCalls.some((t) => t.name === 'create_order' && t.ok);
+          if (
+            !created &&
+            badOrders.length === 0 &&
+            claimsOrder(text) &&
+            ![...knownOrders].some((n) => text.includes(n))
+          )
+            badOrders.push('(sans numéro)');
+          for (const n of totalsIn(text))
+            if (!knownTotals.has(n) && !badAmounts.includes(n)) badAmounts.push(n);
           const bad = [...badAmounts.map(String), ...badOrders];
           if (bad.length > 0 && !corrected) {
             // Facts come from tools (section 8.4, P5): one chance to fix the reply.
@@ -239,6 +276,8 @@ export class AgentEngine {
           toolCalls.push({ name: o.name, arguments: o.arguments, ok: o.ok });
           for (const m of o.result.matchAll(/"number":"([A-Z0-9]{3,12})"/g))
             knownOrders.add(m[1] as string);
+          for (const m of o.result.matchAll(/"total":\{"amount":(\d+)/g))
+            knownTotals.add(Number(m[1]));
         }
         const results: LlmBlock[] = outcomes.map((o, i) => ({
           type: 'tool_result',

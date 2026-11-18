@@ -337,19 +337,31 @@ describe('a customer turn', () => {
 });
 
 describe('handoff and the vendor inbox', () => {
+  it('hands over by code when the customer asks for a person, without a model call', async () => {
+    const { openChat, send, history, llm, core, store } = setup();
+    const { token, conversationId } = await openChat();
+    await send(token, 'Je veux parler au vendeur');
+    expect(llm.requests).toHaveLength(0);
+    expect((await store.getConversation(conversationId))?.mode).toBe('human');
+    expect(core.notifications.at(-1)).toMatchObject({ type: 'conversation.handoff' });
+    expect((await history(token)).at(-1)?.text).toBe(
+      'Je transmets votre message au vendeur, il vous répond très vite.',
+    );
+  });
+
   it('hands off, stays silent in human mode, and lets the vendor answer', async () => {
     const { app, openChat, send, history, llm, core, vendorHeaders } = setup();
     llm.push(
       () => [
         toolCall('handoff_to_vendor', {
-          reason: 'customer_request',
-          summary: 'Veut parler au vendeur',
+          reason: 'complaint',
+          summary: 'Commande abîmée',
         }),
       ],
       () => [say('Je préviens le vendeur, il vous répond ici.')],
     );
     const { token, conversationId } = await openChat();
-    await send(token, 'Je veux parler au vendeur');
+    await send(token, 'Ma commande est arrivée abîmée');
     expect(core.notifications.at(-1)).toMatchObject({ type: 'conversation.handoff' });
 
     await send(token, 'Vous êtes là ?');

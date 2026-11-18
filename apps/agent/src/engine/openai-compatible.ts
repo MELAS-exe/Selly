@@ -223,7 +223,15 @@ export class OpenAiCompatibleProvider implements LlmProvider {
     if (finish === 'length' && calls.length > 0)
       throw new Error(`${this.name}: a tool call was cut off by the length limit`);
     const content: LlmBlock[] = [];
-    if (choice.message.content) content.push({ type: 'text', text: choice.message.content });
+    let text = choice.message.content ?? '';
+    // Small local models sometimes write the call as text instead of tool_calls: run it, and never
+    // show the raw JSON to the customer.
+    if (calls.length === 0 && text) {
+      const salvaged = salvageTextToolCalls(text, new Set((req.tools ?? []).map((t) => t.name)));
+      text = salvaged.text;
+      for (const s of salvaged.calls) content.push(s);
+    }
+    if (text) content.unshift({ type: 'text', text });
     for (const c of calls)
       content.push({
         type: 'tool_use',
@@ -252,6 +260,72 @@ export class OpenAiCompatibleProvider implements LlmProvider {
       },
     };
   }
+}
+
+/**
+ * Tool calls written in the reply text: `{"name": "search_products", "arguments": {...}}`, with or without
+ * `<tool_call>` tags (Qwen, Hermes formats). Only names of the offered tools count. Returns the text
+ * without them.
+ */
+export function salvageTextToolCalls(
+  text: string,
+  toolNames: Set<string>,
+): { text: string; calls: Extract<LlmBlock, { type: 'tool_use' }>[] } {
+  const calls: Extract<LlmBlock, { type: 'tool_use' }>[] = [];
+  let rest = text;
+  let from = 0;
+  for (;;) {
+    const at = rest.indexOf('{"name"', from);
+    if (at < 0) break;
+    const end = matchingBrace(rest, at);
+    if (end < 0) break;
+    let parsed: { name?: unknown; arguments?: unknown; parameters?: unknown } | null = null;
+    try {
+      parsed = JSON.parse(rest.slice(at, end + 1));
+    } catch {
+      parsed = null;
+    }
+    const args = parsed?.arguments ?? parsed?.parameters;
+    if (
+      typeof parsed?.name === 'string' &&
+      toolNames.has(parsed.name) &&
+      args &&
+      typeof args === 'object'
+    ) {
+      calls.push({
+        type: 'tool_use',
+        id: `text_call_${calls.length + 1}`,
+        name: parsed.name,
+        input: args as Record<string, unknown>,
+      });
+      rest = rest.slice(0, at) + rest.slice(end + 1);
+      from = at;
+    } else from = end + 1;
+  }
+  if (calls.length === 0) return { text, calls };
+  // Leftovers of the wrapper (<tool_call>, </tool_call>, stray tokens on the same line).
+  const cleaned = rest
+    .replace(/<\/?tool_call>/g, '')
+    .split('\n')
+    .filter((line) => /[\p{L}\p{N}]{3,}/u.test(line) && !/^\s*[A-Z]{2,6}\s*$/.test(line))
+    .join('\n')
+    .trim();
+  return { text: cleaned, calls };
+}
+
+function matchingBrace(s: string, start: number): number {
+  let depth = 0;
+  let inString = false;
+  for (let i = start; i < s.length; i++) {
+    const c = s[i];
+    if (inString) {
+      if (c === '\\') i++;
+      else if (c === '"') inString = false;
+    } else if (c === '"') inString = true;
+    else if (c === '{') depth++;
+    else if (c === '}' && --depth === 0) return i;
+  }
+  return -1;
 }
 
 /** `groq:<model>`, `ollama:<model>` or `openai:<model>`, or null for another name. */
