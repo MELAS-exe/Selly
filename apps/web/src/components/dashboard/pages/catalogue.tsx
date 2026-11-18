@@ -4,10 +4,11 @@
 // waiting for payment (architecture.md 4.6); − and + change what is on hand, never below what is reserved.
 
 import Link from 'next/link';
-import { type FormEvent, useState } from 'react';
-import { newKey, useDashboard, useResource } from '../data';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { ApiError } from '@/lib/browser-api';
+import { newKey, uploadImages, useDashboard, useResource } from '../data';
 import { fmtXof, formatOptions } from '../format';
-import { Eye, ImagePlus, Minus, Package, Plus, Search } from '../icons';
+import { Camera, Eye, ImagePlus, Minus, Package, Plus, Search, X } from '../icons';
 import type { Category, Page, VendorProduct } from '../types';
 import { Badge, Empty, Failed, Loading, Modal, PageTitle } from '../ui';
 
@@ -191,7 +192,7 @@ export function Catalogue() {
 
 /** Option names core accepts: lowercase letters and _ (drafts.ts). "Tailles" become { size }. */
 function NewProduct({ categories, onClose }: { categories: Category[]; onClose: () => void }) {
-  const { mutate } = useDashboard();
+  const { mutate, request, flash, demo } = useDashboard();
   const [title, setTitle] = useState('');
   const [price, setPrice] = useState('');
   const [category, setCategory] = useState(categories[0]?.id ?? '');
@@ -199,8 +200,13 @@ function NewProduct({ categories, onClose }: { categories: Category[]; onClose: 
   const [sizes, setSizes] = useState('');
   const [stock, setStock] = useState('1');
   const [busy, setBusy] = useState(false);
-  // One key per opened form: a double tap or a retry never creates the product twice.
+  const [photos, setPhotos] = useState<{ file: File; url: string }[]>([]);
+  // One key per opened form: a double tap or a retry never creates the product twice. The photos already sent keep
+  // their storage key, so a retry sends the same request.
   const [key] = useState(newKey);
+  const sent = useRef(new Map<File, string>());
+  const picker = useRef<HTMLInputElement>(null);
+  useEffect(() => () => photos.forEach((p) => URL.revokeObjectURL(p.url)), [photos]);
 
   const sizeList = sizes
     .split(/[,;]/)
@@ -212,6 +218,15 @@ function NewProduct({ categories, onClose }: { categories: Category[]; onClose: 
     setBusy(true);
     const onHand = Math.max(0, Number(stock) || 0);
     try {
+      const imageKeys: string[] = [];
+      for (const p of photos) {
+        let k = sent.current.get(p.file);
+        if (!k && !demo) {
+          k = (await uploadImages(request, [p.file]))[0];
+          if (k) sent.current.set(p.file, k);
+        }
+        if (k) imageKeys.push(k);
+      }
       await mutate(
         '/inventory',
         {
@@ -222,6 +237,7 @@ function NewProduct({ categories, onClose }: { categories: Category[]; onClose: 
             ...(description.trim() ? { description: description.trim() } : {}),
             ...(category ? { category_id: category } : {}),
             price: { amount: Number(price), currency: 'XOF' },
+            ...(imageKeys.length ? { image_keys: imageKeys } : {}),
             variants: sizeList.length
               ? sizeList.map((size) => ({ options: { size }, on_hand: onHand }))
               : [{ options: {}, on_hand: onHand }],
@@ -230,7 +246,8 @@ function NewProduct({ categories, onClose }: { categories: Category[]; onClose: 
         `${title.trim()} ajouté au catalogue.`,
       );
       onClose();
-    } catch {
+    } catch (err) {
+      if (!(err instanceof ApiError)) flash('L’envoi d’une photo a échoué. Réessayez.', 'error');
       setBusy(false);
     }
   }
@@ -239,8 +256,58 @@ function NewProduct({ categories, onClose }: { categories: Category[]; onClose: 
     <Modal title="Ajouter un produit" onClose={onClose}>
       <form onSubmit={submit}>
         <p className="modal-copy">
-          Le produit est visible sur votre boutique dès que vous l’ajoutez, et l’assistant peut le
-          proposer.
+          Le produit apparaît dans votre boutique dès que vous l’ajoutez (dès qu’elle est publiée
+          pour vos clients), et l’assistant peut le proposer.
+        </p>
+        <div className="form-label">Photos, jusqu’à 8</div>
+        <div className="photo-picks">
+          {photos.map((p, i) => (
+            <span className="photo-pick" key={p.url}>
+              <img src={p.url} alt={`Photo ${i + 1}`} />
+              <button
+                type="button"
+                aria-label={`Retirer la photo ${i + 1}`}
+                onClick={() => setPhotos((all) => all.filter((x) => x !== p))}
+              >
+                <X size={12} />
+              </button>
+            </span>
+          ))}
+          {photos.length < 8 && (
+            <button
+              type="button"
+              className="photo-pick add"
+              onClick={() => picker.current?.click()}
+            >
+              <Camera size={18} />
+              <span>{photos.length ? 'Ajouter' : 'Ajouter une photo'}</span>
+            </button>
+          )}
+          <input
+            ref={picker}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            hidden
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? []);
+              e.target.value = '';
+              const ok = files.filter(
+                (f) => /^image\/(jpeg|png|webp)$/.test(f.type) && f.size <= 8 * 1024 * 1024,
+              );
+              if (ok.length < files.length)
+                flash('Certaines photos sont refusées : JPEG, PNG ou WebP, 8 Mo au plus.', 'error');
+              setPhotos((all) =>
+                [...all, ...ok.map((file) => ({ file, url: URL.createObjectURL(file) }))].slice(
+                  0,
+                  8,
+                ),
+              );
+            }}
+          />
+        </div>
+        <p className="form-hint">
+          La première photo est celle que voient vos clients dans la boutique.
         </p>
         <label className="form-label" htmlFor="np-title">
           Nom du produit

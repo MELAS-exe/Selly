@@ -13,9 +13,9 @@ type Params = { params: Promise<{ slug: string; product: string }> };
 // OpenGraph tags so a link pasted in WhatsApp shows the photo, the name and the price (architecture.md 3.4).
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug, product: p } = await params;
-  const { store } = await getStore(slug);
+  const { store, preview } = await getStore(slug);
   // A closed shop shows no product, not even in a pasted link preview.
-  if (store.status !== 'active') return { title: store.display_name };
+  if (store.status !== 'active' && !preview) return { title: store.display_name };
   const product = await getProduct(slug, p);
   const title = `${product.title}, ${formatMoney(product.price)}`;
   const image = product.images[0];
@@ -34,9 +34,9 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 export default async function ProductPage({ params }: Params) {
   const { slug, product: p } = await params;
-  const { store } = await getStore(slug);
-  // The layout shows the closed notice; core refuses the product anyway.
-  if (store.status !== 'active') return null;
+  const { store, preview } = await getStore(slug);
+  // The layout shows the closed notice; core refuses the product anyway (except to the owner, in preview).
+  if (store.status !== 'active' && !preview) return null;
   const product = await getProduct(slug, p);
   const [first, ...rest] = product.images;
   const category = store.categories?.find((c) => c.id === product.category_id);

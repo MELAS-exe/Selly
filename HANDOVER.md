@@ -73,11 +73,11 @@ The sign-in page only supports NIP-07 browser extension and local key (NIP-49). 
 
 ### 4. Vendor dashboard UI for branding/categories — done (PR #34)
 
-`/app/reglages` sets the colours, the banner, the categories, delivery zones, the assistant and alerts. The logo upload is still missing there.
+`/app/reglages` sets the name, the logo, the colours, the banner (message, link and picture, with a live preview of the shop), the categories, delivery zones, the assistant and alerts.
 
-### 5. MinIO not running locally
+### 5. Local storage — fixed
 
-`docker compose up -d minio minio-init` fails because the `minio/mc` image requires a `docker login` (rate-limited / auth-walled pull). As a result, `MEDIA_STORE=memory` is used locally, which means uploaded images stay in the core process and are lost on restart. This only affects product photo uploads and the logo upload; everything else works fine. To fix: `docker login` before running `pnpm infra:up`, or use the full `docker compose up --build` stack which builds from a Dockerfile rather than pulling `minio/mc`.
+The compose `storage` service is RustFS, and the AWS CLI creates the buckets (no more `minio/mc`): `docker compose up -d storage storage-init` works without a login. Set `MEDIA_STORE=s3` in `.env` and photo, logo and banner uploads work locally (`memory` signs uploads to an address that does not exist).
 
 ---
 
@@ -91,6 +91,14 @@ pnpm infra:up          # starts postgres:18 and the nostr relay
 pnpm --filter @selly/core dev    # port 4000, migrates + seeds on start
 pnpm --filter @selly/agent dev   # port 4100
 pnpm --filter @selly/web dev     # port 3000
+
+# 3. Payments without a real wallet: two fake NWC wallets (packages/nwc testkit) on the local relay.
+#    In .env: INVOICE_PROVIDER=nwc and NWC_ALLOW_INSECURE_RELAYS=true (development only).
+pnpm dev:testwallet                     # keep it open; prints the vendor and platform links
+pnpm testwallet link --slug awa-style   # through core's wallet:link CLI, the same five checks
+pnpm testwallet link --platform
+pnpm testwallet pay                     # pays the newest unpaid invoice (or: pay <bolt11 or hash>)
+pnpm testwallet invoices
 
 # Demo shop: http://localhost:3000/s/awa-style
 # Pricing:   http://localhost:3000/tarifs

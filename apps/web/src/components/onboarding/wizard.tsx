@@ -358,8 +358,8 @@ function WalletStep({
         <h1 className="pv-serif text-4xl md:text-5xl font-light mb-3">Connect your wallet</h1>
         <p className="pv-sans text-sm text-black/60 leading-relaxed">
           Customers pay straight into your wallet. Selly only asks it for invoices and never touches
-          the money. Your free trial has started: you can do this later, but customers can only
-          order once a wallet is connected.
+          the money. Your free trial has started: you can do this later, and prepare your shop in
+          the meantime. It is published for customers once a wallet is connected.
         </p>
       </div>
 
@@ -494,13 +494,16 @@ function DoneStep({ vendor }: { vendor: Vendor }) {
       <div>
         <p className="pv-sans text-xs uppercase tracking-[0.3em] font-medium text-[#E3342F] mb-6 flex items-center gap-4">
           <span className="w-8 h-px bg-[#E3342F]" />
-          You are live
+          {vendor.live ? 'You are live' : 'Your free trial has started'}
         </p>
         <h1 className="pv-serif text-4xl md:text-6xl font-light leading-[1.05] mb-4">
-          {vendor.display_name} is <span className="italic text-[#8AAE4A]">open</span>
+          {vendor.display_name} is{' '}
+          <span className="italic text-[#8AAE4A]">{vendor.live ? 'open' : 'ready'}</span>
         </h1>
         <p className="pv-sans text-sm text-black/60 leading-relaxed">
-          Share this one link on WhatsApp, Instagram or wherever your customers find you.
+          {vendor.live
+            ? 'Share this one link on WhatsApp, Instagram or wherever your customers find you.'
+            : 'Add products and make it yours. While you are signed in, the link below opens your shop in preview; customers see it once you connect a wallet.'}
         </p>
       </div>
 
@@ -527,9 +530,9 @@ function DoneStep({ vendor }: { vendor: Vendor }) {
         </div>
       </div>
 
-      {!vendor.accepting_orders && (
+      {!vendor.live && (
         <p className="pv-sans text-sm border border-[#1111111f] px-4 py-3 leading-relaxed">
-          Customers can browse and chat, but cannot order until you connect a wallet.{' '}
+          Not published yet: customers see “coming soon” until you connect a wallet.{' '}
           <Link href="/app/portefeuille" className="underline underline-offset-4">
             Connect it from the dashboard
           </Link>

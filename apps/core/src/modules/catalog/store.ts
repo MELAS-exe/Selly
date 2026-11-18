@@ -53,7 +53,14 @@ export function vendorSettings(v: Vendor) {
       logo_key?: string | null;
       primary_color?: string | null;
       accent_color?: string | null;
-      banner?: { text?: string; href?: string | null } | null;
+      background_color?: string | null;
+      banner?: { text?: string; href?: string | null; image_key?: string | null } | null;
+      hero?: {
+        eyebrow?: string | null;
+        title?: string | null;
+        text?: string | null;
+        cta?: string | null;
+      };
     };
   };
   return {
@@ -79,10 +86,36 @@ export function vendorSettings(v: Vendor) {
       logoKey: s.branding?.logo_key ?? null,
       primaryColor: s.branding?.primary_color ?? '#173B32',
       accentColor: s.branding?.accent_color ?? '#8AAE4A',
+      // The page's paper. null: Selly's paper; the storefront ignores a colour too dark for its text.
+      backgroundColor: s.branding?.background_color ?? null,
       banner: s.branding?.banner
-        ? { text: s.branding.banner.text ?? '', href: s.branding.banner.href ?? null }
+        ? {
+            text: s.branding.banner.text ?? '',
+            href: s.branding.banner.href ?? null,
+            imageKey: s.branding.banner.image_key ?? null,
+          }
         : null,
+      // The shop page's opening words. null: the storefront's default for that line.
+      hero: {
+        eyebrow: s.branding?.hero?.eyebrow ?? null,
+        title: s.branding?.hero?.title ?? null,
+        text: s.branding?.hero?.text ?? null,
+        cta: s.branding?.hero?.cta ?? null,
+      },
     },
+  };
+}
+
+/** The banner as clients see it: text, link, and its picture on the CDN. */
+export function bannerView(
+  ctx: Pick<Context, 'config'>,
+  b: ReturnType<typeof vendorSettings>['branding']['banner'],
+) {
+  if (!b) return null;
+  return {
+    text: b.text,
+    href: b.href,
+    image_url: b.imageKey ? `${ctx.config.CDN_BASE_URL}/${b.imageKey}` : null,
   };
 }
 
@@ -103,17 +136,27 @@ export async function findVendorById(ctx: Context, id: string): Promise<Vendor> 
   return v;
 }
 
-/**
- * Is the shop open for orders? The vendor must not be suspended by an operator, and must have a plan that is
- * trialing, active or in grace (architecture.md section 3.7). A missing wallet does not close the shop: orders then
- * fail with PAYMENT_UNAVAILABLE, and the dashboard shows the blocker.
- */
-export async function storeStatus(ctx: Context, v: Vendor): Promise<'active' | 'paused'> {
-  if (v.status !== 'active') return 'paused';
-  return isServing(await currentSubscription(ctx, v.id)) ? 'active' : 'paused';
+export interface StoreState {
+  status: 'active' | 'paused';
+  /** Why it is paused: closed (operator, plan suspended or trial over), or not published yet (no wallet). */
+  reason: 'store_paused' | 'wallet_missing' | null;
 }
 
-/** Has the vendor linked a wallet? Orders are paid into it, so an open shop without one shows but takes no orders. */
+/**
+ * Is the shop published? The vendor must not be suspended by an operator, must have a plan that is trialing, active
+ * or in grace (architecture.md section 3.7), and must have linked a wallet: customers pay into it, so a shop without
+ * one is not published yet. Its owner still sees it in preview (storefront reads with their session).
+ */
+export async function storeState(ctx: Context, v: Vendor): Promise<StoreState> {
+  if (v.status !== 'active' || !isServing(await currentSubscription(ctx, v.id)))
+    return { status: 'paused', reason: 'store_paused' };
+  if (!(await hasWallet(ctx, v.id))) return { status: 'paused', reason: 'wallet_missing' };
+  return { status: 'active', reason: null };
+}
+
+export const storeStatus = async (ctx: Context, v: Vendor) => (await storeState(ctx, v)).status;
+
+/** Has the vendor linked a wallet (active or degraded)? */
 export async function hasWallet(ctx: Context, vendorId: string): Promise<boolean> {
   const [row] = await ctx.db
     .select({ id: core.walletConnections.id })
@@ -128,13 +171,15 @@ export async function hasWallet(ctx: Context, vendorId: string): Promise<boolean
   return !!row;
 }
 
-/** Refuses an order on a shop without a wallet, before any stock is reserved. */
-export async function requireOrdering(ctx: Context, v: Vendor) {
-  if (!(await hasWallet(ctx, v.id)))
+/** Refuses an order on a shop that is not published, before any stock is reserved. */
+export async function requireOpen(ctx: Context, v: Vendor) {
+  const { reason } = await storeState(ctx, v);
+  if (reason === 'wallet_missing')
     throw new AppError(
       'ORDERS_NOT_OPEN',
       'This shop does not take orders yet: the vendor has not linked a wallet.',
     );
+  if (reason) throw new AppError('STORE_PAUSED', 'This shop is temporarily closed.');
 }
 
 export const availabilityOf = (available: number): 'in_stock' | 'low' | 'out_of_stock' =>
@@ -292,10 +337,9 @@ export async function storeCategories(ctx: Context, vendorId: string) {
 
 export async function storeProfile(ctx: Context, v: Vendor) {
   const s = vendorSettings(v);
-  const status = await storeStatus(ctx, v);
+  const { status, reason } = await storeState(ctx, v);
   const sub = await currentSubscription(ctx, v.id);
   const cats = await storeCategories(ctx, v.id);
-  const wallet = await hasWallet(ctx, v.id);
   return {
     slug: v.slug,
     display_name: v.displayName,
@@ -311,17 +355,17 @@ export async function storeProfile(ctx: Context, v: Vendor) {
       logo_url: s.branding.logoKey ? `${ctx.config.CDN_BASE_URL}/${s.branding.logoKey}` : null,
       primary_color: s.branding.primaryColor,
       accent_color: s.branding.accentColor,
-      banner: s.branding.banner,
+      background_color: s.branding.backgroundColor,
+      banner: bannerView(ctx, s.branding.banner),
+      hero: s.branding.hero,
     },
     categories: cats,
     chat: {
       enabled: status === 'active' && s.agentEnabled,
       reason: status !== 'active' ? 'store_paused' : s.agentEnabled ? null : 'vendor_disabled',
     },
-    ordering: {
-      enabled: status === 'active' && wallet,
-      reason: status !== 'active' ? 'store_paused' : wallet ? null : 'wallet_missing',
-    },
+    // wallet_missing: not published yet (the shop page says it opens soon); store_paused: closed.
+    ordering: { enabled: status === 'active', reason },
     payment_options: ['lightning'] as const,
     powered_by_badge: sub?.limits.powered_by_badge ?? true,
   };

@@ -26,6 +26,8 @@ export interface FakeWalletOptions {
    * tags its info event with it, so the app can find the wallet.
    */
   clientPubkey?: string;
+  /** Fixed keys (hex), so a long-running dev wallet keeps the same URI across restarts. Default: random. */
+  keys?: { walletSecret: string; clientSecret: string };
 }
 
 type Tamper = 'amount' | 'hash' | 'expiry' | 'network' | null;
@@ -33,10 +35,10 @@ type Tamper = 'amount' | 'hash' | 'expiry' | 'network' | null;
 const RECEIVE_ONLY: Nip47Method[] = ['get_info', 'get_balance', 'make_invoice', 'lookup_invoice'];
 
 export class FakeNwcWallet {
-  readonly walletSecret = bytesToHex(randomBytes(32));
+  readonly walletSecret: string;
   /** Empty for a wallet created by Nostr Wallet Auth: only the app knows that secret. */
   readonly clientSecret: string;
-  readonly walletPubkey = getPublicKey(Buffer.from(this.walletSecret, 'hex'));
+  readonly walletPubkey: string;
   readonly clientPubkey: string;
   private readonly nodeKey = randomBytes(32);
   private readonly invoices = new Map<string, Nip47Transaction & { preimageHex: string }>();
@@ -56,7 +58,11 @@ export class FakeNwcWallet {
   readonly calls: string[] = [];
 
   private constructor(private readonly opts: FakeWalletOptions) {
-    this.clientSecret = opts.clientPubkey ? '' : bytesToHex(randomBytes(32));
+    this.walletSecret = opts.keys?.walletSecret ?? bytesToHex(randomBytes(32));
+    this.walletPubkey = getPublicKey(Buffer.from(this.walletSecret, 'hex'));
+    this.clientSecret = opts.clientPubkey
+      ? ''
+      : (opts.keys?.clientSecret ?? bytesToHex(randomBytes(32)));
     this.clientPubkey = opts.clientPubkey ?? getPublicKey(Buffer.from(this.clientSecret, 'hex'));
     this.methods = opts.methods ?? RECEIVE_ONLY;
     this.notifications = opts.notifications ?? true;
@@ -229,6 +235,30 @@ export class FakeNwcWallet {
 
   invoiceCount() {
     return this.invoices.size;
+  }
+
+  /** The invoices this wallet made, newest first: payment hash, bolt11, amount and state. */
+  listInvoices() {
+    return [...this.invoices.entries()]
+      .map(([hash, tx]) => ({
+        paymentHash: hash,
+        invoice: tx.invoice,
+        amountMsat: tx.amount,
+        description: tx.description,
+        state: tx.state,
+        createdAt: tx.created_at,
+      }))
+      .sort((a, b) => b.createdAt - a.createdAt);
+  }
+
+  /** The payment hash of a bolt11 this wallet made, or null. */
+  hashOf(invoice: string): string | null {
+    const wanted = invoice
+      .trim()
+      .toLowerCase()
+      .replace(/^lightning:/, '');
+    for (const [hash, tx] of this.invoices) if (tx.invoice.toLowerCase() === wanted) return hash;
+    return null;
   }
 
   close() {

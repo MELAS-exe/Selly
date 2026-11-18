@@ -6,7 +6,7 @@ import QRCode from 'qrcode';
 import type { Context } from '../../context';
 import { AppError } from '../../errors';
 import { iso, money, orderNumber, publicToken } from '../../util';
-import { requireOrdering, storeStatus, type Vendor, vendorSettings } from '../catalog/store';
+import { requireOpen, type Vendor, vendorSettings } from '../catalog/store';
 import { audit, publishEvent } from '../events/outbox';
 import * as inventory from '../inventory/service';
 import { orderEventData } from '../payments/service';
@@ -57,9 +57,7 @@ export async function quoteCart(
   opts: { discountPct?: number } = {},
 ): Promise<Quote> {
   const settings = vendorSettings(vendor);
-  if ((await storeStatus(ctx, vendor)) !== 'active') {
-    throw new AppError('STORE_PAUSED', 'This shop is temporarily closed.');
-  }
+  await requireOpen(ctx, vendor);
 
   // The same variant twice is one line.
   const wanted = new Map<string, number>();
@@ -188,7 +186,6 @@ export async function createOrder(ctx: Context, input: CreateOrderInput) {
   const { vendor } = input;
   const now = ctx.now();
   const quote = await quoteCart(ctx, vendor, input, { discountPct: input.discountPct ?? 0 });
-  await requireOrdering(ctx, vendor);
 
   if (
     input.expectedTotal.amount !== quote.total ||
@@ -492,9 +489,7 @@ export async function renewInvoice(ctx: Context, token: string) {
     .from(core.vendors)
     .where(eq(core.vendors.id, order.vendorId));
   const v = vendor as Vendor;
-  if ((await storeStatus(ctx, v)) !== 'active')
-    throw new AppError('STORE_PAUSED', 'This shop is temporarily closed.');
-  await requireOrdering(ctx, v);
+  await requireOpen(ctx, v);
 
   const { totalSat, quote: rate } = await satsFor(ctx, order.pricingCurrency, order.totalXof);
   const amountMsat = Number(satToMsat(BigInt(totalSat)));

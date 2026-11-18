@@ -45,6 +45,14 @@ export function Discussions({ id }: { id?: string }) {
       router.replace(`/app/discussions/${list[0].id}`);
   }, [id, list, router]);
 
+  // On a phone the thread sits under the list: bring it up when a conversation opens.
+  const pane = useRef<HTMLDivElement>(null);
+  const opened = Boolean(current);
+  useEffect(() => {
+    if (id && opened && window.matchMedia('(max-width: 700px)').matches)
+      pane.current?.scrollIntoView({ block: 'start' });
+  }, [id, opened]);
+
   return (
     <>
       <PageTitle
@@ -75,6 +83,8 @@ export function Discussions({ id }: { id?: string }) {
               <Link
                 key={c.id}
                 href={`/app/discussions/${c.id}`}
+                // The page keeps its place; on a phone the effect above brings the thread up.
+                scroll={false}
                 className={`conversation ${id === c.id ? 'active' : ''}`}
                 aria-current={id === c.id ? 'page' : undefined}
               >
@@ -100,7 +110,7 @@ export function Discussions({ id }: { id?: string }) {
               />
             )}
           </div>
-          <div className="chat-pane">
+          <div className="chat-pane" ref={pane}>
             {current ? (
               <Thread key={current.id} chat={current} />
             ) : (

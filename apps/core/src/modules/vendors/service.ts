@@ -6,9 +6,9 @@ import type { Context } from '../../context';
 import { AppError } from '../../errors';
 import { iso } from '../../util';
 import type { Session } from '../auth/service';
-import { alertSettings, type Vendor, vendorSettings } from '../catalog/store';
+import { alertSettings, bannerView, type Vendor, vendorSettings } from '../catalog/store';
 import { audit } from '../events/outbox';
-import { processUpload } from '../media/images';
+import { DISPLAY_WIDTH, processUpload, WIDTHS } from '../media/images';
 import { startTrial, TRIAL_PLAN } from '../subscriptions/billing';
 import { currentSubscription } from '../subscriptions/service';
 import { liveWallet } from '../wallet/service';
@@ -46,8 +46,11 @@ export async function vendorView(ctx: Context, v: Vendor) {
   else if (wallet.status === 'degraded') blockers.push('wallet_degraded');
   if (!sub) blockers.push('subscription_required');
   else if (sub.status === 'suspended') blockers.push('subscription_suspended');
-  // The shop is online with a running plan; a wallet is only needed to take orders.
-  const live = v.status === 'active' && !blockers.some((b) => b.startsWith('subscription_'));
+  // Published: a running plan and a wallet (storeState). A wallet that stopped answering keeps the shop online,
+  // with its own blocker. Without a wallet the vendor works on the shop and sees it in preview.
+  const live =
+    v.status === 'active' &&
+    !blockers.some((b) => b.startsWith('subscription_') || b === 'wallet_missing');
   const s = vendorSettings(v);
   const raw = v.settings as {
     agent?: { keep_logs?: boolean };
@@ -76,12 +79,16 @@ export async function vendorView(ctx: Context, v: Vendor) {
         logo_url: s.branding.logoKey ? `${ctx.config.CDN_BASE_URL}/${s.branding.logoKey}` : null,
         primary_color: s.branding.primaryColor,
         accent_color: s.branding.accentColor,
-        banner: s.branding.banner,
+        background_color: s.branding.backgroundColor,
+        banner: s.branding.banner
+          ? { ...bannerView(ctx, s.branding.banner), image_key: s.branding.banner.imageKey }
+          : null,
+        hero: s.branding.hero,
       },
       alerts: alertSettings(v),
     },
     live,
-    accepting_orders: live && !!wallet,
+    accepting_orders: live,
     live_blockers: blockers,
     created_at: iso(v.createdAt) as string,
   };
@@ -159,6 +166,19 @@ export async function createVendor(ctx: Context, s: Session, body: z.infer<typeo
   return vendorView(ctx, vendor);
 }
 
+/** A zone name without case, accents or extra spaces: "Sacré  Coeur" and "sacre coeur" are one zone. */
+const zoneKey = (label: string) =>
+  label.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+const heroLine = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .nullable()
+    .optional()
+    .transform((v) => v || null);
+
 const money = z.object({ amount: z.number().int().min(0), currency: z.enum(['XOF', 'SAT']) });
 const settingsPatch = z.strictObject({
   pricing_currency: z.enum(['XOF', 'SAT']).optional(),
@@ -168,11 +188,16 @@ const settingsPatch = z.strictObject({
         .array(
           z.strictObject({
             id: z.string().regex(/^[a-z0-9-]{1,40}$/),
-            label: z.string().min(1).max(60),
+            label: z.string().trim().min(1).max(60),
             fee: money,
           }),
         )
         .max(20)
+        // One name, one price: the assistant matches a customer's place on the name.
+        .refine(
+          (zones) => new Set(zones.map((z) => zoneKey(z.label))).size === zones.length,
+          'Two delivery zones have the same name.',
+        )
         .optional(),
       pickup: z
         .strictObject({ available: z.boolean(), address_text: z.string().max(200).nullable() })
@@ -219,12 +244,27 @@ const settingsPatch = z.strictObject({
         .string()
         .regex(/^#[0-9a-fA-F]{6}$/, 'Use a hex colour, e.g. #8AAE4A')
         .optional(),
+      background_color: z
+        .string()
+        .regex(/^#[0-9a-fA-F]{6}$/, 'Use a hex colour, e.g. #F6F4F0')
+        .nullable()
+        .optional(),
       banner: z
         .strictObject({
           text: z.string().trim().max(140),
           href: z.string().url().max(500).nullable().optional(),
+          image_key: z.string().max(200).nullable().optional(),
         })
         .nullable()
+        .optional(),
+      // An empty line goes back to the storefront's default.
+      hero: z
+        .strictObject({
+          eyebrow: heroLine(60),
+          title: heroLine(90),
+          text: heroLine(240),
+          cta: heroLine(30),
+        })
         .optional(),
     })
     .optional(),
@@ -279,6 +319,27 @@ export async function patchVendor(ctx: Context, v: Vendor, body: z.infer<typeof 
     patchedSettings = {
       ...patchedSettings,
       branding: { ...patchedSettings.branding, logo_key: prepared.storageKey },
+    };
+  }
+  // The banner's picture, the same way.
+  const banner = patchedSettings?.branding?.banner;
+  if (
+    banner?.image_key &&
+    banner.image_key !== vendorSettings(v).branding.banner?.imageKey &&
+    patchedSettings?.branding
+  ) {
+    const prepared = await processUpload(ctx.media, v.id, banner.image_key);
+    // A full-width picture: the widest variant, not the 640 px one product cards use.
+    const widest = prepared.storageKey.replace(
+      `/${DISPLAY_WIDTH}.webp`,
+      `/${Math.max(...WIDTHS)}.webp`,
+    );
+    patchedSettings = {
+      ...patchedSettings,
+      branding: {
+        ...patchedSettings.branding,
+        banner: { ...banner, image_key: widest },
+      },
     };
   }
 

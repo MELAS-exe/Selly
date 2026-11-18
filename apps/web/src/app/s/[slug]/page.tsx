@@ -23,6 +23,7 @@ import { Stamp } from '@/components/storefront/stamp';
 import { Visual } from '@/components/storefront/visual';
 import { getStore, searchProducts } from '@/lib/core';
 import { availabilityLabel, formatMoney } from '@/lib/format';
+import { heroCopy } from '@/lib/hero';
 import type { ProductSummary, StorePublic } from '@/lib/types';
 
 type Params = {
@@ -102,6 +103,7 @@ function Hero({
   second: ProductSummary | undefined;
 }) {
   const address = pickupAddress(store);
+  const hero = heroCopy(store.display_name, store.branding?.hero);
   return (
     <section
       id="top"
@@ -109,20 +111,21 @@ function Hero({
     >
       <div className="grid items-center gap-10 lg:grid-cols-[1.02fr_.98fr] lg:gap-16">
         <div>
-          <p className="sf-eyebrow sf-rise mb-7">Bienvenue chez {store.display_name}</p>
-          <h1 className="sf-serif text-[3.25rem] leading-[0.95] font-normal tracking-[-0.02em] sm:text-[4.5rem] lg:text-[5.5rem]">
-            <span className="sf-line [--i:0]">Des belles choses,</span>
-            <span className="sf-line italic text-[var(--sf-accent-text)] [--i:1]">
-              tout près de vous.
-            </span>
+          <p className="sf-eyebrow sf-rise mb-7">{hero.eyebrow}</p>
+          <h1 className="sf-serif text-[3.25rem] leading-[0.95] font-normal tracking-[-0.02em] [overflow-wrap:anywhere] sm:text-[4.5rem] lg:text-[5.5rem]">
+            <span className="sf-line [--i:0]">{hero.title[0]}</span>
+            {hero.title[1] && (
+              <span className="sf-line italic text-[var(--sf-accent-text)] [--i:1]">
+                {hero.title[1]}
+              </span>
+            )}
           </h1>
           <p className="sf-rise mt-6 max-w-[28rem] text-[1.0625rem] leading-relaxed text-d-ink-soft [--d:300ms]">
-            Choisissez, posez vos questions à Selly, et payez en bitcoin, directement à{' '}
-            {store.display_name}.
+            {hero.text}
           </p>
           <div className="sf-rise mt-9 flex flex-wrap gap-3 [--d:400ms]">
             <a href="#catalogue" className="sf-btn sf-btn-primary">
-              Voir la sélection <ArrowDownRight size={16} />
+              {hero.cta} <ArrowDownRight size={16} />
             </a>
             {store.chat.enabled && (
               <AskButton className="sf-btn sf-btn-ghost">
@@ -382,6 +385,15 @@ export default async function StorePage({ params, searchParams }: Params) {
 
   return (
     <main>
+      {store.branding?.banner?.image_url && (
+        <div className="mx-auto max-w-[1260px] border-x border-d-hairline">
+          <img
+            src={store.branding.banner.image_url}
+            alt=""
+            className="block aspect-[8/3] w-full object-cover sm:aspect-[16/5]"
+          />
+        </div>
+      )}
       <Hero store={store} slug={slug} featured={featured} second={second} />
       <InfoBand store={store} />
       <Ticker store={store} />

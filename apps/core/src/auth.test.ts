@@ -227,8 +227,8 @@ describe('shop creation', () => {
     expect(v.body).toMatchObject({
       slug: 'awa-mode',
       store_url: 'http://localhost:3000/s/awa-mode',
-      // The free trial starts with the shop: live without a wallet, but no orders until one is linked.
-      live: true,
+      // The free trial starts with the shop; it is published once a wallet is linked.
+      live: false,
       accepting_orders: false,
       live_blockers: ['wallet_missing'],
       settings: { agent: { enabled: false } },
@@ -244,6 +244,17 @@ describe('shop creation', () => {
       status: 'trialing',
       trial: true,
     });
+    // Not published: customers see it closed, the owner sees it in preview.
+    const STORE = '/api/v1/stores/{slug}';
+    const pub = await call('GET', STORE, '/api/v1/stores/awa-mode');
+    expect(pub.body.store).toMatchObject({
+      status: 'paused',
+      ordering: { enabled: false, reason: 'wallet_missing' },
+    });
+    expect(pub.body.preview).toBeUndefined();
+    const own = await call('GET', STORE, '/api/v1/stores/awa-mode', { cookie: s.cookie });
+    expect(own.body.preview).toBe(true);
+    expect(own.res.headers['cache-control']).toBe('private, no-store');
     const me = await call('GET', '/api/v1/vendors/me', '/api/v1/vendors/me', { cookie: s.cookie });
     expect(me.body.id).toBe(v.body.id);
     const keys = await call('GET', '/api/v1/vendors/me/keys', '/api/v1/vendors/me/keys', {
@@ -342,6 +353,52 @@ describe('shop creation', () => {
     expect((await patch({ display_name: 'Nouveau nom', settings: { unknown: true } })).status).toBe(
       422,
     );
+
+    // The shop page's opening words: saved trimmed, an empty line means the default (null).
+    const hero = await patch({
+      settings: {
+        branding: {
+          hero: {
+            eyebrow: '  Bienvenue chez Voom ',
+            title: 'Du style, pour vous.',
+            text: '',
+            cta: 'Voir',
+          },
+        },
+      },
+    });
+    expect(hero.body.settings.branding.hero).toEqual({
+      eyebrow: 'Bienvenue chez Voom',
+      title: 'Du style, pour vous.',
+      text: null,
+      cta: 'Voir',
+    });
+    const STORE = '/api/v1/stores/{slug}';
+    const store = await call('GET', STORE, `/api/v1/stores/${shop.slug}`, { cookie: shop.cookie });
+    expect(store.body.store.branding.hero).toMatchObject({ eyebrow: 'Bienvenue chez Voom' });
+    const tooLong = { cta: 'x'.repeat(31) };
+    expect((await patch({ settings: { branding: { hero: tooLong } } })).status).toBe(422);
+
+    // The page background, and back to Selly's paper.
+    const bg = await patch({ settings: { branding: { background_color: '#FFF8EE' } } });
+    expect(bg.body.settings.branding.background_color).toBe('#FFF8EE');
+    expect(
+      (await patch({ settings: { branding: { background_color: null } } })).body.settings.branding
+        .background_color,
+    ).toBeNull();
+
+    // One name, one price: "Sacré Coeur" and "sacre  coeur" are the same zone.
+    const zone = (id: string, label: string, amount: number) => ({
+      id,
+      label,
+      fee: { amount, currency: 'XOF' },
+    });
+    const twice = await patch({
+      settings: {
+        delivery: { zones: [zone('a', 'Sacré Coeur', 4000), zone('b', 'sacre  coeur', 1500)] },
+      },
+    });
+    expect(twice.status).toBe(422);
   });
 });
 

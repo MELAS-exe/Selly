@@ -12,12 +12,21 @@ import type {
 
 export type { ChatMessage, Image, Money, Options, OrderStatus, Plan, PlanId, Wallet };
 
+import type { HeroTexts } from '@/lib/hero';
+
 export interface Branding {
   logo_key: string | null;
   logo_url: string | null;
   primary_color: string;
   accent_color: string;
-  banner: { text: string; href: string | null } | null;
+  background_color?: string | null;
+  banner: {
+    text: string;
+    href: string | null;
+    image_key?: string | null;
+    image_url?: string | null;
+  } | null;
+  hero?: HeroTexts;
 }
 
 export interface DeliveryZone {

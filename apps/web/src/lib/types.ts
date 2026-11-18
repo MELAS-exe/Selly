@@ -62,11 +62,18 @@ export interface CategorySummary {
   slug: string;
 }
 
+import type { HeroTexts } from './hero';
+
 export interface Branding {
   logo_url: string | null;
   primary_color: string;
   accent_color: string;
-  banner: { text: string; href: string | null } | null;
+  /** null: Selly paper. Missing on an older core. */
+  background_color?: string | null;
+  /** image_url: missing on an older core. */
+  banner: { text: string; href: string | null; image_url?: string | null } | null;
+  /** Missing on an older core. */
+  hero?: HeroTexts;
 }
 
 export interface StorePublic {
@@ -91,6 +98,8 @@ export interface StorePublic {
 }
 
 export interface StorePage {
+  /** The shop is not published and this is its owner: show everything, with the preview notice. */
+  preview?: true;
   store: StorePublic;
   products: ProductSummary[];
   next_cursor: string | null;

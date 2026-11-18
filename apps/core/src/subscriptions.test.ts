@@ -180,6 +180,7 @@ describe('trial', () => {
   it('an unpaid trial closes the shop as soon as it ends, with no grace', async () => {
     const s = await shop('trial-ends');
     await call('POST', `${SUB}/trial`, `${SUB}/trial`, s.cookie, { plan_id: 'pro' });
+    await linkWallet(s.vendorId);
     const store = () =>
       t.app.inject({ method: 'GET', url: '/api/v1/stores/trial-ends' }).then((r) => r.json());
     expect((await store()).store.status).toBe('active');
@@ -360,6 +361,7 @@ describe('invoices', () => {
 describe('status job', () => {
   it('reminds before the end, then moves to grace, then suspends; a payment reopens the shop', async () => {
     const s = await shop('lapse', { plan: 'pro', endsInDays: 2 });
+    await linkWallet(s.vendorId); // published, so the store status follows the plan
     expect(await runSubscriptionJob(t.ctx)).toMatchObject({ reminded: expect.any(Number) });
     const reminders = async () =>
       (await notifications(s.vendorId)).filter((n) => n.data.reason === 'reminder');

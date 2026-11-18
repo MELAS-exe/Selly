@@ -11106,7 +11106,7 @@
               "active",
               "paused"
             ],
-            "description": "`paused` while the subscription is suspended or the shop is not live yet."
+            "description": "active: published. paused: not published (no wallet yet) or closed (trial over, plan suspended, operator); ordering.reason says which."
           },
           "whatsapp_link": {
             "oneOf": [
@@ -11175,7 +11175,7 @@
           },
           "ordering": {
             "type": "object",
-            "description": "Can customers order now? An open shop without a linked wallet shows its catalog and its chat, but takes no orders (ORDERS_NOT_OPEN).",
+            "description": "Can customers order now? Same as status: wallet_missing means the shop is not published yet (its page says it opens soon), store_paused that it is closed.",
             "properties": {
               "enabled": {
                 "type": "boolean"
@@ -11255,6 +11255,18 @@
             "type": "string",
             "pattern": "^#[0-9a-fA-F]{6}$"
           },
+          "background_color": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^#[0-9a-fA-F]{6}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The shop page background (its paper). null: Selly’s paper (#F6F4F0). A colour too dark for the shop’s ink text (under 7:1 against #173B32) is ignored by the storefront."
+          },
           "banner": {
             "oneOf": [
               {
@@ -11274,11 +11286,24 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "image_url": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "The banner picture (wide image across the top of the shop page), or null."
                   }
                 },
                 "required": [
                   "text",
-                  "href"
+                  "href",
+                  "image_url"
                 ],
                 "additionalProperties": false
               },
@@ -11286,13 +11311,76 @@
                 "type": "null"
               }
             ]
+          },
+          "hero": {
+            "type": "object",
+            "description": "The opening words of the shop page. null (or an empty string when setting it) means the storefront default for that line.",
+            "properties": {
+              "eyebrow": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 60
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Small line above the title. Default: « Bienvenue chez {display_name} »."
+              },
+              "title": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 90
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The big title. The part after its first comma (or line break) shows in the accent colour, in italics. Default: « Des belles choses, tout près de vous. »"
+              },
+              "text": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 240
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The paragraph under the title. Default: « Choisissez, posez vos questions à Selly, et payez en bitcoin, directement à {display_name}. »"
+              },
+              "cta": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 30
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The main button, to the catalogue. Default: « Voir la sélection »."
+              }
+            },
+            "required": [
+              "eyebrow",
+              "title",
+              "text",
+              "cta"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
           "logo_url",
           "primary_color",
           "accent_color",
-          "banner"
+          "background_color",
+          "banner",
+          "hero"
         ],
         "additionalProperties": false
       },
@@ -11553,6 +11641,11 @@
                 "type": "null"
               }
             ]
+          },
+          "preview": {
+            "type": "boolean",
+            "const": true,
+            "description": "Present when the shop is not published (no wallet yet, trial over, plan suspended) and the request carries its owner’s session: the owner sees the whole shop. Sent with Cache-Control: private, no-store."
           }
         },
         "required": [
@@ -12769,6 +12862,18 @@
                 "type": "string",
                 "pattern": "^#[0-9a-fA-F]{6}$"
               },
+              "background_color": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The shop page background (its paper). null: Selly’s paper (#F6F4F0). A colour too dark for the shop’s ink text (under 7:1 against #173B32) is ignored by the storefront."
+              },
               "banner": {
                 "oneOf": [
                   {
@@ -12788,6 +12893,29 @@
                             "type": "null"
                           }
                         ]
+                      },
+                      "image_key": {
+                        "oneOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Processed public storage key. Set with a key from POST /api/v1/media/uploads; send the banner whole (text, href, image_key) on each change."
+                      },
+                      "image_url": {
+                        "oneOf": [
+                          {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "The banner picture (wide image across the top of the shop page), or null."
                       }
                     },
                     "required": [
@@ -12800,6 +12928,67 @@
                     "type": "null"
                   }
                 ]
+              },
+              "hero": {
+                "type": "object",
+                "description": "The opening words of the shop page. null (or an empty string when setting it) means the storefront default for that line.",
+                "properties": {
+                  "eyebrow": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 60
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Small line above the title. Default: « Bienvenue chez {display_name} »."
+                  },
+                  "title": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 90
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "The big title. The part after its first comma (or line break) shows in the accent colour, in italics. Default: « Des belles choses, tout près de vous. »"
+                  },
+                  "text": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 240
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "The paragraph under the title. Default: « Choisissez, posez vos questions à Selly, et payez en bitcoin, directement à {display_name}. »"
+                  },
+                  "cta": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 30
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "The main button, to the catalogue. Default: « Voir la sélection »."
+                  }
+                },
+                "required": [
+                  "eyebrow",
+                  "title",
+                  "text",
+                  "cta"
+                ],
+                "additionalProperties": false
               }
             },
             "required": [
@@ -12807,7 +12996,9 @@
               "logo_url",
               "primary_color",
               "accent_color",
-              "banner"
+              "background_color",
+              "banner",
+              "hero"
             ],
             "additionalProperties": false
           }
@@ -12867,11 +13058,11 @@
           },
           "live": {
             "type": "boolean",
-            "description": "True when the shop is online: a plan that is not suspended (the free trial counts). A wallet is not needed to be live."
+            "description": "True when the shop is published: a plan that is not suspended (the free trial counts) and a linked wallet. Without a wallet the vendor works on the shop and sees it in preview."
           },
           "accepting_orders": {
             "type": "boolean",
-            "description": "True when the shop is live and a wallet is linked: customers can order and pay."
+            "description": "Same as live: a published shop takes orders."
           },
           "live_blockers": {
             "type": "array",
