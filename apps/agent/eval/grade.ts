@@ -139,6 +139,8 @@ export const PRICES: Record<string, { input: number; output: number; cacheRead: 
   'claude-opus-5-5': { input: 4, output: 20, cacheRead: 0.2 },
   'claude-sonnet-5-5': { input: 2, output: 10, cacheRead: 0.1 },
   'claude-haiku-5-5': { input: 0.1, output: 0.5, cacheRead: 0.01 },
+  // A local model has no price per token (the machine and its power are the cost).
+  'ollama:': { input: 0, output: 0, cacheRead: 0 },
 };
 
 export interface CallUsage {

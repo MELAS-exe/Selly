@@ -99,6 +99,8 @@ export const CASES: EvalCase[] = [
       [
         'rupture',
         'plus de',
+        'malheureusement plus',
+        'plus en stock',
         "n'est plus",
         'épuisé',
         'pas disponible',
@@ -352,6 +354,12 @@ export const CASES: EvalCase[] = [
     tools: SEARCH,
     forbiddenTools: NO_ORDER,
   }),
+  // One « oui » is enough: the details given after it must create the order, not a second question.
+  fr(
+    'order-08',
+    ['Je prends le sac, je viens le chercher', 'Oui, je valide', 'Moussa Ndiaye, +221770001122'],
+    { intent: 'order_single_confirmation', tools: ['create_order'], mustInclude: ['18 000'] },
+  ),
   fr('order-07', 'Je veux commander', {
     intent: 'order_start',
     tools: [],
