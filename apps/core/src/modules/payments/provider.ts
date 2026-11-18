@@ -46,6 +46,8 @@ export interface InvoiceProvider {
 export interface InvoiceGateway {
   forVendor(vendorId: string): InvoiceProvider;
   forPlatform(): InvoiceProvider;
+  /** The vendor wallet's balance for the dashboard, or null (no get_balance, no answer in time). */
+  balanceMsat?(vendorId: string): Promise<number | null>;
 }
 
 /** One provider for every wallet: the fake provider in development and tests. */

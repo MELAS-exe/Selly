@@ -21,6 +21,7 @@ import {
 } from './modules/subscriptions/billing';
 import { PairingWatcher, startPairing } from './modules/wallet/pairing';
 import {
+  CANNOT_RECEIVE_TEXT,
   linkLightningAddress,
   linkWallet,
   liveWallet,
@@ -191,6 +192,39 @@ describe('linking a wallet', () => {
     const asleep = await newWallet();
     asleep.goOffline();
     await expect(link(s.vendorId, asleep.uri)).rejects.toMatchObject({ code: 'NWC_TIMEOUT' });
+  }, 20_000);
+
+  it('says what to do when the wallet cannot receive yet (no channel, no inbound liquidity)', async () => {
+    const s = await createShop(ctx.db, 'nwc-link-cannot-receive');
+    // A real Alby Hub without a channel (18 November 2026): no invoice under about 2,500 sats. It still takes a
+    // normal order, so it links; one that cannot reach an order's size is refused with what to do.
+    const fresh = await newWallet();
+    fresh.minInvoiceMsat = 2_500_000;
+    await expect(link(s.vendorId, fresh.uri)).resolves.toMatchObject({ status: 'active' });
+    const s2 = await createShop(ctx.db, 'nwc-link-cannot-receive-2');
+    const empty = await newWallet();
+    empty.minInvoiceMsat = 100_000_000;
+    await expect(link(s2.vendorId, empty.uri)).rejects.toMatchObject({
+      code: 'NWC_WALLET_ERROR',
+      message: CANNOT_RECEIVE_TEXT,
+    });
+    const other = await newWallet();
+    other.refuseNext = { code: 'OTHER', message: 'Wallet locked' };
+    await expect(link(s2.vendorId, other.uri)).rejects.toMatchObject({
+      message: expect.stringContaining('Wallet locked'),
+    });
+  }, 20_000);
+
+  it('reads the balance for the dashboard, and an offline wallet costs nothing', async () => {
+    const s = await createShop(ctx.db, 'nwc-link-balance');
+    const w = await newWallet();
+    await link(s.vendorId, w.uri);
+    expect(await gateway.balanceMsat(s.vendorId)).toBe(184_200_000);
+    w.goOffline();
+    expect(await gateway.balanceMsat(s.vendorId)).toBeNull();
+    // Display only: no failure counted, the wallet stays active for payments.
+    const row = await liveWallet(ctx.db, { owner: 'vendor', vendorId: s.vendorId });
+    expect(row?.status).toBe('active');
   }, 20_000);
 
   it('needs an encryption key', async () => {
@@ -498,7 +532,7 @@ describe('pairing with nostr+walletauth', () => {
 });
 
 /** A Lightning Address server (LUD-06, LUD-16, LUD-21) on 127.0.0.1 that mints real, signed BOLT11 invoices. */
-async function lnurlServer(opts: { verify: boolean }) {
+async function lnurlServer(opts: { verify: boolean; maxSendable?: number }) {
   const invoices = new Map<string, { preimage: string; paid: boolean; pr: string }>();
   const nodeKey = randomBytes(32);
   let base = '';
@@ -513,7 +547,7 @@ async function lnurlServer(opts: { verify: boolean }) {
         tag: 'payRequest',
         callback: `${base}/cb`,
         minSendable: 1000,
-        maxSendable: 100_000_000_000,
+        maxSendable: opts.maxSendable ?? 100_000_000_000,
         metadata: '[["text/plain","Shop"]]',
         commentAllowed: 120,
       });
@@ -617,6 +651,18 @@ describe('Lightning Address fallback', () => {
 describe('Lightning Address as the wallet', () => {
   const linkAddress = (vendorId: string, lud16: string) =>
     linkLightningAddress(ctx, { owner: 'vendor', vendorId, lud16, actor: 'test' });
+
+  it('refuses an address that can receive nothing yet, and says why', async () => {
+    const ln = await lnurlServer({ verify: true, maxSendable: 0 });
+    try {
+      const s = await createShop(ctx.db, 'lnaddr-empty');
+      await expect(linkAddress(s.vendorId, ln.lud16)).rejects.toMatchObject({
+        message: CANNOT_RECEIVE_TEXT,
+      });
+    } finally {
+      await ln.close();
+    }
+  });
 
   it('links an address with LUD-21, takes an order on it, and settles it by verify', async () => {
     const ln = await lnurlServer({ verify: true });
