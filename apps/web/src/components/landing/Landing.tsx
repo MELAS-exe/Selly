@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
+import { type CSSProperties, useEffect, useId, useState } from 'react';
 import { SiteHeader } from '../brand/site-header';
 import './landing.css';
 
@@ -18,6 +18,24 @@ function CircleText({ className, d, text }: { className: string; d: string; text
     </svg>
   );
 }
+
+/** Splits a sentence into words that light up one after the other while the quote scrolls by. */
+function Lit({ text, from = 0 }: { text: string; from?: number }) {
+  return text.split(' ').map((w, i) => (
+    <span key={i} className="lit" style={{ '--w': from + i } as CSSProperties}>
+      {w}{' '}
+    </span>
+  ));
+}
+
+const TICKER = [
+  'One link to share',
+  'Paid in bitcoin',
+  'Stock that keeps itself',
+  'An assistant that answers',
+  'Straight to your wallet',
+  'Made for Dakar',
+];
 
 export function Landing() {
   const [onDark, setOnDark] = useState(false);
@@ -61,7 +79,7 @@ export function Landing() {
 
   // Circular texts only turn while on screen.
   useEffect(() => {
-    const spinners = Array.from(document.querySelectorAll<HTMLElement>('.pv-spin'));
+    const spinners = Array.from(document.querySelectorAll<HTMLElement>('.pv-spin, .marquee-track'));
     const io = new IntersectionObserver((entries) => {
       for (const e of entries) e.target.toggleAttribute('data-offscreen', !e.isIntersecting);
     });
@@ -95,10 +113,11 @@ export function Landing() {
   }, []);
 
   return (
-    <div className="theme-paper-vermilion min-h-screen w-full overflow-hidden flex flex-col selection:bg-[#E3342F] selection:text-[#F6F4F0]">
+    <div className="theme-paper-vermilion min-h-screen w-full overflow-clip flex flex-col selection:bg-[#E3342F] selection:text-[#F6F4F0]">
+      <div aria-hidden="true" className="scroll-progress" />
       <SiteHeader onDark={onDark} />
       <section className="relative pt-64 pb-56 md:pt-32 md:pb-24 px-6 md:px-12 max-w-7xl mx-auto w-full min-h-[85vh] flex flex-col items-center justify-center border-x border-[#1111111f]">
-        <div className="absolute inset-0 z-30 pointer-events-none overflow-hidden">
+        <div className="absolute inset-0 z-30 pointer-events-none overflow-clip">
           <div
             className="absolute inset-0 mix-blend-multiply opacity-[0.06]"
             style={{
@@ -115,7 +134,7 @@ export function Landing() {
           ></div>
           <div className="absolute bottom-0 left-0 right-0 h-12 md:h-48 bg-gradient-to-t from-[#F6F4F0] to-transparent"></div>
         </div>
-        <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden md:overflow-visible">
+        <div className="absolute inset-0 w-full h-full pointer-events-none overflow-clip md:overflow-visible">
           <div className="absolute top-24 md:top-[11%] left-2 md:left-[4%] w-36 h-36 md:w-56 md:h-56 hero-prop [--side:-1] [--d:300ms] [--float:7s] z-0 pointer-events-auto">
             <img
               alt="Leather handbag"
@@ -146,7 +165,7 @@ export function Landing() {
           </div>
         </div>
         <div className="relative z-10 w-full flex flex-col items-center text-center -mt-8 md:-mt-16 pointer-events-none">
-          <div className="mb-8 relative w-24 h-24 md:w-32 md:h-32 animate-pv-fade-up">
+          <div className="hero-circle mb-8 relative w-24 h-24 md:w-32 md:h-32 animate-pv-fade-up">
             <CircleText
               className="w-full h-full pv-spin motion-loop"
               d="M 60, 60 m -45, 0 a 45,45 0 1,1 90,0 a 45,45 0 1,1 -90,0"
@@ -185,7 +204,7 @@ export function Landing() {
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="lucide lucide-arrow-right inline ml-2"
+                className="lucide lucide-arrow-right inline ml-2 nudge motion-loop"
                 aria-hidden="true"
               >
                 <path d="M5 12h14"></path>
@@ -195,6 +214,19 @@ export function Landing() {
           </div>
         </div>
       </section>
+      <div
+        aria-hidden="true"
+        className="marquee w-full max-w-7xl mx-auto overflow-clip border-x border-t border-[#1111111f] py-5"
+      >
+        <div className="marquee-track motion-loop flex w-max items-center gap-10 pv-serif italic text-3xl md:text-4xl">
+          {[...TICKER, ...TICKER].map((t, i) => (
+            <span key={i} className="flex items-center gap-10 whitespace-nowrap">
+              {t}
+              <span className="not-italic text-[#8AAE4A] text-2xl">✦</span>
+            </span>
+          ))}
+        </div>
+      </div>
       <div className="w-full max-w-7xl mx-auto h-px bg-[#1111111f] relative">
         <div className="absolute top-0 left-0 w-full h-full bg-[#E3342F] animate-pv-line"></div>
       </div>
@@ -206,9 +238,12 @@ export function Landing() {
             </h2>
           </div>
           <div className="md:col-span-8 reveal-on-scroll [--d:75ms] opacity-100">
-            <h3 className="scroll-curtain pv-serif text-4xl md:text-6xl leading-tight font-light mb-12">
-              "A ready-to-share storefront, a helpful sales assistant, and{' '}
-              <span className="italic text-[#8AAE4A]">payment</span> direct to your wallet."
+            <h3 className="lit-quote pv-serif text-4xl md:text-6xl leading-tight font-light mb-12">
+              <Lit text='"A ready-to-share storefront, a helpful sales assistant, and' />
+              <span className="italic text-[#8AAE4A]">
+                <Lit text="payment" from={10} />
+              </span>
+              <Lit text='direct to your wallet."' from={11} />
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pv-sans text-sm leading-relaxed text-black/70">
               <p>
@@ -277,7 +312,7 @@ export function Landing() {
       </section>
       <section
         id="how-it-works"
-        className="py-20 md:py-40 px-6 md:px-12 max-w-7xl mx-auto w-full border-x border-[#1111111f] relative overflow-hidden"
+        className="py-20 md:py-40 px-6 md:px-12 max-w-7xl mx-auto w-full border-x border-[#1111111f] relative overflow-clip"
       >
         <img
           src="/brand/selly-s.png"
@@ -303,7 +338,7 @@ export function Landing() {
                     01
                   </span>
                 </div>
-                <div className="kit-media relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
+                <div className="kit-media relative overflow-clip aspect-[4/5] transition-[rotate] duration-(--dur-ui) ease-(--ease-out-expo) group-hover:-rotate-2 w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
                   <img
                     alt="Your storefront"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
@@ -336,7 +371,7 @@ export function Landing() {
                     02
                   </span>
                 </div>
-                <div className="kit-media relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
+                <div className="kit-media relative overflow-clip aspect-[4/5] transition-[rotate] duration-(--dur-ui) ease-(--ease-out-expo) group-hover:-rotate-2 w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
                   <img
                     alt="Live catalog"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
@@ -368,7 +403,7 @@ export function Landing() {
                     03
                   </span>
                 </div>
-                <div className="kit-media relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
+                <div className="kit-media relative overflow-clip aspect-[4/5] transition-[rotate] duration-(--dur-ui) ease-(--ease-out-expo) group-hover:-rotate-2 w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
                   <img
                     alt="Sales assistant"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
@@ -400,7 +435,7 @@ export function Landing() {
                     04
                   </span>
                 </div>
-                <div className="kit-media relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
+                <div className="kit-media relative overflow-clip aspect-[4/5] transition-[rotate] duration-(--dur-ui) ease-(--ease-out-expo) group-hover:-rotate-2 w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
                   <img
                     alt="Easy ordering"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
@@ -432,7 +467,7 @@ export function Landing() {
                     05
                   </span>
                 </div>
-                <div className="kit-media relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
+                <div className="kit-media relative overflow-clip aspect-[4/5] transition-[rotate] duration-(--dur-ui) ease-(--ease-out-expo) group-hover:-rotate-2 w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
                   <img
                     alt="Stock-aware"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
@@ -465,7 +500,7 @@ export function Landing() {
                     06
                   </span>
                 </div>
-                <div className="kit-media relative overflow-hidden aspect-[4/5] w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
+                <div className="kit-media relative overflow-clip aspect-[4/5] transition-[rotate] duration-(--dur-ui) ease-(--ease-out-expo) group-hover:-rotate-2 w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
                   <img
                     alt="Direct payments"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
@@ -514,7 +549,7 @@ export function Landing() {
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
-          <div className="md:col-span-12 h-[50vh] md:h-[70vh] relative overflow-hidden group reveal-on-scroll opacity-100">
+          <div className="md:col-span-12 h-[50vh] md:h-[70vh] relative overflow-clip group reveal-on-scroll opacity-100">
             <img
               alt="Art gallery hall"
               className="gal-par w-full h-full object-cover transition-transform duration-(--dur-ui) ease-(--ease-out-expo) group-hover:scale-105"
@@ -530,7 +565,7 @@ export function Landing() {
               </p>
             </div>
           </div>
-          <div className="md:col-span-8 h-[350px] md:h-[450px] relative overflow-hidden group reveal-on-scroll [--d:100ms] opacity-100">
+          <div className="md:col-span-8 h-[350px] md:h-[450px] relative overflow-clip group reveal-on-scroll [--d:100ms] opacity-100">
             <img
               alt="Seller packing an order"
               className="gal-par w-full h-full object-cover transition-transform duration-(--dur-ui) ease-(--ease-out-expo) group-hover:scale-105"
@@ -538,7 +573,7 @@ export function Landing() {
             />
             <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
           </div>
-          <div className="md:col-span-4 h-[350px] md:h-[450px] relative overflow-hidden group reveal-on-scroll [--d:75ms] opacity-100">
+          <div className="md:col-span-4 h-[350px] md:h-[450px] relative overflow-clip group reveal-on-scroll [--d:75ms] opacity-100">
             <img
               alt="Boutique interior"
               className="gal-par w-full h-full object-cover transition-transform duration-(--dur-ui) ease-(--ease-out-expo) group-hover:scale-105"
@@ -546,7 +581,7 @@ export function Landing() {
             />
             <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
           </div>
-          <div className="md:col-span-4 h-[350px] md:h-[450px] relative overflow-hidden group reveal-on-scroll [--d:100ms] opacity-100">
+          <div className="md:col-span-4 h-[350px] md:h-[450px] relative overflow-clip group reveal-on-scroll [--d:100ms] opacity-100">
             <img
               alt="Sneaker store"
               className="gal-par w-full h-full object-cover transition-transform duration-(--dur-ui) ease-(--ease-out-expo) group-hover:scale-105"
@@ -554,7 +589,7 @@ export function Landing() {
             />
             <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
           </div>
-          <div className="md:col-span-4 h-[350px] md:h-[450px] relative overflow-hidden group reveal-on-scroll [--d:75ms] opacity-100">
+          <div className="md:col-span-4 h-[350px] md:h-[450px] relative overflow-clip group reveal-on-scroll [--d:75ms] opacity-100">
             <div className="w-full h-full bg-[#EAE7E0] flex flex-col items-center justify-center p-6 md:p-8 text-center border border-[#1111111f] relative group-hover:bg-[#EAE7E0]/80 transition-colors duration-(--dur-ui) ease-(--ease-out-expo)">
               <div className="absolute top-0 left-0 w-full h-1 bg-[#E3342F] scale-x-0 group-hover:scale-x-100 origin-left transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"></div>
               <img
@@ -571,7 +606,7 @@ export function Landing() {
               </p>
             </div>
           </div>
-          <div className="md:col-span-4 h-[350px] md:h-[450px] relative overflow-hidden group reveal-on-scroll [--d:100ms] opacity-100">
+          <div className="md:col-span-4 h-[350px] md:h-[450px] relative overflow-clip group reveal-on-scroll [--d:100ms] opacity-100">
             <img
               alt="Wax-print fabric market"
               className="gal-par w-full h-full object-cover transition-transform duration-(--dur-ui) ease-(--ease-out-expo) group-hover:scale-105"
@@ -583,7 +618,7 @@ export function Landing() {
       </section>
       <section
         id="signup"
-        className="py-20 md:py-32 px-6 md:px-12 max-w-7xl mx-auto w-full border-x border-t border-[#1111111f] relative overflow-hidden bg-[#F6F4F0]"
+        className="py-20 md:py-32 px-6 md:px-12 max-w-7xl mx-auto w-full border-x border-t border-[#1111111f] relative overflow-clip bg-[#F6F4F0]"
       >
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 lg:gap-8 items-start relative z-10">
           <div className="lg:col-span-5 flex flex-col justify-between h-full reveal-on-scroll opacity-100">
@@ -598,21 +633,21 @@ export function Landing() {
             </div>
             <div className="space-y-8 pv-sans text-xs uppercase tracking-widest text-black/70 mt-12 lg:mt-32">
               <div className="flex gap-6 group">
-                <span className="w-4 h-px bg-[#E3342F] mt-2 origin-left group-hover:scale-x-200 transition-transform duration-(--dur-ui)"></span>
+                <span className="step-line w-4 h-px bg-[#E3342F] mt-2 origin-left group-hover:scale-x-200 transition-transform duration-(--dur-ui)"></span>
                 <div>
                   <div className="text-black font-medium mb-1">Set up</div>
                   <div>Start with your products</div>
                 </div>
               </div>
               <div className="flex gap-6 group">
-                <span className="w-4 h-px bg-[#E3342F] mt-2 origin-left group-hover:scale-x-200 transition-transform duration-(--dur-ui)"></span>
+                <span className="step-line w-4 h-px bg-[#E3342F] mt-2 origin-left group-hover:scale-x-200 transition-transform duration-(--dur-ui)"></span>
                 <div>
                   <div className="text-black font-medium mb-1">Share</div>
                   <div>WhatsApp, Instagram, anywhere</div>
                 </div>
               </div>
               <div className="flex gap-6 group">
-                <span className="w-4 h-px bg-[#E3342F] mt-2 origin-left group-hover:scale-x-200 transition-transform duration-(--dur-ui)"></span>
+                <span className="step-line w-4 h-px bg-[#E3342F] mt-2 origin-left group-hover:scale-x-200 transition-transform duration-(--dur-ui)"></span>
                 <div>
                   <div className="text-black font-medium mb-1">Get paid</div>
                   <div>Lightning payments to your wallet</div>
@@ -647,7 +682,7 @@ export function Landing() {
             <div className="flex flex-col gap-6">
               <a
                 href="/app/login"
-                className="mt-6 relative overflow-hidden group pv-sans text-xs uppercase tracking-[0.2em] font-medium border border-[#173B32] py-5 px-8 text-[#173B32] hover:text-[#F6F4F0] transition-colors duration-(--dur-ui) w-full text-center cursor-pointer"
+                className="mt-6 relative overflow-clip group pv-sans text-xs uppercase tracking-[0.2em] font-medium border border-[#173B32] py-5 px-8 text-[#173B32] hover:text-[#F6F4F0] transition-colors duration-(--dur-ui) w-full text-center cursor-pointer"
               >
                 <span className="relative z-10">
                   Create my shop{' '}
@@ -661,7 +696,7 @@ export function Landing() {
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className="lucide lucide-arrow-right inline ml-2"
+                    className="lucide lucide-arrow-right inline ml-2 nudge motion-loop"
                     aria-hidden="true"
                   >
                     <path d="M5 12h14"></path>
@@ -681,7 +716,7 @@ export function Landing() {
         </div>
       </section>
       <footer className="py-12 px-6 md:px-12 max-w-7xl mx-auto w-full border-x border-t border-b border-[#1111111f] flex flex-col md:flex-row justify-between items-center gap-8">
-        <img src="/brand/selly-wordmark.png" alt="Selly" className="h-9 w-auto" />
+        <img src="/brand/selly-wordmark.png" alt="Selly" className="foot-mark h-9 w-auto" />
         <div className="flex gap-8 pv-sans text-[10px] uppercase tracking-widest text-black/50">
           <a href="/app/login" className="hover:text-[#173B32] transition-colors">
             Get started
