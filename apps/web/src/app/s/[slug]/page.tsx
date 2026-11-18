@@ -49,7 +49,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 function InfoCell({ icon, title, sub }: { icon: React.ReactNode; title: string; sub: string }) {
   return (
-    <div className="flex items-center gap-4 border-b border-d-hairline px-5 py-5 last:border-b-0 sm:border-r md:border-b-0 md:last:border-r-0">
+    <div className="flex items-center gap-3 border-b border-d-hairline px-4 py-4 odd:border-r md:gap-4 md:border-r md:border-b-0 md:px-5 md:py-5 md:last:border-r-0">
       <span className="grid size-11 shrink-0 place-items-center border border-d-hairline">
         {icon}
       </span>
@@ -159,7 +159,7 @@ function Hero({
               />
               <span className="absolute right-4 bottom-4 left-4 flex items-center justify-between gap-4 border border-d-hairline bg-d-paper/95 p-4 backdrop-blur-md sm:p-5">
                 <span className="min-w-0">
-                  <span className="sf-serif block truncate text-2xl font-semibold">
+                  <span className="sf-serif block text-xl leading-tight font-semibold sm:text-2xl">
                     {featured.title}
                   </span>
                   <span className="mt-0.5 block text-[0.9375rem] text-d-ink-soft">
@@ -198,7 +198,7 @@ function InfoBand({ store }: { store: StorePublic }) {
       aria-label="La boutique en bref"
       className="border-y border-d-hairline bg-d-paper-deep/60"
     >
-      <div className="mx-auto grid max-w-[1260px] grid-cols-1 border-x border-d-hairline sm:grid-cols-2 md:grid-cols-4">
+      <div className="mx-auto grid max-w-[1260px] grid-cols-2 border-x border-d-hairline md:grid-cols-4">
         <InfoCell icon={<Store size={18} />} title={store.display_name} sub="Boutique sur Selly" />
         {address && <InfoCell icon={<MapPin size={18} />} title={address} sub="Retrait gratuit" />}
         {hours && (
