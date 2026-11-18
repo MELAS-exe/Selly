@@ -1,6 +1,7 @@
 // Server components only: never import this file from a 'use client' module.
 import { notFound } from 'next/navigation';
 import type { CheckoutView, ProductDetail, StorePage } from './types';
+import type { PlansResponse } from './vendor-types';
 
 // Server components call core directly. The browser goes through the /api/v1 rewrites in next.config.ts.
 const CORE_URL = process.env.CORE_URL ?? 'http://localhost:4000';
@@ -37,6 +38,9 @@ export const getProduct = (slug: string, product: string) =>
   get<ProductDetail>(`/api/v1/stores/${enc(slug)}/products/${enc(product)}`, {
     next: { revalidate: 30 },
   });
+
+// Pricing: prices live in the database and the rate moves, so the pricing page asks core every 5 minutes.
+export const getPlans = () => get<PlansResponse>('/api/v1/plans', { next: { revalidate: 300 } });
 
 // Checkout: never cached.
 export const getCheckout = (token: string) =>

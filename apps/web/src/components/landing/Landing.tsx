@@ -116,7 +116,7 @@ export function Landing() {
             </span>
           </div>
           <a
-            href="#signup"
+            href="/app/login"
             className="pv-sans text-xs uppercase tracking-widest font-medium hover:text-[#719541] transition-colors"
           >
             Create your shop{' '}
@@ -213,7 +213,7 @@ export function Landing() {
           <div className="flex flex-col items-center gap-4 animate-pv-fade-up [--d:520ms]">
             <div className="w-px h-16 bg-[#111]"></div>
             <a
-              href="#signup"
+              href="/app/login"
               className="pv-sans text-xs uppercase tracking-[0.2em] font-medium pointer-events-auto hover:text-[#8AAE4A] transition-colors"
             >
               Create your shop{' '}
@@ -678,79 +678,17 @@ export function Landing() {
           <div className="lg:col-span-5 flex flex-col justify-center reveal-on-scroll [--d:75ms] lg:pl-8 pt-4 lg:pt-0 opacity-100">
             <div className="mb-12">
               <p className="pv-sans text-sm leading-relaxed text-black/60 mb-6">
-                Tell us a little about your business and we’ll help you get your shop ready to
-                share.
+                Sign in with a Nostr key, name your shop and connect your wallet. Your shop is live
+                in a few minutes, with a 14-day free trial.
               </p>
               <div className="inline-flex items-center gap-3 pv-sans text-[9px] uppercase tracking-[0.2em] px-4 py-2 border border-[#1111111f]">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#8AAE4A] pv-pulse motion-loop"></span>
                 Built for sellers in Senegal
               </div>
             </div>
-            <form onSubmit={(e) => e.preventDefault()} className="flex flex-col gap-10">
-              <div className="relative group">
-                <input
-                  id="name"
-                  placeholder=" "
-                  className="peer w-full bg-transparent border-b border-[#11111130] py-2 px-0 pv-sans text-sm tracking-wider text-[#111] focus:outline-none focus:border-[#E3342F] transition-colors rounded-none"
-                  type="text"
-                />
-                <label
-                  htmlFor="name"
-                  className="absolute left-0 top-2 pv-sans text-xs uppercase tracking-widest text-black/40 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-[#E3342F] peer-[:not(:placeholder-shown)]:-translate-y-6 peer-[:not(:placeholder-shown)]:scale-75 origin-left transition-[translate,scale,color] duration-(--dur-ui) cursor-text pointer-events-none"
-                >
-                  Your name
-                </label>
-              </div>
-              <div className="relative group">
-                <input
-                  id="email"
-                  placeholder=" "
-                  className="peer w-full bg-transparent border-b border-[#11111130] py-2 px-0 pv-sans text-sm tracking-wider text-[#111] focus:outline-none focus:border-[#E3342F] transition-colors rounded-none"
-                  type="email"
-                />
-                <label
-                  htmlFor="email"
-                  className="absolute left-0 top-2 pv-sans text-xs uppercase tracking-widest text-black/40 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-[#E3342F] peer-[:not(:placeholder-shown)]:-translate-y-6 peer-[:not(:placeholder-shown)]:scale-75 origin-left transition-[translate,scale,color] duration-(--dur-ui) cursor-text pointer-events-none"
-                >
-                  Email address
-                </label>
-              </div>
-              <div className="relative group">
-                <select
-                  id="party"
-                  className="w-full bg-transparent border-b border-[#11111130] py-2 px-0 pv-sans text-sm tracking-wider text-[#111] focus:outline-none focus:border-[#E3342F] transition-colors appearance-none rounded-none cursor-pointer"
-                >
-                  <option value="Fashion &amp; accessories">Fashion &amp; accessories</option>
-                  <option value="Food &amp; drink">Food &amp; drink</option>
-                  <option value="Beauty &amp; care">Beauty &amp; care</option>
-                  <option value="Other products">Other products</option>
-                </select>
-                <div className="absolute right-0 top-2 pointer-events-none text-black/40">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="lucide lucide-chevron-down"
-                    aria-hidden="true"
-                  >
-                    <path d="m6 9 6 6 6-6"></path>
-                  </svg>
-                </div>
-                <label
-                  htmlFor="party"
-                  className="absolute left-0 -translate-y-6 text-[9px] pv-sans uppercase tracking-widest text-black/40 pointer-events-none"
-                >
-                  What do you sell?
-                </label>
-              </div>
-              <button
-                type="submit"
+            <div className="flex flex-col gap-6">
+              <a
+                href="/app/login"
                 className="mt-6 relative overflow-hidden group pv-sans text-xs uppercase tracking-[0.2em] font-medium border border-[#173B32] py-5 px-8 text-[#173B32] hover:text-[#F6F4F0] transition-colors duration-(--dur-ui) w-full text-center cursor-pointer"
               >
                 <span className="relative z-10">
@@ -773,16 +711,25 @@ export function Landing() {
                   </svg>
                 </span>
                 <div className="absolute inset-0 bg-[#173B32] translate-y-[100%] group-hover:translate-y-0 transition-transform duration-(--dur-ui) ease-(--ease-out-expo) z-0"></div>
-              </button>
-            </form>
+              </a>
+              <p className="pv-sans text-xs text-black/50 text-center">
+                Nothing to pay now.{' '}
+                <a href="/tarifs" className="underline underline-offset-4 hover:text-[#173B32]">
+                  See pricing
+                </a>
+              </p>
+            </div>
           </div>
         </div>
       </section>
       <footer className="py-12 px-6 md:px-12 max-w-7xl mx-auto w-full border-x border-t border-b border-[#1111111f] flex flex-col md:flex-row justify-between items-center gap-8">
         <img src="/brand/selly-wordmark.png" alt="Selly" className="h-9 w-auto" />
         <div className="flex gap-8 pv-sans text-[10px] uppercase tracking-widest text-black/50">
-          <a href="#signup" className="hover:text-[#173B32] transition-colors">
+          <a href="/app/login" className="hover:text-[#173B32] transition-colors">
             Get started
+          </a>
+          <a href="/tarifs" className="hover:text-[#173B32] transition-colors">
+            Pricing
           </a>
           <a href="#how-it-works" className="hover:text-[#173B32] transition-colors">
             How it works
