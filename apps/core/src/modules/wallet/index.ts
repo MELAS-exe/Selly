@@ -69,7 +69,7 @@ export const walletModule: FastifyPluginAsync = async (app) => {
     const s = await requireVendor(ctx(), req);
     const row = await liveWallet(ctx().db, { owner: 'vendor', vendorId: s.vendorId });
     if (!row) throw new AppError('NOT_FOUND', 'No wallet is linked.');
-    return walletView(row);
+    return walletView(row, (await ctx().invoices.balanceMsat?.(s.vendorId)) ?? null);
   });
 
   app.delete('/api/v1/vendors/me/wallet', async (req, reply) => {

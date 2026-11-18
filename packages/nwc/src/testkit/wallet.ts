@@ -48,6 +48,10 @@ export class FakeNwcWallet {
 
   /** Make the next make_invoice answer wrong, to test that Selly checks it. */
   tamperNext: Tamper = null;
+  /** Make the next make_invoice fail with this NIP-47 error, as a wallet without receiving capacity does. */
+  refuseNext: { code: string; message: string } | null = null;
+  /** Refuse invoices below this amount as a wallet without a channel does (Alby Hub: about 2,500 sats). */
+  minInvoiceMsat = 0;
   /** Requests received, for assertions. */
   readonly calls: string[] = [];
 
@@ -149,6 +153,17 @@ export class FakeNwcWallet {
       },
       makeInvoice: async (req) => {
         this.calls.push('make_invoice');
+        const refuse = this.refuseNext;
+        this.refuseNext = null;
+        if (refuse) return { result: undefined, error: refuse } as never;
+        if (req.amount < this.minInvoiceMsat)
+          return {
+            result: undefined,
+            error: {
+              code: 'INTERNAL',
+              message: 'NodeError: LiquidityRequestFailed: Failed to request inbound liquidity.',
+            },
+          } as never;
         const tamper = this.tamperNext;
         this.tamperNext = null;
         const preimage = randomBytes(32);

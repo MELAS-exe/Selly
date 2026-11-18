@@ -37,6 +37,15 @@ export function requireKeyring(k: Keyring | null): Keyring {
   return k;
 }
 
+/** A wallet that has no receiving capacity yet: no channel, no inbound liquidity, or an address that takes 0 sats. */
+const CANNOT_RECEIVE =
+  /liquidity|no (?:usable )?channels?|insufficient inbound|amount outside \d+-0 msat|not properly configured/i;
+export const CANNOT_RECEIVE_TEXT =
+  'Votre portefeuille ne peut pas encore recevoir de paiement : il n’a pas de capacité de réception. Ouvrez un canal ou ajoutez de la capacité de réception dans votre portefeuille (dans Alby Hub : « Augmenter la capacité de réception »), puis réessayez.';
+
+/** The second test invoice, for a wallet that opens its first channel on a payment: a typical order (~15,000 FCFA). */
+const TEST_AMOUNT_NO_CHANNEL_MSAT = 25_000_000;
+
 /** NwcError from the wallet layer to the API's stable codes and French messages (architecture.md section 5.3.4). */
 function toAppError(err: unknown): AppError {
   if (err instanceof AppError) return err;
@@ -47,9 +56,13 @@ function toAppError(err: unknown): AppError {
       case 'NWC_TIMEOUT':
         return new AppError('NWC_TIMEOUT', 'Votre portefeuille ne répond pas. Est-il en ligne ?');
       case 'NWC_WALLET_ERROR':
+        // A self-custodial wallet without a channel (Alby Hub: "LiquidityRequestFailed") cannot make an invoice:
+        // say what to do, not just the NIP-47 code.
+        if (CANNOT_RECEIVE.test(err.message))
+          return new AppError('NWC_WALLET_ERROR', CANNOT_RECEIVE_TEXT);
         return new AppError(
           'NWC_WALLET_ERROR',
-          `Le portefeuille a refusé la demande (${err.walletCode ?? 'erreur'}).`,
+          `Le portefeuille a refusé la demande (${err.walletCode ?? 'erreur'}) : ${err.message.replace(/^The wallet refused [^:]*: /, '').slice(0, 160)}`,
         );
       case 'NWC_BAD_INVOICE':
         return new AppError(
@@ -119,10 +132,14 @@ export async function linkWallet(deps: WalletDeps, input: LinkInput) {
     }
 
     // The test invoice proves make_invoice and lookup_invoice work end to end. It is never paid.
-    const test = await conn.makeInvoice({
-      amountMsat: 1000,
-      description: 'Selly : test de connexion',
-      expirySeconds: 60,
+    // A wallet without a channel yet (Alby Hub with an LSP) only makes invoices large enough to open one: about
+    // 2,500 sats on a real hub, 18 November 2026. It receives a normal order fine, so ask again at an order's size.
+    const makeTest = (amountMsat: number) =>
+      conn.makeInvoice({ amountMsat, description: 'Selly : test de connexion', expirySeconds: 60 });
+    const test = await makeTest(1000).catch((err: unknown) => {
+      if (err instanceof NwcError && CANNOT_RECEIVE.test(err.message))
+        return makeTest(TEST_AMOUNT_NO_CHANNEL_MSAT);
+      throw err;
     });
     const found = await conn.lookupInvoice(test.paymentHash);
     if (!found.found)
@@ -238,6 +255,7 @@ export async function linkLightningAddress(
         'Cette adresse Lightning ne permet pas de vérifier les paiements (LUD-21). Utilisez plutôt une connexion NWC de ce portefeuille.',
         'No payment verification (LUD-21)',
       );
+    if (CANNOT_RECEIVE.test(msg)) throw refused(CANNOT_RECEIVE_TEXT, 'Cannot receive');
     throw refused(`L'adresse Lightning ne répond pas correctement : ${msg}`, 'Not reachable');
   }
   try {
