@@ -110,7 +110,7 @@ const status = async (token: string) =>
 
 describe('linking a wallet', () => {
   it('links a receive-only wallet after the five checks, and stores the URI encrypted', async () => {
-    const s = await createShop(ctx.db, 'nwc-link-a');
+    const s = await createShop(ctx.db, 'nwc-link-a', { wallet: false });
     const w = await newWallet();
     const view = await link(s.vendorId, w.uri);
     expect(view).toMatchObject({
@@ -150,7 +150,7 @@ describe('linking a wallet', () => {
   });
 
   it('replaces the previous wallet', async () => {
-    const s = await createShop(ctx.db, 'nwc-link-b');
+    const s = await createShop(ctx.db, 'nwc-link-b', { wallet: false });
     await link(s.vendorId, (await newWallet()).uri);
     const second = await newWallet();
     await link(s.vendorId, second.uri);
@@ -166,7 +166,7 @@ describe('linking a wallet', () => {
   });
 
   it('refuses a connection that can spend, or cannot look invoices up', async () => {
-    const s = await createShop(ctx.db, 'nwc-link-c');
+    const s = await createShop(ctx.db, 'nwc-link-c', { wallet: false });
     const spender = await newWallet({
       methods: ['get_info', 'make_invoice', 'lookup_invoice', 'pay_invoice'],
     });
@@ -182,7 +182,7 @@ describe('linking a wallet', () => {
   });
 
   it('refuses a bad URI, a wallet that lies, and a wallet that does not answer', async () => {
-    const s = await createShop(ctx.db, 'nwc-link-d');
+    const s = await createShop(ctx.db, 'nwc-link-d', { wallet: false });
     await expect(link(s.vendorId, 'nostr+walletconnect://nope')).rejects.toMatchObject({
       code: 'NWC_URI_INVALID',
     });
@@ -195,13 +195,13 @@ describe('linking a wallet', () => {
   }, 20_000);
 
   it('says what to do when the wallet cannot receive yet (no channel, no inbound liquidity)', async () => {
-    const s = await createShop(ctx.db, 'nwc-link-cannot-receive');
+    const s = await createShop(ctx.db, 'nwc-link-cannot-receive', { wallet: false });
     // A real Alby Hub without a channel (18 November 2026): no invoice under about 2,500 sats. It still takes a
     // normal order, so it links; one that cannot reach an order's size is refused with what to do.
     const fresh = await newWallet();
     fresh.minInvoiceMsat = 2_500_000;
     await expect(link(s.vendorId, fresh.uri)).resolves.toMatchObject({ status: 'active' });
-    const s2 = await createShop(ctx.db, 'nwc-link-cannot-receive-2');
+    const s2 = await createShop(ctx.db, 'nwc-link-cannot-receive-2', { wallet: false });
     const empty = await newWallet();
     empty.minInvoiceMsat = 100_000_000;
     await expect(link(s2.vendorId, empty.uri)).rejects.toMatchObject({
@@ -216,7 +216,7 @@ describe('linking a wallet', () => {
   }, 20_000);
 
   it('reads the balance for the dashboard, and an offline wallet costs nothing', async () => {
-    const s = await createShop(ctx.db, 'nwc-link-balance');
+    const s = await createShop(ctx.db, 'nwc-link-balance', { wallet: false });
     const w = await newWallet();
     await link(s.vendorId, w.uri);
     expect(await gateway.balanceMsat(s.vendorId)).toBe(184_200_000);
@@ -228,7 +228,7 @@ describe('linking a wallet', () => {
   }, 20_000);
 
   it('needs an encryption key', async () => {
-    const s = await createShop(ctx.db, 'nwc-link-e');
+    const s = await createShop(ctx.db, 'nwc-link-e', { wallet: false });
     await expect(
       linkWallet(
         { ...ctx, keyring: null },
@@ -240,7 +240,7 @@ describe('linking a wallet', () => {
 
 describe('orders paid on the vendor wallet', () => {
   it('creates the invoice on the vendor wallet and settles it from a notification', async () => {
-    const s = await createShop(ctx.db, 'nwc-order-a');
+    const s = await createShop(ctx.db, 'nwc-order-a', { wallet: false });
     const w = await newWallet();
     await link(s.vendorId, w.uri);
     await gateway.refresh(); // subscribe to this wallet's notifications
@@ -260,7 +260,7 @@ describe('orders paid on the vendor wallet', () => {
   });
 
   it('settles from the reconciler when the wallet sends no notifications', async () => {
-    const s = await createShop(ctx.db, 'nwc-order-b');
+    const s = await createShop(ctx.db, 'nwc-order-b', { wallet: false });
     const w = await newWallet({ notifications: false });
     await link(s.vendorId, w.uri);
     const o = (
@@ -276,7 +276,7 @@ describe('orders paid on the vendor wallet', () => {
   });
 
   it('ignores a notification that the wallet lookup does not confirm', async () => {
-    const s = await createShop(ctx.db, 'nwc-order-c');
+    const s = await createShop(ctx.db, 'nwc-order-c', { wallet: false });
     const w = await newWallet({ notifications: false });
     await link(s.vendorId, w.uri);
     const o = (
@@ -296,11 +296,13 @@ describe('orders paid on the vendor wallet', () => {
   });
 
   it('creates no order when the vendor has no wallet, or the wallet returns a wrong invoice', async () => {
-    const s = await createShop(ctx.db, 'nwc-order-d');
+    const s = await createShop(ctx.db, 'nwc-order-d', { wallet: false });
     const none = await post('/api/v1/orders', orderPayload('nwc-order-d', s.variantId), {
       'idempotency-key': idemKey(),
     });
-    expect(none.json()).toMatchObject({ code: 'PAYMENT_UNAVAILABLE' });
+    // No wallet: refused before any stock is held, with a code that says why.
+    expect(none.statusCode).toBe(403);
+    expect(none.json()).toMatchObject({ code: 'ORDERS_NOT_OPEN' });
 
     const w = await newWallet();
     await link(s.vendorId, w.uri);
@@ -320,7 +322,7 @@ describe('orders paid on the vendor wallet', () => {
   });
 
   it('marks a failing wallet degraded after 5 failures, then active again', async () => {
-    const s = await createShop(ctx.db, 'nwc-order-e', { stock: 20 });
+    const s = await createShop(ctx.db, 'nwc-order-e', { stock: 20, wallet: false });
     const w = await newWallet();
     await link(s.vendorId, w.uri);
     w.goOffline();
@@ -376,20 +378,21 @@ describe('orders paid on the vendor wallet', () => {
   }, 30_000);
 
   it('stops using an unlinked wallet', async () => {
-    const s = await createShop(ctx.db, 'nwc-order-f');
+    const s = await createShop(ctx.db, 'nwc-order-f', { wallet: false });
     const w = await newWallet();
     await link(s.vendorId, w.uri);
     await unlinkWallet(ctx, { owner: 'vendor', vendorId: s.vendorId, actor: 'test' });
     const r = await post('/api/v1/orders', orderPayload('nwc-order-f', s.variantId), {
       'idempotency-key': idemKey(),
     });
-    expect(r.json().code).toBe('PAYMENT_UNAVAILABLE');
+    // No wallet left: the shop takes no orders until another is linked.
+    expect(r.json().code).toBe('ORDERS_NOT_OPEN');
   });
 });
 
 describe('subscription invoices on the platform wallet', () => {
   it('are made on the platform wallet, never the vendor one, and settle from its notification', async () => {
-    const s = await createShop(ctx.db, 'nwc-sub-a');
+    const s = await createShop(ctx.db, 'nwc-sub-a', { wallet: false });
     const vendorWallet = await newWallet();
     await link(s.vendorId, vendorWallet.uri);
     const platform = await newWallet();
@@ -424,7 +427,7 @@ describe('subscription invoices on the platform wallet', () => {
   });
 
   it('settles from the reconciler, and answers 503 when no platform wallet is linked', async () => {
-    const s = await createShop(ctx.db, 'nwc-sub-b');
+    const s = await createShop(ctx.db, 'nwc-sub-b', { wallet: false });
     const inv = await createSubscriptionInvoice(ctx, s.vendorId, { plan_id: 'pro', months: 1 });
     const platform = wallets.at(-1) as FakeNwcWallet;
     await platform.pay(inv.payment_hash, { notify: false });
@@ -439,7 +442,7 @@ describe('subscription invoices on the platform wallet', () => {
 
 describe('pairing with nostr+walletauth', () => {
   it('links the wallet that approves the link, with the usual checks, and forgets the secret', async () => {
-    const s = await createShop(ctx.db, 'nwc-pair-a');
+    const s = await createShop(ctx.db, 'nwc-pair-a', { wallet: false });
     const watcher = new PairingWatcher(ctx);
     try {
       const pairing = await startPairing(ctx, s.vendorId);
@@ -488,7 +491,7 @@ describe('pairing with nostr+walletauth', () => {
   });
 
   it('refuses a wallet that grants spending, and expires an unused link', async () => {
-    const s = await createShop(ctx.db, 'nwc-pair-b');
+    const s = await createShop(ctx.db, 'nwc-pair-b', { wallet: false });
     const watcher = new PairingWatcher(ctx);
     try {
       const pairing = await startPairing(ctx, s.vendorId);
@@ -600,7 +603,7 @@ describe('Lightning Address fallback', () => {
   it('makes the invoice through the address when the NWC wallet does not answer, and settles by LUD-21', async () => {
     const ln = await lnurlServer({ verify: true });
     try {
-      const s = await createShop(ctx.db, 'nwc-lnurl-a');
+      const s = await createShop(ctx.db, 'nwc-lnurl-a', { wallet: false });
       const w = await newWallet({ notifications: false });
       await link(s.vendorId, `${w.uri}&lud16=${encodeURIComponent(ln.lud16)}`);
       w.goOffline();
@@ -633,7 +636,7 @@ describe('Lightning Address fallback', () => {
   it('does not fall back to an address that cannot verify payments', async () => {
     const ln = await lnurlServer({ verify: false });
     try {
-      const s = await createShop(ctx.db, 'nwc-lnurl-b');
+      const s = await createShop(ctx.db, 'nwc-lnurl-b', { wallet: false });
       const w = await newWallet({ notifications: false });
       await link(s.vendorId, `${w.uri}&lud16=${encodeURIComponent(ln.lud16)}`);
       w.goOffline();
@@ -655,7 +658,7 @@ describe('Lightning Address as the wallet', () => {
   it('refuses an address that can receive nothing yet, and says why', async () => {
     const ln = await lnurlServer({ verify: true, maxSendable: 0 });
     try {
-      const s = await createShop(ctx.db, 'lnaddr-empty');
+      const s = await createShop(ctx.db, 'lnaddr-empty', { wallet: false });
       await expect(linkAddress(s.vendorId, ln.lud16)).rejects.toMatchObject({
         message: CANNOT_RECEIVE_TEXT,
       });
@@ -701,7 +704,7 @@ describe('Lightning Address as the wallet', () => {
   it('refuses an address that cannot confirm payments, and one that is not an address', async () => {
     const ln = await lnurlServer({ verify: false });
     try {
-      const s = await createShop(ctx.db, 'lnaddr-b');
+      const s = await createShop(ctx.db, 'lnaddr-b', { wallet: false });
       await expect(linkAddress(s.vendorId, ln.lud16)).rejects.toMatchObject({
         code: 'VALIDATION_FAILED',
         extra: { errors: [{ field: 'lud16', message: 'No payment verification (LUD-21)' }] },

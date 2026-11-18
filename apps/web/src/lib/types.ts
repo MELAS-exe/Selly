@@ -84,6 +84,8 @@ export interface StorePublic {
   branding: Branding;
   categories: CategorySummary[];
   chat: { enabled: boolean; reason: string | null };
+  /** Missing on an older core: treat as open. */
+  ordering?: { enabled: boolean; reason: 'store_paused' | 'wallet_missing' | null };
   payment_options: 'lightning'[];
   powered_by_badge: boolean;
 }

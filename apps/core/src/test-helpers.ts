@@ -1,4 +1,5 @@
 // Shared setup for tests: in-process PostgreSQL, fake wallet, fixed price feeds and a clock the test controls.
+import { randomBytes } from 'node:crypto';
 import { core } from '@selly/db';
 import { createTestDb } from '@selly/db/testing';
 import { buildApp } from './app';
@@ -85,7 +86,13 @@ export type TestApp = Awaited<ReturnType<typeof createTestApp>>;
 export async function createShop(
   db: Database,
   slug: string,
-  opts: { stock?: number; negotiate?: boolean; plan?: 'starter' | 'pro' | 'business' | null } = {},
+  opts: {
+    stock?: number;
+    negotiate?: boolean;
+    plan?: 'starter' | 'pro' | 'business' | null;
+    /** A linked wallet row (orders need one); the fake provider makes the invoices. Default true. */
+    wallet?: boolean;
+  } = {},
 ) {
   const [v] = await db
     .insert(core.vendors)
@@ -113,6 +120,15 @@ export async function createShop(
       status: 'active',
       currentPeriodStart: new Date('2026-01-01T00:00:00Z'),
       currentPeriodEnd: new Date('2030-01-01T00:00:00Z'),
+    });
+  }
+  if (opts.wallet !== false) {
+    await db.insert(core.walletConnections).values({
+      owner: 'vendor',
+      vendorId,
+      kind: 'nwc',
+      walletPubkey: randomBytes(32).toString('hex'),
+      status: 'active',
     });
   }
   const [p] = await db

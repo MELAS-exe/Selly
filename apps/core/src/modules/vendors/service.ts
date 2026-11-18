@@ -9,6 +9,7 @@ import type { Session } from '../auth/service';
 import { alertSettings, type Vendor, vendorSettings } from '../catalog/store';
 import { audit } from '../events/outbox';
 import { processUpload } from '../media/images';
+import { startTrial, TRIAL_PLAN } from '../subscriptions/billing';
 import { currentSubscription } from '../subscriptions/service';
 import { liveWallet } from '../wallet/service';
 
@@ -45,6 +46,8 @@ export async function vendorView(ctx: Context, v: Vendor) {
   else if (wallet.status === 'degraded') blockers.push('wallet_degraded');
   if (!sub) blockers.push('subscription_required');
   else if (sub.status === 'suspended') blockers.push('subscription_suspended');
+  // The shop is online with a running plan; a wallet is only needed to take orders.
+  const live = v.status === 'active' && !blockers.some((b) => b.startsWith('subscription_'));
   const s = vendorSettings(v);
   const raw = v.settings as {
     agent?: { keep_logs?: boolean };
@@ -77,7 +80,8 @@ export async function vendorView(ctx: Context, v: Vendor) {
       },
       alerts: alertSettings(v),
     },
-    live: v.status === 'active' && blockers.length === 0,
+    live,
+    accepting_orders: live && !!wallet,
     live_blockers: blockers,
     created_at: iso(v.createdAt) as string,
   };
@@ -146,6 +150,11 @@ export async function createVendor(ctx: Context, s: Session, body: z.infer<typeo
       details: { slug: created.slug },
     });
     return created;
+  });
+  // Every new shop starts on the free trial. A key that already had one gets none: the shop then needs a plan.
+  await startTrial(ctx, vendor.id, TRIAL_PLAN).catch((err) => {
+    if (!(err instanceof AppError && err.code === 'TRIAL_ALREADY_USED'))
+      ctx.log.warn({ err: String(err), vendorId: vendor.id }, 'trial not started');
   });
   return vendorView(ctx, vendor);
 }

@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { core } from '@selly/db';
 import { and, eq } from '@selly/db/orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { claimTrialWallet } from './modules/subscriptions/billing';
 import {
   assertContract,
   createShop,
@@ -57,7 +58,7 @@ async function shop(
   slug: string,
   sub?: { plan: string; status?: 'active' | 'trialing'; endsInDays: number },
 ) {
-  const s = await createShop(t.db, slug, { plan: null });
+  const s = await createShop(t.db, slug, { plan: null, wallet: false });
   const { cookie } = await createVendorSession(t, s.vendorId);
   if (sub) {
     const now = t.clock.now();
@@ -108,16 +109,11 @@ const notifications = (vendorId: string) =>
 const at = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 describe('trial', () => {
-  it('needs a wallet, gives 14 days of Pro, and is used once per key and per wallet', async () => {
+  it('gives 14 days of Pro, and is used once per key and per wallet', async () => {
     const a = await shop('trial-a');
     const none = await view(a.cookie);
     expect(none.body).toMatchObject({ subscription: null, plan: null });
     expect(none.body.actions).toEqual(['start_trial', 'renew']);
-
-    const noWallet = await call('POST', `${SUB}/trial`, `${SUB}/trial`, a.cookie, {
-      plan_id: 'pro',
-    });
-    expect(noWallet.status).toBe(422);
 
     const walletKey = await linkWallet(a.vendorId);
     const started = await call('POST', `${SUB}/trial`, `${SUB}/trial`, a.cookie, {
@@ -151,6 +147,49 @@ describe('trial', () => {
     // The agent hears about the new plan.
     const [event] = await t.db.select().from(core.outbox).where(eq(core.outbox.key, a.vendorId));
     expect(event?.topic).toBe('entitlements.changed');
+  });
+
+  it('starts without a wallet; a wallet linked later joins the claims', async () => {
+    const a = await shop('trial-nowallet-a');
+    const started = await call('POST', `${SUB}/trial`, `${SUB}/trial`, a.cookie, {
+      plan_id: 'pro',
+    });
+    expect(started.status).toBe(201);
+    expect(started.body.subscription).toMatchObject({ status: 'trialing', trial: true });
+
+    const walletKey = randomBytes(32).toString('hex');
+    await t.db.transaction((tx) =>
+      claimTrialWallet(tx, a.vendorId, { walletPubkey: walletKey, lud16: null }, t.clock.now()),
+    );
+    const claims = await t.db
+      .select()
+      .from(core.trialClaims)
+      .where(eq(core.trialClaims.claimKey, `wallet:${walletKey}`));
+    expect(claims.map((c) => c.vendorId)).toEqual([a.vendorId]);
+
+    // The same wallet cannot carry a second shop's unpaid trial.
+    const b = await shop('trial-nowallet-b');
+    await call('POST', `${SUB}/trial`, `${SUB}/trial`, b.cookie, { plan_id: 'pro' });
+    await expect(
+      t.db.transaction((tx) =>
+        claimTrialWallet(tx, b.vendorId, { walletPubkey: walletKey, lud16: null }, t.clock.now()),
+      ),
+    ).rejects.toMatchObject({ code: 'TRIAL_ALREADY_USED' });
+  });
+
+  it('an unpaid trial closes the shop as soon as it ends, with no grace', async () => {
+    const s = await shop('trial-ends');
+    await call('POST', `${SUB}/trial`, `${SUB}/trial`, s.cookie, { plan_id: 'pro' });
+    const store = () =>
+      t.app.inject({ method: 'GET', url: '/api/v1/stores/trial-ends' }).then((r) => r.json());
+    expect((await store()).store.status).toBe('active');
+
+    t.clock.advance(14 * DAY + 1000);
+    expect((await view(s.cookie)).body.subscription.status).toBe('suspended');
+    expect((await store()).store).toMatchObject({
+      status: 'paused',
+      ordering: { enabled: false, reason: 'store_paused' },
+    });
   });
 
   it('a plan bought during the trial starts when the trial ends', async () => {

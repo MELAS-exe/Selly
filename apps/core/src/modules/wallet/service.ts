@@ -13,6 +13,7 @@ import { signal } from '../../signals';
 import { iso } from '../../util';
 import { audit } from '../events/outbox';
 import { lnurlInvoice, lnurlpUrl, lnurlVerify } from '../payments/lnurl';
+import { claimTrialWallet } from '../subscriptions/billing';
 
 const { walletConnections: wc } = core;
 export type WalletRow = typeof wc.$inferSelect;
@@ -165,6 +166,7 @@ export async function linkWallet(deps: WalletDeps, input: LinkInput) {
   );
 
   const row = await deps.db.transaction(async (tx) => {
+    if (input.vendorId) await claimTrialWallet(tx, input.vendorId, parsed, now);
     const live = await tx
       .update(wc)
       .set({ status: 'revoked', revokedAt: now, uriCiphertext: null })
@@ -270,6 +272,8 @@ export async function linkLightningAddress(
 
   const now = deps.now();
   const row = await deps.db.transaction(async (tx) => {
+    if (input.vendorId)
+      await claimTrialWallet(tx, input.vendorId, { walletPubkey: null, lud16 }, now);
     const live = await tx
       .update(wc)
       .set({ status: 'revoked', revokedAt: now, uriCiphertext: null })

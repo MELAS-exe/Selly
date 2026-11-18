@@ -1,6 +1,6 @@
 // Read side of the public storefront (architecture.md section 5.2, group A).
 import { core } from '@selly/db';
-import { and, asc, desc, eq, inArray, lt, or, sql } from '@selly/db/orm';
+import { and, asc, desc, eq, inArray, lt, ne, or, sql } from '@selly/db/orm';
 import type { Context } from '../../context';
 import { AppError } from '../../errors';
 import { decodeCursor, encodeCursor, iso, money } from '../../util';
@@ -111,6 +111,30 @@ export async function findVendorById(ctx: Context, id: string): Promise<Vendor> 
 export async function storeStatus(ctx: Context, v: Vendor): Promise<'active' | 'paused'> {
   if (v.status !== 'active') return 'paused';
   return isServing(await currentSubscription(ctx, v.id)) ? 'active' : 'paused';
+}
+
+/** Has the vendor linked a wallet? Orders are paid into it, so an open shop without one shows but takes no orders. */
+export async function hasWallet(ctx: Context, vendorId: string): Promise<boolean> {
+  const [row] = await ctx.db
+    .select({ id: core.walletConnections.id })
+    .from(core.walletConnections)
+    .where(
+      and(
+        eq(core.walletConnections.owner, 'vendor'),
+        eq(core.walletConnections.vendorId, vendorId),
+        ne(core.walletConnections.status, 'revoked'),
+      ),
+    );
+  return !!row;
+}
+
+/** Refuses an order on a shop without a wallet, before any stock is reserved. */
+export async function requireOrdering(ctx: Context, v: Vendor) {
+  if (!(await hasWallet(ctx, v.id)))
+    throw new AppError(
+      'ORDERS_NOT_OPEN',
+      'This shop does not take orders yet: the vendor has not linked a wallet.',
+    );
 }
 
 export const availabilityOf = (available: number): 'in_stock' | 'low' | 'out_of_stock' =>
@@ -271,6 +295,7 @@ export async function storeProfile(ctx: Context, v: Vendor) {
   const status = await storeStatus(ctx, v);
   const sub = await currentSubscription(ctx, v.id);
   const cats = await storeCategories(ctx, v.id);
+  const wallet = await hasWallet(ctx, v.id);
   return {
     slug: v.slug,
     display_name: v.displayName,
@@ -292,6 +317,10 @@ export async function storeProfile(ctx: Context, v: Vendor) {
     chat: {
       enabled: status === 'active' && s.agentEnabled,
       reason: status !== 'active' ? 'store_paused' : s.agentEnabled ? null : 'vendor_disabled',
+    },
+    ordering: {
+      enabled: status === 'active' && wallet,
+      reason: status !== 'active' ? 'store_paused' : wallet ? null : 'wallet_missing',
     },
     payment_options: ['lightning'] as const,
     powered_by_badge: sub?.limits.powered_by_badge ?? true,

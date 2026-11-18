@@ -12,7 +12,8 @@ import { durationToken, motionToken, prefersReducedMotion } from '../motion/toke
 import { askSelly } from './ask-button';
 import { MessageCircle, Minus, Plus, ShoppingBag, X } from './draft-icons';
 
-export function CartDrawer({ slug }: { slug: string }) {
+/** `ordersOpen` is false while the vendor has no wallet: the cart works, ordering waits. */
+export function CartDrawer({ slug, ordersOpen = true }: { slug: string; ordersOpen?: boolean }) {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [open, setOpen] = useState(false);
   const badge = useRef<HTMLSpanElement>(null);
@@ -198,7 +199,9 @@ export function CartDrawer({ slug }: { slug: string }) {
                       </span>
                     </div>
                     <p className="mt-2 text-[0.9375rem] text-d-ink-soft">
-                      La livraison et le montant en sats sont calculés au moment de commander.
+                      {ordersOpen
+                        ? 'La livraison et le montant en sats sont calculés au moment de commander.'
+                        : 'Cette boutique ne prend pas encore de commandes en ligne. Selly répond à vos questions et prévient le vendeur.'}
                     </p>
                     <button
                       type="button"
@@ -208,7 +211,8 @@ export function CartDrawer({ slug }: { slug: string }) {
                       }}
                       className="sf-btn sf-btn-primary mt-4 w-full"
                     >
-                      Commander avec Selly <MessageCircle size={16} />
+                      {ordersOpen ? 'Commander avec Selly' : 'Poser une question à Selly'}{' '}
+                      <MessageCircle size={16} />
                     </button>
                   </div>
                 </>
