@@ -153,3 +153,21 @@ describe('ids and history', () => {
     expect(msgs[0]?.content).toHaveLength(2);
   });
 });
+
+describe('order numbers the model made up', () => {
+  it('flags an order number no tool returned, in the usual phrasings', async () => {
+    const { unbackedOrderNumbers } = await import('./filter');
+    const known = new Set(['HBA2']);
+    // The real reply of ollama:qwen2.5:7b on order-08, without any create_order call.
+    expect(
+      unbackedOrderNumbers('Votre commande a été enregistrée.  Numéro de commande: A7K2', known),
+    ).toEqual(['A7K2']);
+    expect(unbackedOrderNumbers('Commande #ZZ99 confirmée', known)).toEqual(['ZZ99']);
+    expect(unbackedOrderNumbers('Commande HBA2 confirmée ! Total : 18 000 FCFA', known)).toEqual(
+      [],
+    );
+    expect(
+      unbackedOrderNumbers('Je prépare la commande pour vous, voulez-vous la livraison ?', known),
+    ).toEqual([]);
+  });
+});

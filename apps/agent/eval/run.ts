@@ -112,6 +112,8 @@ export async function runCase(
   c: EvalCase,
   makeProvider: () => LlmProvider,
   pacer?: Pacer,
+  /** Turn deadline: longer for paced (rate-limited) and local models, whose latency is measured anyway. */
+  turnDeadlineMs = pacer ? 180_000 : 12_000,
 ): Promise<CaseResult> {
   const provider = new RecordingProvider(makeProvider(), pacer);
   const store = new MemoryStore();
@@ -125,7 +127,7 @@ export async function runCase(
       coreUrl: '',
       mergeWindowMs: 0,
       // Pacing waits happen inside a turn: the deadline must allow them. Latency is measured on the calls.
-      turnDeadlineMs: pacer ? 180_000 : 12_000,
+      turnDeadlineMs,
       testEndpoint: true,
       serviceToken: 'eval-service-token',
     },
@@ -343,7 +345,12 @@ async function main() {
   console.log(`Evaluating ${cases.length} cases on ${model} (concurrency ${concurrency})`);
   if (pacer) console.log(`Pacing at ${tpm} tokens per minute.`);
   const results = await pool(cases, concurrency, (c) =>
-    runCase(c, () => providerFor(model), pacer),
+    runCase(
+      c,
+      () => providerFor(model),
+      pacer,
+      pacer || model.startsWith('ollama:') ? 180_000 : 12_000,
+    ),
   );
   const summary = summarise(results, model, eurPerUsd);
 

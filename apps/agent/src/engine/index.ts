@@ -14,7 +14,7 @@ import {
   toolDefinitions,
 } from '../tools';
 import type { ProductExtractor } from '../vision';
-import { extractQuickReplies, filterReply, unbackedAmounts } from './filter';
+import { extractQuickReplies, filterReply, unbackedAmounts, unbackedOrderNumbers } from './filter';
 import type { LlmBlock, LlmMessage, LlmProvider } from './llm';
 import { textOf } from './llm';
 import { SUMMARY_PROMPT, systemPrompt } from './prompt';
@@ -100,6 +100,12 @@ export class AgentEngine {
     // replies that passed this check in an earlier turn.
     for (const m of history)
       for (const n of numbersIn(req.transcripts?.[m.id] ?? m.text ?? '')) ctx.out.amounts.add(n);
+    // Order numbers the reply may name: orders of this chat, the ones tools return this turn (added
+    // below), and the ones the person wrote. Any other is an order the model made up.
+    const knownOrders = new Set<string>(Object.keys(conv.state.orders ?? {}));
+    for (const m of history)
+      if (m.direction === 'in')
+        for (const w of (m.text ?? '').match(/\b[A-Z0-9]{4,8}\b/g) ?? []) knownOrders.add(w);
 
     const system = systemPrompt(role, profile, conv, this.now());
     const tools = toolDefinitions(role);
@@ -160,7 +166,9 @@ export class AgentEngine {
 
         if (uses.length === 0) {
           const text = textOf(res.content);
-          const bad = unbackedAmounts(text, ctx.out.amounts);
+          const badAmounts = unbackedAmounts(text, ctx.out.amounts);
+          const badOrders = unbackedOrderNumbers(text, knownOrders);
+          const bad = [...badAmounts.map(String), ...badOrders];
           if (bad.length > 0 && !corrected) {
             // Facts come from tools (section 8.4, P5): one chance to fix the reply.
             corrected = true;
@@ -169,7 +177,9 @@ export class AgentEngine {
               content: [
                 {
                   type: 'text',
-                  text: `[Contrôle automatique] Ta réponse cite des montants qu'aucun outil n'a renvoyés : ${bad.join(', ')}. Vérifie avec un outil ou réécris la réponse sans ces montants.`,
+                  text: badOrders.length
+                    ? `[Contrôle automatique] Ta réponse annonce des commandes qui n'existent pas : ${badOrders.join(', ')}. Une commande n'existe qu'après un create_order réussi. Appelle l'outil ou réécris la réponse sans ce numéro.`
+                    : `[Contrôle automatique] Ta réponse cite des montants qu'aucun outil n'a renvoyés : ${badAmounts.join(', ')}. Vérifie avec un outil ou réécris la réponse sans ces montants.`,
                 },
               ],
             });
@@ -183,7 +193,9 @@ export class AgentEngine {
               outputTokens,
               started,
               'unsure',
-              `Montants non vérifiés dans la réponse : ${bad.join(', ')}`,
+              badOrders.length
+                ? `Commande annoncée sans avoir été créée : ${badOrders.join(', ')}`
+                : `Montants non vérifiés dans la réponse : ${badAmounts.join(', ')}`,
             );
           }
           finalText = text;
@@ -204,8 +216,11 @@ export class AgentEngine {
 
         // Run this round's tool calls in parallel and return all results in one user message.
         const outcomes = await Promise.all(uses.map((u) => runTool(role, u.name, u.input, ctx)));
-        for (const o of outcomes)
+        for (const o of outcomes) {
           toolCalls.push({ name: o.name, arguments: o.arguments, ok: o.ok });
+          for (const m of o.result.matchAll(/"number":"([A-Z0-9]{3,12})"/g))
+            knownOrders.add(m[1] as string);
+        }
         const results: LlmBlock[] = outcomes.map((o, i) => ({
           type: 'tool_result',
           toolUseId: (uses[i] as { id: string }).id,
