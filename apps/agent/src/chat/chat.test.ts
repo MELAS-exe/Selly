@@ -126,6 +126,22 @@ describe('a customer turn', () => {
     expect((await history(token)).filter((m) => m.author === 'agent')).toHaveLength(2);
   });
 
+  it('never lets the model announce an order it did not create', async () => {
+    const { openChat, send, history, llm, core } = setup();
+    llm.push(
+      () => [say('Votre commande a été enregistrée. Numéro de commande : A7K2.')],
+      () => [say('Votre commande A7K2 est bien enregistrée.')],
+    );
+    const { token } = await openChat();
+    await send(token, 'Oui je valide, Moussa +221770001122');
+    expect(core.orders).toHaveLength(0);
+    expect(JSON.stringify(llm.requests[1]?.messages.at(-1))).toContain('create_order');
+    expect((await history(token)).at(-1)?.text).toBe(
+      'Je transmets votre message au vendeur, il vous répond très vite.',
+    );
+    expect(core.notifications.at(-1)?.body).toContain('A7K2');
+  });
+
   it('asks the model to fix a reply with an amount no tool returned, then hands off', async () => {
     const { openChat, send, history, llm, core } = setup();
     llm.push(
