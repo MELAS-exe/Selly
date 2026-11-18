@@ -12,6 +12,7 @@ import type { Metrics, VendorMe } from '@/lib/dashboard/types';
 import { dash } from '@/lib/i18n/dashboard';
 import type { LiveBlocker } from '@/lib/vendor-types';
 import { LiveProvider, useLive } from './live';
+import { PushOffer, registerServiceWorker } from './push';
 import { btn, ErrorState, Skeleton } from './ui';
 
 const VendorContext = createContext<{ vendor: VendorMe; refresh: () => Promise<void> } | null>(
@@ -153,6 +154,8 @@ function Frame({ vendor, children }: { vendor: VendorMe; children: ReactNode }) 
   );
   const waiting = metrics?.chats_waiting ?? 0;
 
+  useEffect(() => registerServiceWorker(), []);
+
   const link = (n: (typeof NAV)[number], mobile: boolean) => {
     const on = isActive(pathname, n.href);
     return (
@@ -211,6 +214,7 @@ function Frame({ vendor, children }: { vendor: VendorMe; children: ReactNode }) 
         </header>
         <Banners blockers={vendor.live_blockers} />
         <ConnectionNotice />
+        <PushOffer />
         <main className="flex-1 px-4 pt-5 pb-28 lg:px-8 lg:pt-8 lg:pb-10">{children}</main>
         <nav
           aria-label={dash.nav.main}
