@@ -263,12 +263,15 @@ async function dressUp() {
   type P = { id: string; title: string; images: unknown[] };
   const products = ((await call('GET', '/api/v1/inventory')) as { data: P[] }).data;
   const done: string[] = [];
+  // Art-directed shots (public/storefront/demo): each product on warm paper, one light, one contact shadow.
   const photo: Record<string, string> = {
-    'Sac en cuir': 'landing/products/handbag.webp',
-    'Baskets blanches': 'landing/products/sneaker.webp',
+    'Sac en cuir': 'storefront/demo/sac-en-cuir.webp',
+    'Baskets blanches': 'storefront/demo/baskets-blanches.webp',
+    'Eau de parfum Oud': 'storefront/demo/parfum-oud.webp',
+    'Robe wax noire': 'storefront/demo/robe-wax-noire.webp',
   };
   for (const p of products) {
-    if (photo[p.title] && p.images.length === 0) {
+    if (photo[p.title]) {
       await call('PATCH', `/api/v1/inventory/${p.id}`, {
         image_keys: [await upload(cookie, pub(photo[p.title] as string))],
       });

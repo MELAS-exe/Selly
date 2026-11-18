@@ -47,9 +47,22 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   };
 }
 
-function InfoCell({ icon, title, sub }: { icon: React.ReactNode; title: string; sub: string }) {
+function InfoCell({
+  icon,
+  title,
+  sub,
+  n = 0,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  sub: string;
+  n?: number;
+}) {
   return (
-    <div className="flex items-center gap-3 border-b border-d-hairline px-4 py-4 odd:border-r md:gap-4 md:border-r md:border-b-0 md:px-5 md:py-5 md:last:border-r-0">
+    <div
+      className="sf-cell flex items-center gap-3 border-b border-d-hairline px-4 py-4 odd:border-r md:gap-4 md:border-r md:border-b-0 md:px-5 md:py-5 md:last:border-r-0"
+      style={{ '--n': n } as CSSProperties}
+    >
       <span className="grid size-11 shrink-0 place-items-center border border-d-hairline">
         {icon}
       </span>
@@ -81,10 +94,12 @@ function Hero({
   store,
   slug,
   featured,
+  second,
 }: {
   store: StorePublic;
   slug: string;
   featured: ProductSummary | undefined;
+  second: ProductSummary | undefined;
 }) {
   const address = pickupAddress(store);
   return (
@@ -130,7 +145,7 @@ function Hero({
         </div>
 
         {featured && (
-          <div className="sf-rise relative mx-auto w-full max-w-[570px] [--d:200ms] lg:max-w-none">
+          <div className="sf-hero-photo relative mx-auto w-full max-w-[570px] lg:max-w-none">
             <div
               aria-hidden="true"
               className="absolute inset-0 translate-x-3 translate-y-3 border border-d-hairline"
@@ -144,7 +159,7 @@ function Hero({
             </div>
             <Link
               href={`/s/${slug}/p/${featured.slug}`}
-              className="relative block overflow-clip bg-d-paper-deep"
+              className="sf-unveil relative block overflow-clip bg-d-paper-deep"
             >
               <Visual
                 image={featured.image}
@@ -179,6 +194,29 @@ function Hero({
                 </span>
               </span>
             </Link>
+            {second && (
+              <div className="sf-float-card-wrap absolute -top-8 -right-5 z-20 hidden w-40 md:block lg:-right-8 lg:w-48">
+                <Link
+                  href={`/s/${slug}/p/${second.slug}`}
+                  className="sf-float-card block border border-d-hairline bg-d-paper p-2 shadow-[0_18px_40px_rgb(23_59_50/0.14)]"
+                >
+                  <span className="block overflow-clip">
+                    <Visual
+                      image={second.image}
+                      title={second.title}
+                      sizes="200px"
+                      ratio="aspect-square"
+                    />
+                  </span>
+                  <span className="sf-serif mt-2 block truncate px-1 text-lg leading-tight font-semibold">
+                    {second.title}
+                  </span>
+                  <span className="sf-figure block px-1 pb-1 text-base">
+                    {formatMoney(second.price)}
+                  </span>
+                </Link>
+              </div>
+            )}
             <div className="absolute -right-6 -bottom-10 hidden bg-d-paper sm:block">
               <Stamp text={`Une touche de chez nous • ${store.display_name} • `} />
             </div>
@@ -200,15 +238,49 @@ function InfoBand({ store }: { store: StorePublic }) {
     >
       <div className="mx-auto grid max-w-[1260px] grid-cols-2 border-x border-d-hairline md:grid-cols-4">
         <InfoCell icon={<Store size={18} />} title={store.display_name} sub="Boutique sur Selly" />
-        {address && <InfoCell icon={<MapPin size={18} />} title={address} sub="Retrait gratuit" />}
+        {address && (
+          <InfoCell n={1} icon={<MapPin size={18} />} title={address} sub="Retrait gratuit" />
+        )}
         {hours && (
-          <InfoCell icon={<Clock3 size={18} />} title={hours} sub="Horaires de la boutique" />
+          <InfoCell n={2} icon={<Clock3 size={18} />} title={hours} sub="Horaires de la boutique" />
         )}
         {delivery && (
-          <InfoCell icon={<PackageCheck size={18} />} title={delivery.title} sub={delivery.sub} />
+          <InfoCell
+            n={3}
+            icon={<PackageCheck size={18} />}
+            title={delivery.title}
+            sub={delivery.sub}
+          />
         )}
       </div>
     </section>
+  );
+}
+
+/** A band of the shop's real facts, scrolling (decorative: the same facts are in the band above). */
+function Ticker({ store }: { store: StorePublic }) {
+  const address = pickupAddress(store);
+  const facts = [
+    'Paiement en bitcoin, direct',
+    ...(address ? ['Retrait gratuit à la boutique'] : []),
+    ...store.delivery.zones.map((z) => `Livraison ${z.label}`),
+    ...(store.chat.enabled ? ['Conseils avec Selly'] : []),
+    'Fait avec soin',
+  ];
+  return (
+    <div aria-hidden="true" className="overflow-clip border-b border-d-hairline py-5">
+      <div className="sf-ticker flex w-max items-center gap-10 pr-10">
+        {[...facts, ...facts].map((f, i) => (
+          <span
+            key={`${f}-${i}`}
+            className="sf-serif flex items-center gap-10 text-3xl whitespace-nowrap italic sm:text-4xl"
+          >
+            {f}
+            <span className="text-2xl text-[var(--sf-accent)] not-italic">✦</span>
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -228,10 +300,7 @@ function Card({
   const tag = tagFor(p);
   const soldOut = p.availability === 'out_of_stock';
   return (
-    <article
-      className={`product-card group min-w-0 ${index < 6 ? 'tile-in' : 'tile-view'}`}
-      style={index < 6 ? ({ '--i': index } as CSSProperties) : undefined}
-    >
+    <article className="sf-card product-card group min-w-0">
       <div className="card-media relative overflow-clip border border-d-hairline">
         <Link href={`/s/${slug}/p/${p.slug}`} className="block" aria-label={p.title}>
           <ViewTransition name={`product-${p.slug}`} share="morph" default="none">
@@ -265,7 +334,7 @@ function Card({
           </div>
         )}
       </div>
-      <div className="pt-4">
+      <div className="card-text pt-4">
         <Link href={`/s/${slug}/p/${p.slug}`} className="hover:underline hover:underline-offset-4">
           <h3 className="sf-serif text-xl leading-tight font-semibold sm:text-[1.375rem]">
             {p.title}
@@ -305,6 +374,7 @@ export default async function StorePage({ params, searchParams }: Params) {
   const featured =
     withPhoto.find((p) => p.availability === 'in_stock') ??
     withPhoto.find((p) => p.availability === 'low');
+  const second = withPhoto.find((p) => p.id !== featured?.id && p.availability !== 'out_of_stock');
   const categories = store.categories ?? [];
   const categoryName = new Map(categories.map((c) => [c.id, c.name]));
   const address = pickupAddress(store);
@@ -312,8 +382,9 @@ export default async function StorePage({ params, searchParams }: Params) {
 
   return (
     <main>
-      <Hero store={store} slug={slug} featured={featured} />
+      <Hero store={store} slug={slug} featured={featured} second={second} />
       <InfoBand store={store} />
+      <Ticker store={store} />
 
       <section
         id="catalogue"
@@ -325,7 +396,7 @@ export default async function StorePage({ params, searchParams }: Params) {
             <p className="sf-eyebrow mb-4">Faits pour être aimés</p>
             <h2
               id="catalogue-title"
-              className="sf-serif text-[2.75rem] leading-[1] tracking-[-0.01em] sm:text-[3.5rem]"
+              className="sf-curtain sf-serif text-[2.75rem] leading-[1] tracking-[-0.01em] sm:text-[3.5rem]"
             >
               La sélection
             </h2>
@@ -475,7 +546,7 @@ export default async function StorePage({ params, searchParams }: Params) {
             <p className="sf-eyebrow !text-[var(--sf-accent)]">Notre coin</p>
             <h2
               id="boutique-title"
-              className="sf-serif mt-5 text-[2.5rem] leading-[1.02] sm:text-[3.25rem]"
+              className="sf-curtain sf-serif mt-5 text-[2.5rem] leading-[1.02] sm:text-[3.25rem]"
             >
               Une boutique de quartier,
               <br />
@@ -513,11 +584,11 @@ export default async function StorePage({ params, searchParams }: Params) {
           <div className="relative overflow-clip border border-d-paper/20 p-6 sm:p-8">
             <div
               aria-hidden="true"
-              className="absolute -top-16 -right-10 size-48 rounded-full border border-d-paper/10"
+              className="sf-ring absolute -top-16 -right-10 size-48 rounded-full border border-dashed border-d-paper/20"
             />
             <div
               aria-hidden="true"
-              className="absolute -top-9 -right-3 size-32 rounded-full border border-d-paper/10"
+              className="sf-ring absolute -top-9 -right-3 size-32 rounded-full border border-d-paper/10 [animation-direction:reverse]"
             />
             <div className="relative flex items-start justify-between gap-3">
               <div>

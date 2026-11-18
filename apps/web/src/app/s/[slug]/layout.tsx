@@ -36,6 +36,7 @@ export default async function ShopLayout({
       className={`sf ${storefrontSerif.variable} min-h-dvh text-[var(--sf-ink)]`}
       style={storefrontStyle(store.branding) as CSSProperties}
     >
+      <div aria-hidden="true" className="sf-progress" />
       <div className="bg-[var(--sf-ink)] px-4 py-2.5 text-center text-[0.9375rem] text-d-paper">
         <span className="inline-flex items-center justify-center gap-2.5">
           <span aria-hidden="true" className="size-1.5 shrink-0 bg-[var(--sf-accent)]" />

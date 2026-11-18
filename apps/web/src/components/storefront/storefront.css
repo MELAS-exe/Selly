@@ -284,4 +284,176 @@
       transition: none;
     }
   }
+
+  /* ------------------------------------------------------------------------------------------ */
+  /* Motion. Time-based for the first screen, scroll-driven for the rest (with the final state   */
+  /* as the fallback). Compositor properties only; each has its calm version below.             */
+  /* ------------------------------------------------------------------------------------------ */
+
+  /* Reading progress, in the shop's accent. */
+  .sf-progress {
+    position: fixed;
+    inset: 0 0 auto 0;
+    height: 3px;
+    z-index: 60;
+    background: var(--sf-accent);
+    transform-origin: left;
+    transform: scaleX(0);
+    pointer-events: none;
+  }
+
+  /* Hero photo: a curtain lifts while the picture settles from a slow zoom. */
+  .sf-unveil {
+    animation: sf-unveil calc(var(--dur-hero) * 1.6) var(--ease-out-expo) var(--d, 120ms) both;
+  }
+  .sf-unveil img,
+  .sf-unveil .sf-placeholder {
+    animation: sf-settle calc(var(--dur-hero) * 3) var(--ease-out-expo) var(--d, 120ms) both;
+  }
+  @keyframes sf-unveil {
+    from {
+      clip-path: inset(100% 0 0 0);
+    }
+    to {
+      clip-path: inset(0);
+    }
+  }
+  @keyframes sf-settle {
+    from {
+      scale: 1.12;
+    }
+  }
+
+  /* The second product card: slides in at an angle, after the photo. */
+  .sf-float-card {
+    rotate: -4deg;
+    animation: sf-float-card var(--dur-hero) var(--ease-snap) 700ms both;
+  }
+  @keyframes sf-float-card {
+    from {
+      opacity: 0;
+      translate: -24px 40px;
+      rotate: -10deg;
+    }
+  }
+
+  /* The ticker of shop facts. */
+  .sf-ticker {
+    animation: sf-ticker 42s linear infinite;
+  }
+  @keyframes sf-ticker {
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  /* The boutique section's rings turn very slowly. */
+  .sf-ring {
+    animation: pv-spin 60s linear infinite;
+  }
+
+  @supports (animation-timeline: scroll()) {
+    .sf-progress {
+      animation: sf-progress linear both;
+      animation-timeline: scroll(root);
+    }
+    /* Depth in the hero: the photo drifts slower than the page, the card faster. */
+    .sf-hero-photo {
+      animation: sf-drift-slow linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 90vh;
+    }
+    .sf-float-card-wrap {
+      animation: sf-drift-fast linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 90vh;
+    }
+    /* Section titles: a curtain lifts as they come up. */
+    .sf-curtain {
+      animation: sf-curtain linear both;
+      animation-timeline: view();
+      animation-range: entry 10% cover 30%;
+    }
+    /* Info cells rise in turn. */
+    .sf-cell {
+      animation: sf-cell linear both;
+      animation-timeline: view();
+      animation-range: entry calc(var(--n, 0) * 8%) entry calc(60% + var(--n, 0) * 8%);
+    }
+    /* Cards: the photo unveils from the bottom and zooms out as it enters; the text follows. */
+    .sf-card .card-media {
+      animation: sf-unveil linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 90%;
+    }
+    .sf-card .card-media img,
+    .sf-card .card-media .sf-placeholder {
+      animation: sf-settle linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 50%;
+    }
+    .sf-card .card-text {
+      animation: sf-cell linear both;
+      animation-timeline: view();
+      animation-range: entry 20% entry 100%;
+    }
+  }
+  @keyframes sf-progress {
+    to {
+      transform: scaleX(1);
+    }
+  }
+  @keyframes sf-drift-slow {
+    to {
+      translate: 0 60px;
+    }
+  }
+  @keyframes sf-drift-fast {
+    to {
+      translate: 0 -80px;
+    }
+  }
+  @keyframes sf-curtain {
+    from {
+      clip-path: inset(0 -0.2em 100% -0.2em);
+      translate: 0 0.25em;
+    }
+    to {
+      clip-path: inset(-0.2em -0.2em -0.2em -0.2em);
+      translate: 0;
+    }
+  }
+  @keyframes sf-cell {
+    from {
+      opacity: 0;
+      translate: 0 18px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sf-progress {
+      display: none;
+    }
+    .sf-unveil,
+    .sf-float-card,
+    .sf-cell,
+    .sf-card .card-text {
+      animation: settle var(--dur-ui) linear both;
+    }
+    .sf-unveil img,
+    .sf-unveil .sf-placeholder,
+    .sf-hero-photo,
+    .sf-float-card-wrap,
+    .sf-curtain,
+    .sf-card .card-media,
+    .sf-card .card-media img,
+    .sf-card .card-media .sf-placeholder,
+    .sf-ticker,
+    .sf-ring {
+      animation: none;
+    }
+    .sf-float-card {
+      rotate: -4deg;
+    }
+  }
 }
