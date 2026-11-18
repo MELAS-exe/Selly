@@ -406,7 +406,7 @@
                   "slug": "robe-wax-noire",
                   "title": "Robe wax noire",
                   "description": "Robe en tissu wax, coupe droite, doublée.",
-                  "category": "robes",
+                  "category_id": "0193a900-1234-7abc-9def-1234567890ab",
                   "price": {
                     "amount": 15000,
                     "currency": "XOF"
@@ -4434,7 +4434,7 @@
                       "id": "0193a8f0-6a1e-7c3b-9a1d-3f2b1c0d4e5f",
                       "title": "Robe wax noire",
                       "description": "Robe en tissu wax, coupe droite, doublée.",
-                      "category": "robes",
+                      "category_id": "0193a900-1234-7abc-9def-1234567890ab",
                       "price": {
                         "amount": 15000,
                         "currency": "XOF"
@@ -4522,7 +4522,7 @@
               "example": {
                 "title": "Robe wax noire",
                 "description": "Robe en tissu wax, coupe droite, doublée.",
-                "category": "robes",
+                "category_id": "0193a900-1234-7abc-9def-1234567890ab",
                 "price": {
                   "amount": 15000,
                   "currency": "XOF"
@@ -4562,7 +4562,7 @@
                   "id": "0193a8f0-6a1e-7c3b-9a1d-3f2b1c0d4e5f",
                   "title": "Robe wax noire",
                   "description": "Robe en tissu wax, coupe droite, doublée.",
-                  "category": "robes",
+                  "category_id": "0193a900-1234-7abc-9def-1234567890ab",
                   "price": {
                     "amount": 15000,
                     "currency": "XOF"
@@ -4725,7 +4725,7 @@
                   "id": "0193a8f0-6a1e-7c3b-9a1d-3f2b1c0d4e5f",
                   "title": "Robe wax noire",
                   "description": "Robe en tissu wax, coupe droite, doublée.",
-                  "category": "robes",
+                  "category_id": "0193a900-1234-7abc-9def-1234567890ab",
                   "price": {
                     "amount": 16000,
                     "currency": "XOF"
@@ -4814,6 +4814,301 @@
                       "message": "Invalid value"
                     }
                   ],
+                  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vendors/me/categories": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "operationId": "listCategories",
+        "summary": "List this shop's categories",
+        "security": [
+          {
+            "vendorSession": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The shop's categories, in display order.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Category"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": "0193a900-1234-7abc-9def-1234567890ab",
+                      "name": "Robes",
+                      "slug": "robes",
+                      "position": 0
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Catalog"
+        ],
+        "operationId": "createCategory",
+        "summary": "Create a category",
+        "security": [
+          {
+            "vendorSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryRequest"
+              },
+              "example": {
+                "name": "Robes"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The new category.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Category"
+                },
+                "example": {
+                  "id": "0193a900-1234-7abc-9def-1234567890ab",
+                  "name": "Robes",
+                  "slug": "robes",
+                  "position": 3
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vendors/me/categories/order": {
+      "put": {
+        "tags": [
+          "Catalog"
+        ],
+        "operationId": "reorderCategories",
+        "summary": "Set the display order of every category",
+        "description": "The list must name every category of this shop, once each.",
+        "security": [
+          {
+            "vendorSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "ids"
+                ],
+                "additionalProperties": false
+              },
+              "example": {
+                "ids": [
+                  "0193a900-5678-7abc-9def-1234567890ab",
+                  "0193a900-1234-7abc-9def-1234567890ab"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Every category, in its new order.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Category"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "example": {
+                  "type": "https://app.selly.example/problems/validation-failed",
+                  "title": "Validation failed",
+                  "status": 422,
+                  "code": "VALIDATION_FAILED",
+                  "detail": "The list must name every category of this shop, once each.",
+                  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vendors/me/categories/{category_id}": {
+      "patch": {
+        "tags": [
+          "Catalog"
+        ],
+        "operationId": "renameCategory",
+        "summary": "Rename a category",
+        "security": [
+          {
+            "vendorSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "category_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "0193a900-1234-7abc-9def-1234567890ab"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryRequest"
+              },
+              "example": {
+                "name": "Robes et boubous"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The renamed category.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Category"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "example": {
+                  "type": "https://app.selly.example/problems/not-found",
+                  "title": "Not found",
+                  "status": 404,
+                  "code": "NOT_FOUND",
+                  "detail": "No such category.",
+                  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Catalog"
+        ],
+        "operationId": "deleteCategory",
+        "summary": "Delete a category",
+        "description": "Its products are not deleted: they become uncategorised.",
+        "security": [
+          {
+            "vendorSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "category_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "0193a900-1234-7abc-9def-1234567890ab"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "example": {
+                  "type": "https://app.selly.example/problems/not-found",
+                  "title": "Not found",
+                  "status": 404,
+                  "code": "NOT_FOUND",
+                  "detail": "No such category.",
                   "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
                 }
               }
@@ -5395,7 +5690,7 @@
                   "id": "0193a8f0-7c1e-7d3b-8a1d-4f2b1c0d4e60",
                   "title": "Baskets blanches unisexe",
                   "description": "Baskets en toile blanche, semelle claire.",
-                  "category": "chaussures",
+                  "category_id": "0193a900-5678-7abc-9def-1234567890ab",
                   "price": {
                     "amount": 20000,
                     "currency": "XOF"
@@ -9111,7 +9406,7 @@
                   "slug": "robe-wax-noire",
                   "title": "Robe wax noire",
                   "description": "Robe en tissu wax, coupe droite, doublée.",
-                  "category": "robes",
+                  "category_id": "0193a900-1234-7abc-9def-1234567890ab",
                   "price": {
                     "amount": 15000,
                     "currency": "XOF"
@@ -9279,7 +9574,7 @@
                   "id": "0193a8f0-6a1e-7c3b-9a1d-3f2b1c0d4e5f",
                   "title": "Robe wax noire",
                   "description": "Robe en tissu wax, coupe droite, doublée.",
-                  "category": "robes",
+                  "category_id": "0193a900-1234-7abc-9def-1234567890ab",
                   "price": {
                     "amount": 17000,
                     "currency": "XOF"
@@ -10143,7 +10438,7 @@
                   "id": "0193a8f0-7c1e-7d3b-8a1d-4f2b1c0d4e60",
                   "title": "Baskets blanches",
                   "description": "Baskets en toile blanche, semelle claire.",
-                  "category": "chaussures",
+                  "category_id": "0193a900-5678-7abc-9def-1234567890ab",
                   "price": {
                     "amount": 20000,
                     "currency": "XOF"
@@ -10791,6 +11086,15 @@
           "hours": {
             "$ref": "#/components/schemas/Hours"
           },
+          "branding": {
+            "$ref": "#/components/schemas/Branding"
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategorySummary"
+            }
+          },
           "chat": {
             "type": "object",
             "properties": {
@@ -10842,9 +11146,136 @@
           "pricing_currency",
           "delivery",
           "hours",
+          "branding",
+          "categories",
           "chat",
           "payment_options",
           "powered_by_badge"
+        ],
+        "additionalProperties": false
+      },
+      "Branding": {
+        "type": "object",
+        "properties": {
+          "logo_url": {
+            "oneOf": [
+              {
+                "type": "string",
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "primary_color": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          },
+          "accent_color": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          },
+          "banner": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "maxLength": 140
+                  },
+                  "href": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "text",
+                  "href"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "logo_url",
+          "primary_color",
+          "accent_color",
+          "banner"
+        ],
+        "additionalProperties": false
+      },
+      "CategorySummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug"
+        ],
+        "additionalProperties": false
+      },
+      "Category": {
+        "type": "object",
+        "description": "A category in the vendor's own catalog, with its display position.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "position": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "position"
+        ],
+        "additionalProperties": false
+      },
+      "CategoryRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          }
+        },
+        "required": [
+          "name"
         ],
         "additionalProperties": false
       },
@@ -10885,6 +11316,17 @@
                 "type": "string"
               }
             }
+          },
+          "category_id": {
+            "oneOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -10894,7 +11336,8 @@
           "price",
           "image",
           "availability",
-          "options"
+          "options",
+          "category_id"
         ],
         "additionalProperties": false
       },
@@ -10952,10 +11395,11 @@
           "description": {
             "type": "string"
           },
-          "category": {
+          "category_id": {
             "oneOf": [
               {
-                "type": "string"
+                "type": "string",
+                "format": "uuid"
               },
               {
                 "type": "null"
@@ -10999,7 +11443,7 @@
           "slug",
           "title",
           "description",
-          "category",
+          "category_id",
           "price",
           "images",
           "availability",
@@ -12212,6 +12656,81 @@
               "nostr_dm"
             ],
             "additionalProperties": false
+          },
+          "branding": {
+            "type": "object",
+            "properties": {
+              "logo_key": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Processed public storage key, like a product image's. Set with a key from POST /api/v1/media/uploads."
+              },
+              "logo_url": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "primary_color": {
+                "type": "string",
+                "pattern": "^#[0-9a-fA-F]{6}$"
+              },
+              "accent_color": {
+                "type": "string",
+                "pattern": "^#[0-9a-fA-F]{6}$"
+              },
+              "banner": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "text": {
+                        "type": "string",
+                        "maxLength": 140
+                      },
+                      "href": {
+                        "oneOf": [
+                          {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "text",
+                      "href"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "logo_key",
+              "logo_url",
+              "primary_color",
+              "accent_color",
+              "banner"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -12220,7 +12739,8 @@
           "hours",
           "policies",
           "agent",
-          "alerts"
+          "alerts",
+          "branding"
         ],
         "additionalProperties": false,
         "description": "Shop settings. Delivery zones and fees are customer-facing."
@@ -13077,10 +13597,11 @@
           "description": {
             "type": "string"
           },
-          "category": {
+          "category_id": {
             "oneOf": [
               {
-                "type": "string"
+                "type": "string",
+                "format": "uuid"
               },
               {
                 "type": "null"
@@ -13123,7 +13644,7 @@
           "id",
           "title",
           "description",
-          "category",
+          "category_id",
           "price",
           "status",
           "images",
@@ -13170,8 +13691,9 @@
           "description": {
             "type": "string"
           },
-          "category": {
-            "type": "string"
+          "category_id": {
+            "type": "string",
+            "format": "uuid"
           },
           "price": {
             "$ref": "#/components/schemas/Money"
@@ -13225,8 +13747,17 @@
           "description": {
             "type": "string"
           },
-          "category": {
-            "type": "string"
+          "category_id": {
+            "oneOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null removes the category, leaving the product uncategorised."
           },
           "price": {
             "$ref": "#/components/schemas/Money"

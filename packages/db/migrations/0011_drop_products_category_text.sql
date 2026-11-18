@@ -1,0 +1,1 @@
+ALTER TABLE "core"."products" DROP COLUMN "category";

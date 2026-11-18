@@ -9,6 +9,7 @@ import { audit } from '../events/outbox';
 import * as inventory from '../inventory/service';
 import { insertImages, processUploads } from '../media/images';
 import { currentSubscription, productCount } from '../subscriptions/service';
+import { requireOwnCategory } from './categories';
 import { vendorProductView } from './internal';
 import { type Vendor, vendorSettings } from './store';
 
@@ -89,7 +90,7 @@ export async function listVendorProducts(
 export interface ProductInput {
   title: string;
   description?: string | undefined;
-  category?: string | undefined;
+  categoryId?: string | null | undefined;
   price: { amount: number; currency: 'XOF' | 'SAT' };
   image_keys?: string[] | undefined;
   variants: {
@@ -161,6 +162,7 @@ export async function createVendorProduct(
   }
 
   const images = await processUploads(ctx.media, vendor.id, [...new Set(input.image_keys ?? [])]);
+  if (input.categoryId) await requireOwnCategory(ctx, vendor.id, input.categoryId);
   const slug = await freeSlug(ctx, vendor.id, slugify(input.title));
   const actor = opts.actor ?? `vendor:${vendor.id}`;
   const product = await ctx.db.transaction(async (tx) => {
@@ -171,7 +173,7 @@ export async function createVendorProduct(
         title: input.title,
         slug,
         description: input.description ?? '',
-        category: input.category ?? null,
+        categoryId: input.categoryId ?? null,
         priceAmount: input.price.amount,
         priceCurrency: currency,
       })

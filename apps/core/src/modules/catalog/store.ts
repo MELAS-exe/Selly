@@ -6,7 +6,7 @@ import { AppError } from '../../errors';
 import { decodeCursor, encodeCursor, iso, money } from '../../util';
 import { currentSubscription, isServing } from '../subscriptions/service';
 
-const { vendors, products, productVariants: pv, productImages } = core;
+const { vendors, products, productVariants: pv, productImages, categories } = core;
 
 export type Vendor = typeof vendors.$inferSelect;
 export type Product = typeof products.$inferSelect;
@@ -49,6 +49,12 @@ export function vendorSettings(v: Vendor) {
       negotiation?: { mode?: 'fixed' | 'allow'; max_discount_pct?: number };
     };
     policies?: { returns?: string; payment?: string };
+    branding?: {
+      logo_key?: string | null;
+      primary_color?: string | null;
+      accent_color?: string | null;
+      banner?: { text?: string; href?: string | null } | null;
+    };
   };
   return {
     pricingCurrency: (s.pricing_currency ?? 'XOF') as Cur,
@@ -68,6 +74,14 @@ export function vendorSettings(v: Vendor) {
     negotiation: {
       mode: s.agent?.negotiation?.mode ?? 'fixed',
       maxDiscountPct: s.agent?.negotiation?.max_discount_pct ?? 0,
+    },
+    branding: {
+      logoKey: s.branding?.logo_key ?? null,
+      primaryColor: s.branding?.primary_color ?? '#173B32',
+      accentColor: s.branding?.accent_color ?? '#8AAE4A',
+      banner: s.branding?.banner
+        ? { text: s.branding.banner.text ?? '', href: s.branding.banner.href ?? null }
+        : null,
     },
   };
 }
@@ -142,6 +156,7 @@ export async function productSummaries(ctx: Context, rows: Product[]) {
       ),
       availability: availabilityOf(available),
       options: optionsOf(vs),
+      category_id: p.categoryId,
     };
   });
 }
@@ -152,7 +167,14 @@ export async function listProducts(
   q: { q?: string; category?: string; cursor?: string; limit: number },
 ) {
   const conds = [eq(products.vendorId, vendorId), eq(products.status, 'active')];
-  if (q.category) conds.push(eq(products.category, q.category));
+  if (q.category) {
+    const [cat] = await ctx.db
+      .select({ id: categories.id })
+      .from(categories)
+      .where(and(eq(categories.vendorId, vendorId), eq(categories.slug, q.category)));
+    // An unknown category slug matches nothing, rather than silently ignoring the filter.
+    conds.push(cat ? eq(products.categoryId, cat.id) : sql`false`);
+  }
   if (q.q) {
     const like = `%${q.q.replace(/[%_\\]/g, '\\$&')}%`;
     conds.push(
@@ -216,7 +238,7 @@ export async function productDetail(
     slug: p.slug,
     title: p.title,
     description: p.description,
-    category: p.category,
+    category_id: p.categoryId,
     price: money(p.priceAmount, p.priceCurrency),
     images: images.map((i) => imageView(ctx, i)),
     availability: availabilityOf(total),
@@ -235,10 +257,20 @@ export async function productDetail(
   };
 }
 
+export async function storeCategories(ctx: Context, vendorId: string) {
+  const rows = await ctx.db
+    .select({ id: categories.id, name: categories.name, slug: categories.slug })
+    .from(categories)
+    .where(eq(categories.vendorId, vendorId))
+    .orderBy(asc(categories.position), asc(categories.name));
+  return rows;
+}
+
 export async function storeProfile(ctx: Context, v: Vendor) {
   const s = vendorSettings(v);
   const status = await storeStatus(ctx, v);
   const sub = await currentSubscription(ctx, v.id);
+  const cats = await storeCategories(ctx, v.id);
   return {
     slug: v.slug,
     display_name: v.displayName,
@@ -250,6 +282,13 @@ export async function storeProfile(ctx: Context, v: Vendor) {
     pricing_currency: s.pricingCurrency,
     delivery: s.delivery,
     hours: s.hours,
+    branding: {
+      logo_url: s.branding.logoKey ? `${ctx.config.CDN_BASE_URL}/${s.branding.logoKey}` : null,
+      primary_color: s.branding.primaryColor,
+      accent_color: s.branding.accentColor,
+      banner: s.branding.banner,
+    },
+    categories: cats,
     chat: {
       enabled: status === 'active' && s.agentEnabled,
       reason: status !== 'active' ? 'store_paused' : s.agentEnabled ? null : 'vendor_disabled',

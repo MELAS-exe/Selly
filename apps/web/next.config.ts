@@ -17,6 +17,8 @@ const config: NextConfig = {
   compress: false,
   // Mirrors production routing (docs/architecture.md section 11.1): chat, inbox and assistant go to the agent,
   // every other /api/v1 path goes to core. Internal endpoints are never proxied.
+  // GET /api/v1/chat/events has its own route handler (src/app/api/v1/chat/events/route.ts): rewrites buffer a
+  // proxied response instead of streaming it, which breaks SSE.
   async rewrites() {
     return [
       { source: '/api/v1/chat/:path*', destination: `${agent}/api/v1/chat/:path*` },

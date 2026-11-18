@@ -31,8 +31,13 @@ async function get<T>(path: string, init: RequestInit & { next?: { revalidate?: 
 const enc = encodeURIComponent;
 
 // Storefront: CDN 30 s in production (architecture.md 3.4); here, the Next.js data cache for 30 s.
-export const getStore = (slug: string) =>
-  get<StorePage>(`/api/v1/stores/${enc(slug)}`, { next: { revalidate: 30 } });
+export const getStore = (slug: string, query?: { category?: string; cursor?: string }) => {
+  const qs = new URLSearchParams();
+  if (query?.category) qs.set('category', query.category);
+  if (query?.cursor) qs.set('cursor', query.cursor);
+  const suffix = qs.size > 0 ? `?${qs}` : '';
+  return get<StorePage>(`/api/v1/stores/${enc(slug)}${suffix}`, { next: { revalidate: 30 } });
+};
 
 export const getProduct = (slug: string, product: string) =>
   get<ProductDetail>(`/api/v1/stores/${enc(slug)}/products/${enc(product)}`, {

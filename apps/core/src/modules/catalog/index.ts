@@ -3,6 +3,13 @@ import { z } from 'zod';
 import { AppError } from '../../errors';
 import { withIdempotency } from '../../idempotency';
 import { requireVendor } from '../auth/http';
+import {
+  createCategory,
+  deleteCategory,
+  listCategories,
+  renameCategory,
+  reorderCategories,
+} from './categories';
 import { findVendorProduct, patchProduct, searchProducts } from './internal';
 import {
   findVendorById,
@@ -28,7 +35,7 @@ const productPatch = z
   .strictObject({
     title: z.string().min(2).max(120).optional(),
     description: z.string().max(2000).optional(),
-    category: z.string().max(60).optional(),
+    category_id: z.uuid().nullable().optional(),
     price: moneyIn.optional(),
     status: z.enum(['active', 'hidden', 'archived']).optional(),
     image_keys: z.array(z.string().max(200)).max(8).optional(),
@@ -49,7 +56,7 @@ const moneyStrict = z.strictObject({
 const productCreate = z.strictObject({
   title: z.string().trim().min(2).max(120),
   description: z.string().max(2000).optional(),
-  category: z.string().trim().min(1).max(60).optional(),
+  category_id: z.uuid().optional(),
   price: moneyStrict,
   image_keys: z.array(z.string()).max(8).optional(),
   variants: z
@@ -69,6 +76,8 @@ const inventoryQuery = z.object({
   cursor: z.string().max(200).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
+const categoryBody = z.strictObject({ name: z.string().trim().min(1).max(40) });
+const reorderBody = z.strictObject({ ids: z.array(z.uuid()).min(1).max(200) });
 
 export const catalogModule: FastifyPluginAsync = async (app) => {
   const ctx = () => app.ctx;
@@ -165,7 +174,14 @@ export const catalogModule: FastifyPluginAsync = async (app) => {
       body,
       async () => ({
         status: 201,
-        body: await createVendorProduct(ctx(), vendor, body),
+        body: await createVendorProduct(ctx(), vendor, {
+          title: body.title,
+          description: body.description,
+          categoryId: body.category_id,
+          price: body.price,
+          image_keys: body.image_keys,
+          variants: body.variants,
+        }),
       }),
     );
     return reply.code(res.status).send(res.body);
@@ -177,6 +193,47 @@ export const catalogModule: FastifyPluginAsync = async (app) => {
     const vendor = await findVendorById(ctx(), s.vendorId);
     return patchProduct(ctx(), vendor, req.params.product_id, body, `vendor:${vendor.id}`);
   });
+
+  // ----------------------------------------------------------------------------------- categories
+
+  app.get('/api/v1/vendors/me/categories', async (req) => {
+    const s = await requireVendor(ctx(), req);
+    return { data: await listCategories(ctx(), s.vendorId) };
+  });
+
+  app.post('/api/v1/vendors/me/categories', async (req, reply) => {
+    const s = await requireVendor(ctx(), req);
+    const body = categoryBody.parse(req.body);
+    const vendor = await findVendorById(ctx(), s.vendorId);
+    return reply.code(201).send(await createCategory(ctx(), vendor, body.name));
+  });
+
+  app.put('/api/v1/vendors/me/categories/order', async (req) => {
+    const s = await requireVendor(ctx(), req);
+    const body = reorderBody.parse(req.body);
+    const vendor = await findVendorById(ctx(), s.vendorId);
+    return { data: await reorderCategories(ctx(), vendor, body.ids) };
+  });
+
+  app.patch<{ Params: { category_id: string } }>(
+    '/api/v1/vendors/me/categories/:category_id',
+    async (req) => {
+      const s = await requireVendor(ctx(), req);
+      const body = categoryBody.parse(req.body);
+      const vendor = await findVendorById(ctx(), s.vendorId);
+      return renameCategory(ctx(), vendor, req.params.category_id, body.name);
+    },
+  );
+
+  app.delete<{ Params: { category_id: string } }>(
+    '/api/v1/vendors/me/categories/:category_id',
+    async (req, reply) => {
+      const s = await requireVendor(ctx(), req);
+      const vendor = await findVendorById(ctx(), s.vendorId);
+      await deleteCategory(ctx(), vendor, req.params.category_id);
+      return reply.code(204).send();
+    },
+  );
 };
 
 /** X-Actor from the agent, for the audit log. Only a vendor actor of this vendor is believed. */

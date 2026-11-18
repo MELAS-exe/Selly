@@ -25,6 +25,7 @@ export interface ProductSummary {
   image: Image | null;
   availability: Availability;
   options: Record<string, string[]>;
+  category_id: string | null;
 }
 
 export interface PublicVariant {
@@ -40,7 +41,7 @@ export interface ProductDetail {
   slug: string;
   title: string;
   description: string;
-  category: string | null;
+  category_id: string | null;
   price: Money;
   images: Image[];
   availability: Availability;
@@ -55,6 +56,19 @@ export interface DeliveryZone {
   fee: Money;
 }
 
+export interface CategorySummary {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export interface Branding {
+  logo_url: string | null;
+  primary_color: string;
+  accent_color: string;
+  banner: { text: string; href: string | null } | null;
+}
+
 export interface StorePublic {
   slug: string;
   display_name: string;
@@ -67,6 +81,8 @@ export interface StorePublic {
     pickup: { available: boolean; address_text: string | null };
   };
   hours: { days: string; open: string; close: string }[];
+  branding: Branding;
+  categories: CategorySummary[];
   chat: { enabled: boolean; reason: string | null };
   payment_options: 'lightning'[];
   powered_by_badge: boolean;

@@ -315,31 +315,20 @@ function WalletStep({
   busy: boolean;
   onSubmit: (body: WalletLinkRequest) => void;
 }) {
-  const ids = { uri: useId(), ln: useId() };
-  const [kind, setKind] = useState<'nwc' | 'lightning_address'>('nwc');
+  const ids = { uri: useId() };
   const [uri, setUri] = useState('');
-  const [lud16, setLud16] = useState('');
   const [local, setLocal] = useState<string | null>(null);
 
   function submit() {
     setLocal(null);
-    if (kind === 'nwc') {
-      const value = uri.trim();
-      if (!value.startsWith('nostr+walletconnect://')) {
-        setLocal(
-          'A connection link starts with nostr+walletconnect://. Copy it again from your wallet.',
-        );
-        return;
-      }
-      onSubmit({ kind: 'nwc', uri: value });
-    } else {
-      const value = lud16.trim();
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)) {
-        setLocal('A Lightning address looks like name@wallet.com.');
-        return;
-      }
-      onSubmit({ kind: 'lightning_address', lud16: value });
+    const value = uri.trim();
+    if (!value.startsWith('nostr+walletconnect://')) {
+      setLocal(
+        'A connection link starts with nostr+walletconnect://. Copy it again from your wallet.',
+      );
+      return;
     }
+    onSubmit({ kind: 'nwc', uri: value });
   }
 
   return (
@@ -363,30 +352,9 @@ function WalletStep({
         aria-label="How to connect"
         className="flex gap-6 border-b border-[#1111111f]"
       >
-        {(
-          [
-            ['nwc', 'Connection link'],
-            ['lightning_address', 'Lightning address'],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="radio"
-            aria-checked={kind === id}
-            onClick={() => {
-              setKind(id);
-              setLocal(null);
-            }}
-            className={`pv-sans text-xs uppercase tracking-[0.2em] min-h-11 pb-3 -mb-px border-b-2 cursor-pointer ${
-              kind === id
-                ? 'border-[#173B32] text-[#173B32] font-medium'
-                : 'border-transparent text-black/40'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+        <span className="pv-sans text-xs uppercase tracking-[0.2em] min-h-11 pb-3 -mb-px border-b-2 border-[#173B32] text-[#173B32] font-medium">
+          Connection link
+        </span>
       </div>
 
       {local && (
@@ -395,57 +363,38 @@ function WalletStep({
         </p>
       )}
 
-      {kind === 'nwc' ? (
-        <div>
-          <label htmlFor={ids.uri} className={labelClass}>
-            Wallet connection link
-          </label>
-          <textarea
-            id={ids.uri}
-            rows={3}
-            value={uri}
-            onChange={(e) => setUri(e.target.value)}
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            placeholder="nostr+walletconnect://…"
-            className={`${inputClass} resize-none`}
-          />
-          <ul className="pv-sans text-sm text-black/70 leading-relaxed space-y-3 mt-6">
-            <Bullet>
-              In your wallet app, find “Nostr Wallet Connect” (or “Connections”) and add a new
-              connection.
-            </Bullet>
-            <Bullet>
-              Choose <strong>receive only</strong>: it can create and check invoices, nothing else.
-            </Bullet>
-            <Bullet>
-              Copy the link and paste it here. Selly stores it encrypted and never shows it again.
-            </Bullet>
-          </ul>
-        </div>
-      ) : (
-        <div>
-          <label htmlFor={ids.ln} className={labelClass}>
-            Lightning address
-          </label>
-          <input
-            id={ids.ln}
-            type="email"
-            inputMode="email"
-            value={lud16}
-            onChange={(e) => setLud16(e.target.value)}
-            autoCapitalize="none"
-            spellCheck={false}
-            placeholder="you@wallet.com"
-            className={inputClass}
-          />
-          <p className={hintClass}>
-            Simpler, but your wallet provider must support payment verification (LUD-21). If it does
-            not, use a connection link.
-          </p>
-        </div>
-      )}
+      <div>
+        <label htmlFor={ids.uri} className={labelClass}>
+          Wallet connection link
+        </label>
+        <textarea
+          id={ids.uri}
+          rows={3}
+          value={uri}
+          onChange={(e) => setUri(e.target.value)}
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          placeholder="nostr+walletconnect://…"
+          className={`${inputClass} resize-none`}
+        />
+        <ul className="pv-sans text-sm text-black/70 leading-relaxed space-y-3 mt-6">
+          <Bullet>
+            In your wallet app, find “Nostr Wallet Connect” (or “Connections”) and add a new
+            connection.
+          </Bullet>
+          <Bullet>
+            Choose <strong>receive only</strong>: it can create and check invoices, nothing else.
+          </Bullet>
+          <Bullet>
+            Copy the link and paste it here. Selly stores it encrypted and never shows it again.
+          </Bullet>
+        </ul>
+      </div>
+
+      <p className="pv-sans text-xs text-black/50">
+        Lightning addresses are not supported yet. Use a connection link from your wallet app.
+      </p>
 
       <button type="submit" disabled={busy} className={primaryButton}>
         {busy ? 'Checking your wallet…' : 'Connect my wallet'}
