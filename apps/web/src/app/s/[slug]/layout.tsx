@@ -16,7 +16,12 @@ export default async function ShopLayout({
   const { slug } = await params;
   const { store } = await getStore(slug);
   // A store response cached before branding existed has none: fall back to the default look.
-  const branding = store.branding ?? { logo_url: null, primary_color: '', accent_color: '', banner: null };
+  const branding = store.branding ?? {
+    logo_url: null,
+    primary_color: '',
+    accent_color: '',
+    banner: null,
+  };
   const { banner } = branding;
 
   return (
