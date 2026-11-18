@@ -4,7 +4,7 @@ import { AppError } from '../../errors';
 import { requireVendor } from '../auth/http';
 import { requireStepUp } from '../auth/service';
 import { startPairing } from './pairing';
-import { linkWallet, liveWallet, unlinkWallet, walletView } from './service';
+import { linkLightningAddress, linkWallet, liveWallet, unlinkWallet, walletView } from './service';
 
 const linkBody = z.strictObject({
   kind: z.enum(['nwc', 'lightning_address']),
@@ -25,13 +25,18 @@ export const walletModule: FastifyPluginAsync = async (app) => {
       const s = await requireVendor(ctx(), req);
       const body = linkBody.parse(req.body);
       if (body.kind === 'lightning_address') {
-        throw new AppError(
-          'VALIDATION_FAILED',
-          'Lightning Address wallets are not supported yet. Use an NWC connection.',
-          {
-            errors: [{ field: 'kind', message: 'Not supported yet' }],
-          },
-        );
+        if (!body.lud16)
+          throw new AppError('VALIDATION_FAILED', 'lud16 is required for a Lightning Address.', {
+            errors: [{ field: 'lud16', message: 'Required' }],
+          });
+        if (await liveWallet(ctx().db, { owner: 'vendor', vendorId: s.vendorId }))
+          requireStepUp(ctx(), s);
+        return linkLightningAddress(ctx(), {
+          owner: 'vendor',
+          vendorId: s.vendorId,
+          lud16: body.lud16,
+          actor: `vendor:${s.vendorId}`,
+        });
       }
       if (!body.uri)
         throw new AppError('VALIDATION_FAILED', 'uri is required for an NWC wallet.', {

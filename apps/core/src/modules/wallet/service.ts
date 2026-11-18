@@ -7,10 +7,12 @@ import { checkPermissions, NwcConnection, NwcError, parseNwcUri } from '@selly/n
 import type { Config } from '../../config';
 import type { Context, Database, Logger } from '../../context';
 import { AppError } from '../../errors';
+import { safeGetJson } from '../../net';
 import { type Keyring, walletAad } from '../../secrets';
 import { signal } from '../../signals';
 import { iso } from '../../util';
 import { audit } from '../events/outbox';
+import { lnurlInvoice, lnurlpUrl, lnurlVerify } from '../payments/lnurl';
 
 const { walletConnections: wc } = core;
 export type WalletRow = typeof wc.$inferSelect;
@@ -190,6 +192,104 @@ export async function linkWallet(deps: WalletDeps, input: LinkInput) {
     'wallet linked',
   );
   return walletView(row, checked.balanceMsat);
+}
+
+/**
+ * A Lightning Address as the vendor's wallet (LUD-16), for wallets without NWC. Accepted only if its server returns
+ * a LUD-21 `verify` link with each invoice: Selly must confirm every payment itself (ADR-06). The checks: the
+ * address answers as LNURL-pay, a test invoice for the smallest amount it accepts decodes and matches, and its verify
+ * link answers "not settled". Nothing secret is stored: the address is public.
+ */
+export async function linkLightningAddress(
+  deps: WalletDeps,
+  input: { owner: 'vendor' | 'platform'; vendorId?: string; lud16: string; actor: string },
+) {
+  if ((input.owner === 'vendor') !== !!input.vendorId)
+    throw new Error('vendorId is required for a vendor wallet, and only then');
+  const lud16 = input.lud16.trim().toLowerCase();
+  const refused = (message: string, why: string) =>
+    new AppError('VALIDATION_FAILED', message, { errors: [{ field: 'lud16', message: why }] });
+
+  const opts = {
+    network: deps.config.LIGHTNING_NETWORK,
+    allowInsecure: deps.config.LNURL_ALLOW_INSECURE,
+    now: deps.now,
+  };
+  try {
+    lnurlpUrl(lud16, opts.allowInsecure);
+  } catch {
+    throw refused(`« ${input.lud16} » n'est pas une adresse Lightning.`, 'Invalid');
+  }
+  let test: Awaited<ReturnType<typeof lnurlInvoice>>;
+  try {
+    test = await lnurlInvoice(
+      lud16,
+      {
+        amountMsat: await smallestAmount(lud16, opts),
+        expirySeconds: 600,
+        comment: 'Selly : test',
+      },
+      opts,
+    );
+  } catch (err) {
+    const msg = String((err as Error).message ?? err);
+    if (msg.includes('LUD-21'))
+      throw refused(
+        'Cette adresse Lightning ne permet pas de vérifier les paiements (LUD-21). Utilisez plutôt une connexion NWC de ce portefeuille.',
+        'No payment verification (LUD-21)',
+      );
+    throw refused(`L'adresse Lightning ne répond pas correctement : ${msg}`, 'Not reachable');
+  }
+  try {
+    const state = await lnurlVerify(test.verifyUrl as string, test.paymentHash, opts);
+    if (state.settled) throw new Error('the test invoice says it is already paid');
+  } catch (err) {
+    throw refused(
+      `Le lien de vérification de cette adresse ne répond pas correctement : ${String((err as Error).message ?? err)}`,
+      'Verification does not work',
+    );
+  }
+
+  const now = deps.now();
+  const row = await deps.db.transaction(async (tx) => {
+    const live = await tx
+      .update(wc)
+      .set({ status: 'revoked', revokedAt: now, uriCiphertext: null })
+      .where(and(ownerScope(input), ne(wc.status, 'revoked')))
+      .returning({ id: wc.id });
+    const [created] = await tx
+      .insert(wc)
+      .values({
+        owner: input.owner,
+        vendorId: input.vendorId ?? null,
+        kind: 'lightning_address',
+        lud16,
+        methods: ['make_invoice', 'lookup_invoice'],
+        notifications: false,
+        status: 'active',
+        lastOkAt: now,
+      })
+      .returning();
+    await audit(tx, {
+      actor: input.actor,
+      action: live.length > 0 ? 'wallet.replaced' : 'wallet.linked',
+      target: input.vendorId ?? 'platform',
+      details: { kind: 'lightning_address', lud16 },
+    });
+    await signal(tx, 'wallet', 'linked');
+    return created as WalletRow;
+  });
+  deps.log.info({ walletConnectionId: row.id, vendorId: row.vendorId }, 'Lightning Address linked');
+  return walletView(row);
+}
+
+/** The smallest amount the address accepts, at least 1 sat: the test invoice is never paid. */
+async function smallestAmount(lud16: string, opts: { allowInsecure: boolean }) {
+  const pay = (await safeGetJson(lnurlpUrl(lud16, opts.allowInsecure), {
+    allowInsecure: opts.allowInsecure,
+  })) as { minSendable?: number };
+  const min = Number(pay?.minSendable ?? 1000);
+  return Math.max(1000, Math.ceil(min / 1000) * 1000);
 }
 
 function ownerScope(input: { owner: 'vendor' | 'platform'; vendorId?: string | undefined }) {

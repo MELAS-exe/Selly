@@ -255,7 +255,10 @@ export async function startTrial(ctx: Context, vendorId: string, planId: string)
         eq(core.walletConnections.status, 'active'),
       ),
     );
-  if (!wallet?.walletPubkey)
+  // One trial per wallet: an NWC wallet by its public key, a Lightning Address by the address.
+  const walletClaim =
+    wallet?.walletPubkey ?? (wallet?.lud16 ? `lud16:${wallet.lud16.toLowerCase()}` : null);
+  if (!wallet || !walletClaim)
     throw new AppError('VALIDATION_FAILED', 'Link a working wallet before starting the trial.', {
       errors: [{ field: 'wallet', message: 'Missing' }],
     });
@@ -280,7 +283,7 @@ export async function startTrial(ctx: Context, vendorId: string, planId: string)
       .where(eq(vendorKeys.vendorId, vendorId));
     const claims = [
       ...keys.map((k) => ({ claimKey: `key:${k.pubkey}`, kind: 'key' as const })),
-      { claimKey: `wallet:${wallet.walletPubkey}`, kind: 'wallet' as const },
+      { claimKey: `wallet:${walletClaim}`, kind: 'wallet' as const },
     ];
     for (const c of claims) {
       const ok = await tx
