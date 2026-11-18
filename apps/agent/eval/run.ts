@@ -80,7 +80,16 @@ class RecordingProvider implements LlmProvider {
     const estimate = Math.round(estimateTokens(req));
     await this.pacer?.take(estimate);
     const started = Date.now();
-    const res = await this.inner.complete(req);
+    const res = await this.inner.complete(req).catch((err: unknown) => {
+      // The engine turns a failed call into a handoff: say why, or the report blames the model.
+      console.error(`[${req.purpose}] call failed: ${String(err).slice(0, 300)}`);
+      throw err;
+    });
+    // EVAL_DEBUG=1 prints what the model answered before the engine's checks.
+    if (process.env.EVAL_DEBUG)
+      console.error(
+        `[${req.purpose}] ${res.stopReason} ${JSON.stringify(res.content).slice(0, 1200)}`,
+      );
     this.pacer?.settle(estimate, res.usage.inputTokens + res.usage.outputTokens);
     this.calls.push({
       ms: Date.now() - started,
@@ -328,10 +337,12 @@ async function main() {
   providerFor(model); // fails now, with a clear message, on an unknown name or a missing key
   const limit = Number(arg('limit') ?? CASES.length);
   const only = arg('only')?.split(',').filter(Boolean);
-  const concurrency = Number(arg('concurrency') ?? 4);
   // Tokens per minute: Groq's free plan allows 8,000 per model, so 7,000 leaves a margin.
   const tpm = Number(arg('tpm') ?? process.env.EVAL_TPM ?? (model.startsWith('groq:') ? 7000 : 0));
   const pacer = tpm > 0 ? new Pacer(tpm) : undefined;
+  // One case at a time when paced: four at once overran Groq's per-minute limit, and every failed
+  // call became a handoff (38 % instead of 77 % on the Wolof cases).
+  const concurrency = Number(arg('concurrency') ?? (pacer ? 1 : 4));
   // Prices for a model the table does not know (USD per million tokens), e.g. a Groq model.
   const priceIn = arg('price-in');
   const priceOut = arg('price-out');
