@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start -p 3000",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "demo": "tsx scripts/demo.mts"
   },
   "dependencies": {
     "@selly/ui": "workspace:*",
@@ -19,11 +20,13 @@
   "devDependencies": {
     "@selly/config": "workspace:*",
     "@selly/nostr": "workspace:*",
+    "@selly/nwc": "workspace:*",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "tailwindcss": "^4.0.0",
+    "tsx": "^4.0.0",
     "typescript": "^5.0.0"
   }
 }

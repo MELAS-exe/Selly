@@ -29,6 +29,32 @@
 }
 
 /*
+ * Vendor dashboard tokens (/app). The site's paper and deep green, made for daily work.
+ * Prefixed d- because the storefront already owns paper, ink and line. Contrast on d-paper:
+ * d-ink 11:1, d-ink-soft 6.4:1, status colours on their soft backgrounds 5:1 or more (AA).
+ * d-lime and d-lime-deep are for fills, bars and marks only, never for text.
+ */
+@theme {
+  --color-d-paper: #f6f4f0;
+  --color-d-paper-deep: #eae7e0;
+  --color-d-ink: #173b32;
+  --color-d-ink-soft: #4a5d55;
+  --color-d-lime: #8aae4a;
+  --color-d-lime-deep: #719541;
+  --color-d-hairline: rgb(23 59 50 / 0.16);
+  --color-d-paid: #2f6b3a;
+  --color-d-paid-soft: #e1ecd6;
+  --color-d-pending: #7a4f00;
+  --color-d-pending-soft: #f4e7c8;
+  --color-d-cancelled: #5e625b;
+  --color-d-cancelled-soft: #e6e3dc;
+  --color-d-alert: #a8231c;
+  --color-d-alert-soft: #f7e1dc;
+  --font-display: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --font-ui: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/*
  * Motion tokens. Every animation reads these, never raw values.
  * `static` keeps them on :root even when no utility uses them: the Web Animations API reads them too.
  */

@@ -32,6 +32,8 @@ export async function api<T>(
     if ((err as Error).name === 'AbortError') throw err;
     throw new ApiError({ type: 'about:blank', title: 'Network', status: 0, code: 'NETWORK' });
   }
+  // 204 No Content (sign out, unlink): nothing to read.
+  if (res.status === 204) return undefined as T;
   if (res.ok) return (await res.json()) as T;
   const problem = (await res.json().catch(() => null)) as Problem | null;
   throw new ApiError(

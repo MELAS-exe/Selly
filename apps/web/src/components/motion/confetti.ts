@@ -3,10 +3,14 @@
  * 2 KB: load it with `import('./confetti')` only when a payment lands. One canvas over the
  * viewport, removed when the last piece has fallen (about 1.4 s). Hidden from assistive tech.
  */
-export function burst(from: Element, count = 70) {
+const CLOTH = ['--color-indigo', '--color-bissap', '--color-ochre'];
+const CLOTH_FALLBACK = ['#2c3ba8', '#a3214f', '#c8902e'];
+
+/** `palette`: three CSS custom properties to colour the pieces (the dashboard passes its greens). */
+export function burst(from: Element, count = 70, palette: string[] = CLOTH) {
   const css = getComputedStyle(document.documentElement);
-  const colors = ['--color-indigo', '--color-bissap', '--color-ochre'].map(
-    (v, i) => css.getPropertyValue(v).trim() || ['#2c3ba8', '#a3214f', '#c8902e'][i],
+  const colors = palette.map(
+    (v, i) => css.getPropertyValue(v).trim() || CLOTH_FALLBACK[i] || '#173b32',
   );
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   const w = window.innerWidth;
@@ -32,7 +36,7 @@ export function burst(from: Element, count = 70) {
     a: Math.random() * 6,
     va: (Math.random() - 0.5) * 0.4,
     s: 5 + Math.random() * 5,
-    c: colors[i % 3] as string,
+    c: colors[i % colors.length] as string,
   }));
   const start = performance.now();
   const life = 1400;
