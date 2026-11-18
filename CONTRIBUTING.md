@@ -4,7 +4,7 @@ Read [docs/architecture.md](docs/architecture.md) first, then the contract in [d
 
 ## Setup
 
-Requirements: Node 24 (see `.nvmrc`), pnpm 10, Docker (for PostgreSQL, MinIO and a local Nostr relay).
+Requirements: Node 24 (see `.nvmrc`), pnpm 10, Docker (for PostgreSQL, S3-compatible storage and a local Nostr relay).
 
 ```
 pnpm install
@@ -27,7 +27,7 @@ The web app proxies `/api/v1/chat/*`, `/api/v1/conversations*` and `/api/v1/assi
 docker compose up --build
 ```
 
-This starts PostgreSQL 18, MinIO (the buckets are created for you), a local Nostr relay, and the three apps built from `apps/*/Dockerfile`. Then open http://localhost:3000. Core is on :4000 and agent on :4100. Secrets default to dev values; override them in a root `.env`. Stop with `docker compose down` (add `-v` to wipe the data).
+This starts PostgreSQL 18, RustFS for S3-compatible storage (the buckets are created for you), a local Nostr relay, and the three apps built from `apps/*/Dockerfile`. Then open http://localhost:3000. Core is on :4000 and agent on :4100. Secrets default to dev values; override them in a root `.env`. Stop with `docker compose down` (add `-v` to wipe the data).
 
 For day-to-day work, `pnpm infra:up` starts only the infrastructure, and `pnpm dev` runs the apps with hot reload.
 

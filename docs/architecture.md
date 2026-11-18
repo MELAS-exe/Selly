@@ -223,7 +223,7 @@ flowchart LR
 | Chat client          | `fetch` streaming for SSE (the chat uses a bearer token, which `EventSource` cannot send)                                                                       | the same widget can later be embedded on another domain (§3.8)     |
 | Nostr sign-in        | `nostr-tools` in the browser (NIP-07, NIP-46, NIP-55, local key with NIP-49 encryption) and on the server (signature check). Loaded only on the sign-in screen. | §6.4                                                               |
 | Images               | `sharp` (libvips) at upload: re-encode, strip EXIF, three widths, WebP and AVIF                                                                                 | public variants served through the CDN                             |
-| Object storage       | S3-compatible: Cloudflare R2 recommended (no egress fees), MinIO locally                                                                                        | private bucket for originals and audio, public bucket for variants |
+| Object storage       | S3-compatible: Cloudflare R2 recommended (no egress fees), RustFS locally                                                                                       | private bucket for originals and audio, public bucket for variants |
 | Lightning and NWC    | `@getalby/sdk` (NWC client), `nostr-tools`, a BOLT11 decoder (for example `light-bolt11-decoder`)                                                               | §3.6                                                               |
 | LLM                  | provider SDK behind an `LlmProvider` interface; a fast multimodal model with tool calling and structured output                                                 | chosen by evaluation (§12.4)                                       |
 | Speech to text       | `AsrProvider` interface; candidates include Omnilingual ASR (F9) and commercial multilingual services                                                           | Wolof quality measured first                                       |
@@ -2090,7 +2090,7 @@ selly/
 │  ├─ money/        XOF, sat and msat arithmetic, rate conversion, plan pricing, amount and quantity parsing (fr, wo, en)
 │  ├─ ui/           React components, Tailwind preset, icons, the chat widget
 │  └─ config/       tsconfig, Biome and Vitest presets
-├─ infra/           docker-compose (PostgreSQL 18, MinIO, local relay), deployment files
+├─ infra/           docker-compose (PostgreSQL 18, RustFS, local relay), deployment files
 ├─ docs/
 │  ├─ architecture.md   this document
 │  ├─ api.json          OpenAPI 3.1 contract with every request and response

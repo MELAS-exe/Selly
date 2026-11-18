@@ -13,7 +13,7 @@
     "test": "turbo run test",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "infra:up": "docker compose up -d postgres minio minio-init relay",
+    "infra:up": "docker compose up -d postgres storage storage-init relay",
     "infra:down": "docker compose down",
     "docker:up": "docker compose up --build",
     "docker:down": "docker compose down"
