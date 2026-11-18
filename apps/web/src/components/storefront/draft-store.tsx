@@ -1,10 +1,18 @@
 'use client';
 
-// The Replit storefront draft ("vendor-storefront", Kër Awa), ported 1:1 from its production bundle: same markup,
-// texts, demo data, classes and behaviour (local demo chat, demo cart, favourites, search and filters), so the next
-// commits show exactly what the design system and core change. Shown at /dev/storefront-draft only.
+// The Replit storefront draft ("vendor-storefront", Kër Awa), in Selly's design system: paper and grain, green ink,
+// lime accents, hairlines, sharp corners, a serif for titles and prices, spaced uppercase labels, the S mark and the
+// wordmark. Texts at 16 px or more and targets of 44 px (the storefront rules). Same demo data and behaviour as the
+// 1:1 port (previous commit), so this diff is the design system only. Shown at /dev/storefront-draft.
 
-import { type FormEvent, type ReactNode, useMemo, useState } from 'react';
+import {
+  type CSSProperties,
+  type FormEvent,
+  type ReactNode,
+  useId,
+  useMemo,
+  useState,
+} from 'react';
 import {
   ArrowDownRight,
   ArrowRight,
@@ -13,7 +21,6 @@ import {
   ChevronDown,
   CircleHelp,
   Clock3,
-  Flower2,
   Heart,
   MapPin,
   Menu,
@@ -30,6 +37,7 @@ import {
   X,
 } from './draft-icons';
 import './draft.css';
+import './storefront.css';
 
 const PROMO_IMAGE = '/storefront/promo-bag.webp';
 
@@ -48,6 +56,7 @@ interface Product {
   oldPrice?: number;
 }
 
+// Backgrounds retinted to the paper palette (the draft's pastels, softened towards #f6f4f0).
 const PRODUCTS: Product[] = [
   {
     id: 1,
@@ -56,7 +65,7 @@ const PRODUCTS: Product[] = [
     price: 12500,
     stock: 4,
     detail: 'Raphia tressé & wax • fait main à Dakar',
-    color: '#e5d9be',
+    color: '#e9e2cf',
     art: 'bag',
     tag: 'Prix doux',
     oldPrice: 15000,
@@ -68,7 +77,7 @@ const PRODUCTS: Product[] = [
     price: 6500,
     stock: 8,
     detail: '100 ml • pure, pressée à froid',
-    color: '#f1d7aa',
+    color: '#efe3c6',
     art: 'oil',
     tag: 'Naturel',
   },
@@ -79,7 +88,7 @@ const PRODUCTS: Product[] = [
     price: 8500,
     stock: 2,
     detail: 'Laiton doré • pièce artisanale',
-    color: '#e6b99d',
+    color: '#eddccd',
     art: 'earrings',
     tag: 'Dernières pièces',
   },
@@ -90,7 +99,7 @@ const PRODUCTS: Product[] = [
     price: 9000,
     stock: 11,
     detail: '6 yards • coton premium',
-    color: '#c7d8cb',
+    color: '#dde6da',
     art: 'fabric',
   },
   {
@@ -100,7 +109,7 @@ const PRODUCTS: Product[] = [
     price: 3000,
     stock: 14,
     detail: '250 g • karité & cendres végétales',
-    color: '#ddc7a8',
+    color: '#e7ddcb',
     art: 'soap',
   },
   {
@@ -110,7 +119,7 @@ const PRODUCTS: Product[] = [
     price: 18000,
     stock: 0,
     detail: 'Housse 45 × 45 cm • coton tissé',
-    color: '#d7b7a5',
+    color: '#e8dbd1',
     art: 'cushion',
     tag: 'Rupture',
   },
@@ -121,7 +130,7 @@ const PRODUCTS: Product[] = [
     price: 7500,
     stock: 6,
     detail: 'Coton tissé • doublure wax',
-    color: '#c4c6a1',
+    color: '#e1e2cc',
     art: 'pouch',
   },
   {
@@ -131,7 +140,7 @@ const PRODUCTS: Product[] = [
     price: 22000,
     stock: 3,
     detail: 'Vannerie naturelle • format moyen',
-    color: '#dfc99e',
+    color: '#ebdfc4',
     art: 'basket',
   },
 ];
@@ -140,20 +149,39 @@ const CATEGORIES = ['Tout voir', 'Accessoires', 'Beauté', 'Textiles', 'Maison']
 
 const fcfa = (n: number) => `${new Intl.NumberFormat('fr-SN').format(n)} FCFA`;
 
-function Logo() {
+/** The shop's mark: a sharp ink square with its initial, and the name in the serif. */
+function Logo({ light = false }: { light?: boolean }) {
   return (
-    <div className="flex items-center gap-2.5" aria-label="Kër Awa">
-      <span className="grid h-10 w-10 place-items-center rounded-[14px] bg-[#1f5b43] text-[#f8f2e6] shadow-sm">
-        <Flower2 size={20} strokeWidth={1.8} />
+    <span className="flex items-center gap-3" aria-label="Kër Awa">
+      <span
+        className={`sf-serif grid size-11 place-items-center text-2xl font-semibold ${light ? 'bg-d-paper text-d-ink' : 'bg-d-ink text-d-paper'}`}
+      >
+        K
       </span>
       <span>
-        <span className="display block text-[21px] font-extrabold leading-none tracking-[-1px] text-[#1c4335]">
-          Kër Awa
-        </span>
-        <span className="mono mt-1 block text-[8px] font-bold tracking-[.12em] text-[#788579]">
+        <span className="sf-serif block text-[1.625rem] leading-none font-semibold">Kër Awa</span>
+        <span
+          className={`mt-1 block text-xs font-semibold tracking-[0.24em] ${light ? 'text-d-paper/70' : 'text-d-ink-soft'}`}
+        >
           ATELIER · DAKAR
         </span>
       </span>
+    </span>
+  );
+}
+
+/** Text on a circle around the S mark, as on the landing page. */
+function Stamp() {
+  const id = useId();
+  return (
+    <div className="relative size-28" aria-hidden="true">
+      <svg viewBox="0 0 120 120" className="pv-spin motion-loop size-full text-d-ink">
+        <path id={id} d="M 60, 60 m -45, 0 a 45,45 0 1,1 90,0 a 45,45 0 1,1 -90,0" fill="none" />
+        <text className="fill-current text-[10px] tracking-[0.3em] uppercase">
+          <textPath href={`#${id}`}>Une touche de chez nous • Kër Awa • </textPath>
+        </text>
+      </svg>
+      <img src="/brand/selly-s.png" alt="" className="absolute inset-0 m-auto w-9" />
     </div>
   );
 }
@@ -232,12 +260,25 @@ function ProductArt({ product }: { product: Product }) {
       <span className="art-leaf leaf-a" />
       <span className="art-leaf leaf-b" />
       <div className="art-object">{art[product.art]}</div>
-      <span className="art-index mono">0{product.id}</span>
     </div>
   );
 }
 
 type Message = { from: 'selly' | 'you'; text: string };
+
+function InfoCell({ icon, title, sub }: { icon: ReactNode; title: string; sub: string }) {
+  return (
+    <div className="flex items-center gap-4 border-d-hairline px-5 py-5 md:border-r md:last:border-r-0">
+      <span className="grid size-11 shrink-0 place-items-center border border-d-hairline">
+        {icon}
+      </span>
+      <div>
+        <div className="font-semibold">{title}</div>
+        <div className="text-[0.9375rem] text-d-ink-soft">{sub}</div>
+      </div>
+    </div>
+  );
+}
 
 export function DraftStore() {
   const [query, setQuery] = useState('');
@@ -338,60 +379,66 @@ export function DraftStore() {
   };
 
   return (
-    <main className="ker-draft grain min-h-[100dvh] bg-[#f6f3eb] text-[#21382f]">
-      <div className="border-b border-[#255b4433] bg-[#204d3b] px-4 py-2.5 text-center text-[11px] font-semibold tracking-[.07em] text-[#f7f0dd] sm:text-xs">
-        <span className="inline-flex items-center justify-center gap-2">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#e7a275]" /> Les trouvailles d’Awa,
-          préparées avec soin à Dakar{' '}
+    <main className="ker-draft sf min-h-dvh">
+      <div className="bg-d-ink px-4 py-2.5 text-center text-[0.9375rem] text-d-paper">
+        <span className="inline-flex items-center justify-center gap-2.5">
+          <span className="size-1.5 bg-d-lime" /> Les trouvailles d’Awa, préparées avec soin à Dakar
           <span className="hidden sm:inline">· Livraison à Dakar disponible</span>
         </span>
       </div>
 
-      <header className="sticky top-0 z-30 border-b border-[#2548381b] bg-[#f6f3eb]/95 backdrop-blur-md">
-        <div className="mx-auto flex h-[76px] max-w-[1260px] items-center justify-between px-5 sm:px-8">
-          <a href="#top" className="rounded-lg" aria-label="Accueil Kër Awa">
+      <header className="sticky top-0 z-30 border-b border-d-hairline bg-d-paper/90 backdrop-blur-md">
+        <div className="mx-auto flex h-20 max-w-[1260px] items-center justify-between gap-4 px-5 sm:px-8">
+          <a href="#top" aria-label="Accueil Kër Awa">
             <Logo />
           </a>
-          <nav className="hidden items-center gap-8 md:flex" aria-label="Navigation principale">
-            <a className="nav-link" href="#catalogue">
+          <nav className="hidden items-center gap-9 md:flex" aria-label="Navigation principale">
+            <a
+              className="min-h-11 content-center font-medium hover:underline hover:underline-offset-8"
+              href="#catalogue"
+            >
               La sélection
             </a>
-            <a className="nav-link" href="#boutique">
+            <a
+              className="min-h-11 content-center font-medium hover:underline hover:underline-offset-8"
+              href="#boutique"
+            >
               La boutique
             </a>
             <button
               type="button"
-              className="nav-link flex items-center gap-1.5"
+              className="flex min-h-11 items-center gap-1.5 font-medium hover:underline hover:underline-offset-8"
               onClick={() => openChat()}
             >
-              Parler à Selly <ArrowUpRight size={14} />
+              Parler à Selly <ArrowUpRight size={15} />
             </button>
           </nav>
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              className="hidden h-11 items-center gap-2 rounded-full border border-[#214c3a]/15 px-4 text-xs font-semibold text-[#345749] transition hover:bg-white sm:flex"
+              className="sf-btn sf-btn-ghost hidden !min-h-11 sm:inline-flex"
               onClick={share}
             >
-              <ArrowUpRight size={15} /> Partager la boutique
+              <ArrowUpRight size={15} /> Partager
             </button>
             <button
               type="button"
-              className="relative grid h-11 w-11 place-items-center rounded-full bg-[#e8e3d7] text-[#214c3a] transition hover:bg-[#ddd6c8]"
+              className="sf-icon-btn relative"
               onClick={() => setCartOpen(true)}
               aria-label={`Ouvrir le panier, ${count} articles`}
             >
-              <ShoppingBag size={19} strokeWidth={1.8} />
+              <ShoppingBag size={19} strokeWidth={1.6} />
               {count > 0 && (
-                <span className="absolute -right-1 -top-1 grid h-[19px] min-w-[19px] place-items-center rounded-full bg-[#e47a56] px-1 text-[10px] font-bold text-white">
+                <span className="tnum absolute -top-2 -right-2 grid h-5 min-w-5 place-items-center bg-d-lime px-1 text-xs font-bold text-d-ink">
                   {count}
                 </span>
               )}
             </button>
             <button
               type="button"
-              className="grid h-11 w-11 place-items-center rounded-full border border-[#214c3a]/15 md:hidden"
+              className="sf-icon-btn md:hidden"
               aria-label="Ouvrir le menu"
+              aria-expanded={menuOpen}
               onClick={() => setMenuOpen((o) => !o)}
             >
               <Menu size={19} />
@@ -399,18 +446,18 @@ export function DraftStore() {
           </div>
         </div>
         {menuOpen && (
-          <div className="grid gap-1 border-t border-[#214c3a]/10 px-5 py-3 md:hidden">
+          <div className="grid border-t border-d-hairline px-5 md:hidden">
             <a
               href="#catalogue"
               onClick={() => setMenuOpen(false)}
-              className="rounded-xl px-3 py-3 text-sm font-semibold"
+              className="min-h-12 content-center border-b border-d-hairline font-medium"
             >
               La sélection
             </a>
             <a
               href="#boutique"
               onClick={() => setMenuOpen(false)}
-              className="rounded-xl px-3 py-3 text-sm font-semibold"
+              className="min-h-12 content-center border-b border-d-hairline font-medium"
             >
               La boutique
             </a>
@@ -420,9 +467,9 @@ export function DraftStore() {
                 setMenuOpen(false);
                 openChat();
               }}
-              className="flex items-center gap-2 rounded-xl px-3 py-3 text-left text-sm font-semibold"
+              className="flex min-h-12 items-center gap-2 text-left font-medium"
             >
-              <MessageCircle size={16} /> Parler à Selly
+              <MessageCircle size={17} /> Parler à Selly
             </button>
           </div>
         )}
@@ -430,177 +477,132 @@ export function DraftStore() {
 
       <section
         id="top"
-        className="mx-auto max-w-[1260px] px-5 pb-10 pt-8 sm:px-8 sm:pt-12 lg:pb-[68px] lg:pt-[62px]"
+        className="mx-auto max-w-[1260px] border-x border-d-hairline px-5 pt-10 pb-14 sm:px-8 lg:pt-16 lg:pb-20"
       >
-        <div className="grid items-center gap-8 lg:grid-cols-[1.02fr_.98fr] lg:gap-[72px]">
-          <div className="rise">
-            <div className="mb-6 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.16em] text-[#627b6c]">
-              <span className="h-px w-7 bg-[#e47a56]" /> Bienvenue chez Kër Awa
-            </div>
-            <h1 className="display max-w-[570px] text-[43px] font-bold leading-[1.07] tracking-[-2.1px] text-[#214b39] sm:text-[58px] lg:text-[66px]">
-              Des belles choses,
-              <br />
-              <span className="text-[#dd7956]">tout près de vous.</span>
+        <div className="grid items-center gap-10 lg:grid-cols-[1.02fr_.98fr] lg:gap-16">
+          <div>
+            <p className="sf-eyebrow sf-rise mb-7">Bienvenue chez Kër Awa</p>
+            <h1 className="sf-serif text-[3.25rem] leading-[0.95] font-normal tracking-[-0.02em] sm:text-[4.5rem] lg:text-[5.5rem]">
+              <span className="sf-line [--i:0]">Des belles choses,</span>
+              <span className="sf-line italic text-d-lime-deep [--i:1]">tout près de vous.</span>
             </h1>
-            <p className="mt-5 max-w-[440px] text-[15px] leading-[1.85] text-[#64736b] sm:text-[16px]">
+            <p className="sf-rise mt-6 max-w-[28rem] text-[1.0625rem] leading-relaxed text-d-ink-soft [--d:300ms]">
               Une sélection choisie avec cœur, entre artisanat sénégalais et petits essentiels du
               quotidien.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <a
-                href="#catalogue"
-                className="inline-flex min-h-12 items-center gap-3 rounded-full bg-[#22583f] px-6 text-[13px] font-bold text-[#fff9ee] transition hover:bg-[#164632]"
-              >
+            <div className="sf-rise mt-9 flex flex-wrap gap-3 [--d:400ms]">
+              <a href="#catalogue" className="sf-btn sf-btn-primary">
                 Voir la sélection <ArrowDownRight size={16} />
               </a>
-              <button
-                type="button"
-                onClick={() => openChat()}
-                className="inline-flex min-h-12 items-center gap-2.5 rounded-full border border-[#22583f]/20 bg-[#fbf9f3] px-5 text-[13px] font-bold text-[#28513f] transition hover:bg-[#eae8dc]"
-              >
-                <span className="grid h-6 w-6 place-items-center rounded-full bg-[#e7ede3]">
-                  <Sparkles size={14} />
-                </span>{' '}
-                Demander à Selly
+              <button type="button" onClick={() => openChat()} className="sf-btn sf-btn-ghost">
+                <Sparkles size={15} /> Demander à Selly
               </button>
             </div>
-            <div className="mt-9 flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] font-medium text-[#718077]">
-              <span className="flex items-center gap-1.5">
-                <BadgeCheck size={14} className="text-[#43805e]" /> Boutique vérifiée
+            <div className="sf-rise mt-10 flex flex-wrap items-center gap-x-5 gap-y-2 text-[0.9375rem] text-d-ink-soft [--d:500ms]">
+              <span className="flex items-center gap-2">
+                <BadgeCheck size={16} className="text-d-lime-deep" /> Boutique vérifiée
               </span>
-              <span className="h-1 w-1 rounded-full bg-[#c8bfae]" />
+              <span className="size-1 bg-d-ink/30" />
               <span>Fait main, ici au Sénégal</span>
             </div>
           </div>
 
-          <div className="rise-delay relative mx-auto w-full max-w-[570px] lg:max-w-none">
-            <div className="absolute -left-4 top-10 z-10 hidden rounded-[18px] border border-[#234a3720] bg-[#fbf9f2] px-4 py-3.5 shadow-[0_12px_35px_rgba(34,60,43,.10)] sm:block">
-              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.12em] text-[#718077]">
-                <span className="h-2 w-2 rounded-full bg-[#68a078]" /> Préparé à Dakar
-              </div>
-              <div className="mt-1.5 text-sm font-bold text-[#284c3c]">Le coup de cœur d’Awa</div>
+          <div className="sf-rise relative mx-auto w-full max-w-[570px] [--d:200ms] lg:max-w-none">
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 translate-x-3 translate-y-3 border border-d-hairline"
+            />
+            <div className="absolute top-8 -left-3 z-10 hidden border border-d-hairline bg-d-paper px-5 py-4 sm:block">
+              <p className="flex items-center gap-2 text-xs font-semibold tracking-[0.2em] text-d-ink-soft uppercase">
+                <span className="size-1.5 bg-d-lime" /> Préparé à Dakar
+              </p>
+              <p className="sf-serif mt-1 text-xl font-semibold">Le coup de cœur d’Awa</p>
             </div>
-            <div className="relative aspect-[1.1/1] overflow-hidden rounded-[28px] bg-[#e8dcc5] sm:rounded-[34px]">
+            <div className="relative aspect-[1.1/1] overflow-clip bg-d-paper-deep">
               <img
                 src={PROMO_IMAGE}
                 alt="Cabas en raphia et tissu wax, création artisanale"
-                className="h-full w-full object-cover"
+                className="size-full object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#1d36292a] via-transparent to-transparent" />
-              <span className="absolute right-5 top-5 rounded-full bg-[#f7f0df] px-3.5 py-2 text-[10px] font-bold uppercase tracking-[.12em] text-[#375641] sm:right-7 sm:top-7">
+              <div className="absolute inset-0 bg-gradient-to-t from-d-ink/25 via-transparent to-transparent" />
+              <span className="absolute top-5 right-5 bg-d-ink px-3 py-2 text-xs font-semibold tracking-[0.2em] text-d-paper uppercase">
                 La pièce du moment
               </span>
               <button
                 type="button"
                 onClick={() => openChat(PRODUCTS[0])}
-                className="absolute bottom-4 left-4 right-4 flex items-center justify-between rounded-[20px] border border-white/50 bg-[#fbf8f0]/95 p-4 text-left backdrop-blur-md transition hover:bg-white sm:bottom-5 sm:left-5 sm:right-5 sm:p-5"
+                className="absolute right-4 bottom-4 left-4 flex items-center justify-between gap-4 border border-d-hairline bg-d-paper/95 p-4 text-left backdrop-blur-md sm:p-5"
               >
                 <span>
-                  <span className="block text-[15px] font-bold text-[#214b39] sm:text-[17px]">
-                    Cabas Noppal
-                  </span>
-                  <span className="mt-1 block text-[11px] text-[#768078]">
+                  <span className="sf-serif block text-2xl font-semibold">Cabas Noppal</span>
+                  <span className="mt-0.5 block text-[0.9375rem] text-d-ink-soft">
                     Raphia tressé · fait main à Dakar
                   </span>
                 </span>
-                <span className="flex items-center gap-2.5">
+                <span className="flex items-center gap-3">
                   <span className="text-right">
-                    <span className="block text-[14px] font-bold text-[#214b39]">
-                      {fcfa(12500)}
+                    <span className="sf-figure block text-2xl">{fcfa(12500)}</span>
+                    <span className="text-[0.9375rem] text-d-ink-soft line-through">
+                      {fcfa(15000)}
                     </span>
-                    <span className="text-[10px] text-[#8a8e83] line-through">{fcfa(15000)}</span>
                   </span>
-                  <span className="grid h-10 w-10 place-items-center rounded-full bg-[#e47a56] text-white">
-                    <MessageCircle size={17} />
+                  <span className="grid size-11 place-items-center bg-d-ink text-d-paper">
+                    <MessageCircle size={18} />
                   </span>
                 </span>
               </button>
             </div>
-            <div className="absolute -bottom-4 -right-2 hidden h-[76px] w-[76px] flex-col items-center justify-center rounded-full border-[1px] border-[#c8815e] bg-[#f6f3eb] text-center text-[9px] font-bold uppercase leading-[1.35] tracking-[.1em] text-[#a55d40] sm:flex">
-              <span>
-                Une touche
-                <br />
-                de chez nous
-              </span>
-              <Flower2 size={15} className="mt-0.5" />
+            <div className="absolute -right-6 -bottom-10 hidden bg-d-paper sm:block">
+              <Stamp />
             </div>
           </div>
         </div>
       </section>
 
-      <section className="border-y border-[#244e3a]/10 bg-[#ebe9dc]">
-        <div className="mx-auto grid max-w-[1260px] grid-cols-2 gap-y-5 px-5 py-5 sm:px-8 md:grid-cols-4 md:py-6">
-          <div className="flex items-center gap-3 md:border-r md:border-[#244e3a]/15">
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-[#dce5d8] text-[#35694d]">
-              <Store size={17} />
-            </span>
-            <div>
-              <div className="text-xs font-bold">Kër Awa</div>
-              <div className="mt-0.5 text-[10px] text-[#727d72]">Boutique indépendante</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 md:pl-7 md:border-r md:border-[#244e3a]/15">
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-[#f0ddd1] text-[#b36549]">
-              <MapPin size={17} />
-            </span>
-            <div>
-              <div className="text-xs font-bold">Liberté 6 Extension</div>
-              <div className="mt-0.5 text-[10px] text-[#727d72]">Dakar, Sénégal</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 md:pl-7 md:border-r md:border-[#244e3a]/15">
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-[#e8debf] text-[#8e713f]">
-              <Clock3 size={17} />
-            </span>
-            <div>
-              <div className="text-xs font-bold">Lun – sam · 10 h – 19 h</div>
-              <div className="mt-0.5 text-[10px] text-[#727d72]">Horaires de la boutique</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 md:pl-7">
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-[#dce6dc] text-[#35694d]">
-              <PackageCheck size={17} />
-            </span>
-            <div>
-              <div className="text-xs font-bold">Livraison à Dakar</div>
-              <div className="mt-0.5 text-[10px] text-[#727d72]">Frais confirmés avec Awa</div>
-            </div>
-          </div>
+      <section className="border-y border-d-hairline bg-d-paper-deep/60">
+        <div className="mx-auto grid max-w-[1260px] grid-cols-1 border-x border-d-hairline sm:grid-cols-2 md:grid-cols-4">
+          <InfoCell icon={<Store size={18} />} title="Kër Awa" sub="Boutique indépendante" />
+          <InfoCell icon={<MapPin size={18} />} title="Liberté 6 Extension" sub="Dakar, Sénégal" />
+          <InfoCell
+            icon={<Clock3 size={18} />}
+            title="Lun – sam · 10 h – 19 h"
+            sub="Horaires de la boutique"
+          />
+          <InfoCell
+            icon={<PackageCheck size={18} />}
+            title="Livraison à Dakar"
+            sub="Frais confirmés avec Awa"
+          />
         </div>
       </section>
 
       <section
         id="catalogue"
-        className="mx-auto max-w-[1260px] px-5 pb-20 pt-14 sm:px-8 sm:pt-[76px]"
+        className="mx-auto max-w-[1260px] border-x border-d-hairline px-5 pt-16 pb-24 sm:px-8 sm:pt-20"
       >
         <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
           <div>
-            <div className="mb-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.16em] text-[#cc7657]">
-              <span className="h-px w-6 bg-[#cc7657]" /> Faits pour être aimés
-            </div>
-            <h2 className="display text-[34px] font-bold leading-tight tracking-[-1.3px] text-[#214b39] sm:text-[42px]">
+            <p className="sf-eyebrow mb-4">Faits pour être aimés</p>
+            <h2 className="sf-serif text-[2.75rem] leading-[1] tracking-[-0.01em] sm:text-[3.5rem]">
               La sélection d’Awa
             </h2>
-            <p className="mt-2 text-sm text-[#788078]">
+            <p className="mt-3 text-d-ink-soft">
               Des trouvailles qui ont chacune leur petite histoire.
             </p>
           </div>
           <button
             type="button"
             onClick={() => openChat()}
-            className="group flex w-fit items-center gap-2.5 rounded-full border border-[#214b3a]/15 bg-[#fbf9f2] px-4 py-2.5 text-xs font-bold text-[#28513f] transition hover:border-[#214b3a]/30 hover:bg-white"
+            className="group sf-btn sf-btn-ghost w-fit"
           >
-            <span className="grid h-7 w-7 place-items-center rounded-full bg-[#e4ebdf] text-[#326448]">
-              <Sparkles size={14} />
-            </span>{' '}
-            Besoin d’un conseil ?{' '}
-            <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
+            <Sparkles size={15} /> Besoin d’un conseil ?{' '}
+            <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />
           </button>
         </div>
 
-        <div className="mt-8 flex flex-col gap-4 border-y border-[#264d3b]/10 py-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="mt-10 flex flex-col gap-4 border-y border-d-hairline py-4 lg:flex-row lg:items-center lg:justify-between">
           <div
-            className="scrollbar-hide flex gap-2 overflow-x-auto pb-1 lg:pb-0"
+            className="-mx-5 flex gap-2 overflow-x-auto px-5 [scrollbar-width:none] lg:mx-0 lg:px-0"
             role="group"
             aria-label="Filtrer par catégorie"
           >
@@ -610,24 +612,20 @@ export function DraftStore() {
                 type="button"
                 onClick={() => setCategory(c)}
                 aria-pressed={category === c}
-                className={`shrink-0 rounded-full px-4 py-2.5 text-[11px] font-semibold transition ${
-                  category === c
-                    ? 'bg-[#245a40] text-[#fff9ee]'
-                    : 'bg-[#ebe9df] text-[#5e7065] hover:bg-[#e2dfd2]'
-                }`}
+                className="sf-chip"
               >
                 {c}
               </button>
             ))}
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <label className="relative flex h-10 min-w-[210px] flex-1 items-center gap-2.5 rounded-full border border-[#244e3a]/15 bg-[#fbf9f2] px-3.5 sm:min-w-[245px] sm:flex-none">
-              <Search size={15} className="text-[#7e8a80]" />
+            <label className="flex min-h-11 min-w-[15rem] flex-1 items-center gap-3 border-b border-d-ink/30 focus-within:border-d-ink sm:flex-none">
+              <Search size={17} className="text-d-ink-soft" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Un article, une envie…"
-                className="w-full bg-transparent text-xs text-[#254b3a] outline-none placeholder:text-[#98a096]"
+                className="w-full bg-transparent py-2 outline-none placeholder:text-d-ink-soft/70"
                 aria-label="Rechercher dans la boutique"
               />
               {query && (
@@ -635,9 +633,9 @@ export function DraftStore() {
                   type="button"
                   onClick={() => setQuery('')}
                   aria-label="Effacer la recherche"
-                  className="text-[#768278]"
+                  className="grid size-9 place-items-center text-d-ink-soft"
                 >
-                  <X size={14} />
+                  <X size={15} />
                 </button>
               )}
             </label>
@@ -645,42 +643,38 @@ export function DraftStore() {
               type="button"
               onClick={() => setInStock((v) => !v)}
               aria-pressed={inStock}
-              className={`flex h-10 items-center gap-2 rounded-full border px-3.5 text-[11px] font-semibold transition ${
-                inStock
-                  ? 'border-[#28563e] bg-[#e5eddf] text-[#28563e]'
-                  : 'border-[#244e3a]/15 bg-[#fbf9f2] text-[#65746a]'
-              }`}
+              className="sf-chip"
             >
-              <span
-                className={`h-2 w-2 rounded-full ${inStock ? 'bg-[#548c62]' : 'bg-[#a9afa6]'}`}
-              />{' '}
-              En stock <ChevronDown size={13} className={inStock ? 'rotate-180' : ''} />
+              <span className={`size-2 ${inStock ? 'bg-d-lime' : 'bg-d-ink/30'}`} /> En stock
+              <ChevronDown size={14} className={inStock ? 'rotate-180' : ''} />
             </button>
           </div>
         </div>
 
-        <div className="mb-4 mt-5 flex items-center justify-between">
-          <p className="text-[11px] text-[#778078]" aria-live="polite">
-            {shown.length} {shown.length > 1 ? 'trouvailles' : 'trouvaille'}{' '}
-            <span className="mx-1 text-[#c1bcae]">·</span> Prix en FCFA
+        <div className="mt-5 mb-6 flex items-center justify-between gap-4">
+          <p className="text-d-ink-soft" aria-live="polite">
+            <span className="tnum font-semibold text-d-ink">{shown.length}</span>{' '}
+            {shown.length > 1 ? 'trouvailles' : 'trouvaille'} · Prix en FCFA
           </p>
-          <span className="hidden items-center gap-1.5 text-[10px] font-medium text-[#718077] sm:flex">
-            <CircleHelp size={13} /> Touchez « Demander à Selly » pour en savoir plus
+          <span className="hidden items-center gap-2 text-[0.9375rem] text-d-ink-soft sm:flex">
+            <CircleHelp size={15} /> Touchez « Demander à Selly » pour en savoir plus
           </span>
         </div>
 
         {shown.length ? (
-          <div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:grid-cols-2 sm:gap-x-5 sm:gap-y-9 lg:grid-cols-4 lg:gap-x-6">
-            {shown.map((p) => (
-              <article key={p.id} className="product-card group min-w-0">
-                <div className="relative overflow-hidden rounded-[19px] sm:rounded-[23px]">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-10 sm:gap-x-6 lg:grid-cols-4">
+            {shown.map((p, i) => (
+              <article
+                key={p.id}
+                className="product-card group min-w-0 sf-rise"
+                style={{ '--d': `${Math.min(i, 7) * 60}ms` } as CSSProperties}
+              >
+                <div className="card-media relative overflow-clip border border-d-hairline">
                   <ProductArt product={p} />
                   {p.tag && (
                     <span
-                      className={`absolute left-3 top-3 rounded-full px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-[.08em] ${
-                        p.stock === 0
-                          ? 'bg-[#f0e8db] text-[#887763]'
-                          : 'bg-[#f8f3e7] text-[#496448]'
+                      className={`absolute top-3 left-3 px-2.5 py-1.5 text-xs font-semibold tracking-[0.16em] uppercase ${
+                        p.stock === 0 ? 'bg-d-paper text-d-ink-soft' : 'bg-d-ink text-d-paper'
                       }`}
                     >
                       {p.tag}
@@ -697,41 +691,43 @@ export function DraftStore() {
                       favorites.includes(p.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'
                     }
                     aria-pressed={favorites.includes(p.id)}
-                    className={`absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-[#faf8f0]/90 transition hover:scale-105 ${
-                      favorites.includes(p.id) ? 'text-[#d96f55]' : 'text-[#425d4b]'
-                    }`}
+                    className="sf-icon-btn absolute top-2 right-2 !border-transparent !bg-d-paper/85"
                   >
-                    <Heart size={16} fill={favorites.includes(p.id) ? 'currentColor' : 'none'} />
+                    <Heart size={17} fill={favorites.includes(p.id) ? 'currentColor' : 'none'} />
                   </button>
-                  <div className="ask-action absolute bottom-3 left-3 right-3">
+                  <div className="ask-action absolute right-3 bottom-3 left-3">
                     <button
                       type="button"
                       onClick={() => openChat(p)}
-                      className="flex min-h-10 w-full items-center justify-center gap-2 rounded-full border border-white/70 bg-[#fbf9f2]/95 px-2 text-[10px] font-bold text-[#24543e] shadow-sm backdrop-blur-sm transition hover:bg-white sm:text-[11px]"
+                      className="flex min-h-11 w-full items-center justify-center gap-2 bg-d-paper/95 px-2 font-medium backdrop-blur-sm"
                     >
-                      <MessageCircle size={14} /> Demander à Selly
+                      <MessageCircle size={16} /> Demander à Selly
                     </button>
                   </div>
+                  <span
+                    className="sf-serif absolute bottom-3 left-3 hidden text-d-ink/40 sm:block"
+                    aria-hidden="true"
+                  >
+                    {String(p.id).padStart(2, '0')}
+                  </span>
                 </div>
-                <div className="px-0.5 pt-3">
-                  <div className="flex items-start justify-between gap-1">
-                    <h3 className="text-[13px] font-bold leading-snug text-[#2a4939] sm:text-[14px]">
+                <div className="pt-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="sf-serif text-xl leading-tight font-semibold sm:text-[1.375rem]">
                       {p.name}
                     </h3>
-                    <span className="mt-0.5 shrink-0 text-[9px] font-medium text-[#869086]">
+                    <span className="mt-1 shrink-0 text-sm text-d-ink-soft">
                       {p.stock ? `${p.stock} dispo` : 'Épuisé'}
                     </span>
                   </div>
-                  <p className="mt-1.5 min-h-[30px] text-[10px] leading-[1.5] text-[#81877e] sm:text-[11px]">
-                    {p.detail}
-                  </p>
-                  <div className="mt-3 flex items-center justify-between gap-1.5">
+                  <p className="mt-1.5 text-[0.9375rem] leading-snug text-d-ink-soft">{p.detail}</p>
+                  <div className="mt-4 flex items-end justify-between gap-2">
                     <div>
-                      <span className="block text-[13px] font-bold text-[#214b39] sm:text-[14px]">
+                      <span className="sf-figure block text-[1.375rem] leading-none">
                         {fcfa(p.price)}
                       </span>
                       {p.oldPrice && (
-                        <span className="text-[9px] text-[#999489] line-through">
+                        <span className="text-[0.9375rem] text-d-ink-soft line-through">
                           {fcfa(p.oldPrice)}
                         </span>
                       )}
@@ -740,10 +736,10 @@ export function DraftStore() {
                       type="button"
                       disabled={!p.stock}
                       onClick={() => add(p)}
-                      className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#e8e7dc] text-[#28513f] transition hover:bg-[#d8e2d3] disabled:cursor-not-allowed disabled:opacity-40 sm:h-10 sm:w-10"
+                      className="sf-icon-btn shrink-0 disabled:opacity-35"
                       aria-label={`Ajouter ${p.name} au panier`}
                     >
-                      <Plus size={17} />
+                      <Plus size={18} />
                     </button>
                   </div>
                 </div>
@@ -751,14 +747,16 @@ export function DraftStore() {
             ))}
           </div>
         ) : (
-          <div className="flex min-h-[270px] flex-col items-center justify-center rounded-[24px] border border-dashed border-[#b8c2b5] bg-[#efeee5] px-5 text-center">
-            <span className="grid h-12 w-12 place-items-center rounded-full bg-[#dfe8db] text-[#3e7653]">
-              <Search size={20} />
-            </span>
-            <h3 className="mt-4 text-base font-bold text-[#315340]">
-              Rien dans les rayons pour cette recherche
-            </h3>
-            <p className="mt-1.5 max-w-sm text-xs text-[#788078]">
+          <div className="flex min-h-72 flex-col items-center justify-center border border-dashed border-d-ink/25 px-5 text-center">
+            <img
+              src="/brand/selly-mascot.webp"
+              alt=""
+              width={800}
+              height={800}
+              className="size-24 object-contain"
+            />
+            <h3 className="sf-serif mt-4 text-2xl">Rien dans les rayons pour cette recherche</h3>
+            <p className="mt-1.5 max-w-sm text-d-ink-soft">
               Essayez un autre mot ou parcourez toute la sélection d’Awa.
             </p>
             <button
@@ -768,7 +766,7 @@ export function DraftStore() {
                 setCategory('Tout voir');
                 setInStock(false);
               }}
-              className="mt-4 rounded-full bg-[#245a40] px-4 py-2.5 text-xs font-bold text-white"
+              className="sf-btn sf-btn-primary mt-5"
             >
               Tout afficher
             </button>
@@ -776,88 +774,95 @@ export function DraftStore() {
         )}
       </section>
 
-      <section id="boutique" className="bg-[#214d3b] text-[#f8f2e6]">
-        <div className="mx-auto grid max-w-[1260px] gap-8 px-5 py-12 sm:px-8 sm:py-[60px] md:grid-cols-[1.1fr_.9fr] md:items-center">
+      <section id="boutique" className="bg-d-ink text-d-paper">
+        <div className="mx-auto grid max-w-[1260px] gap-10 px-5 py-16 sm:px-8 sm:py-20 md:grid-cols-[1.1fr_.9fr] md:items-center">
           <div>
-            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.16em] text-[#d8a180]">
-              <MapPin size={13} /> Notre coin de Dakar
-            </div>
-            <h2 className="display mt-3 text-[32px] font-bold tracking-[-1px] sm:text-[39px]">
+            <p className="sf-eyebrow !text-d-lime">
+              <MapPin size={14} /> Notre coin de Dakar
+            </p>
+            <h2 className="sf-serif mt-5 text-[2.5rem] leading-[1.02] sm:text-[3.25rem]">
               Une boutique de quartier,
               <br />
-              toujours à portée de main.
+              <span className="italic text-d-lime">toujours à portée de main.</span>
             </h2>
-            <p className="mt-3 max-w-[480px] text-[13px] leading-[1.8] text-[#d1dbce]">
+            <p className="mt-5 max-w-[30rem] leading-relaxed text-d-paper/80">
               Awa déniche et confectionne des pièces qui racontent un peu la maison. Passez nous
               voir, ou écrivez à Selly pour un conseil.
             </p>
-            <div className="mt-6 flex flex-wrap gap-3">
+            <div className="mt-8 flex flex-wrap gap-3">
               <button
                 type="button"
                 onClick={() => openChat()}
-                className="flex min-h-11 items-center gap-2 rounded-full bg-[#e7805b] px-5 text-xs font-bold text-white transition hover:bg-[#d9714d]"
+                className="sf-btn sf-btn-primary !border-d-lime !bg-d-lime !text-d-ink"
               >
                 <MessageCircle size={15} /> Demander son chemin
               </button>
               <button
                 type="button"
                 onClick={share}
-                className="flex min-h-11 items-center gap-2 rounded-full border border-white/25 px-5 text-xs font-bold text-[#f8f2e6] transition hover:bg-white/10"
+                className="sf-btn sf-btn-ghost !border-d-paper/40 !text-d-paper"
               >
                 <ArrowUpRight size={15} /> Partager la boutique
               </button>
             </div>
           </div>
-          <div className="relative overflow-hidden rounded-[22px] border border-white/15 bg-[#2a5b45] p-5 sm:p-7">
-            <div className="absolute -right-10 -top-16 h-48 w-48 rounded-full border border-white/10" />
-            <div className="absolute -right-3 -top-9 h-32 w-32 rounded-full border border-white/10" />
+          <div className="relative overflow-clip border border-d-paper/20 p-6 sm:p-8">
+            <div
+              aria-hidden="true"
+              className="absolute -top-16 -right-10 size-48 rounded-full border border-d-paper/10"
+            />
+            <div
+              aria-hidden="true"
+              className="absolute -top-9 -right-3 size-32 rounded-full border border-d-paper/10"
+            />
             <div className="relative flex items-start justify-between gap-3">
               <div>
-                <div className="text-[10px] font-bold uppercase tracking-[.14em] text-[#d7a182]">
+                <p className="text-xs font-semibold tracking-[0.2em] text-d-lime uppercase">
                   Kër Awa · Liberté 6 Extension
-                </div>
-                <p className="mt-2 text-[16px] font-semibold leading-[1.5]">
+                </p>
+                <p className="sf-serif mt-3 text-2xl leading-snug">
                   Villa 18, derrière la pharmacie
                   <br />
                   Liberté 6, Dakar
                 </p>
               </div>
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#e3e4d6] text-[#2c5a41]">
+              <span className="grid size-11 shrink-0 place-items-center bg-d-paper text-d-ink">
                 <MapPin size={20} />
               </span>
             </div>
-            <div className="relative mt-5 flex flex-wrap gap-x-8 gap-y-3 border-t border-white/15 pt-4">
+            <div className="relative mt-6 flex flex-wrap gap-x-10 gap-y-3 border-t border-d-paper/15 pt-5">
               <div>
-                <div className="text-[9px] uppercase tracking-[.12em] text-[#c4d2c4]">Latitude</div>
-                <div className="mono mt-1 text-[12px] text-[#fff7e8]">14.7246° N</div>
+                <div className="text-xs tracking-[0.2em] text-d-paper/70 uppercase">Latitude</div>
+                <div className="tnum mt-1 font-mono">14.7246° N</div>
               </div>
               <div>
-                <div className="text-[9px] uppercase tracking-[.12em] text-[#c4d2c4]">
-                  Longitude
-                </div>
-                <div className="mono mt-1 text-[12px] text-[#fff7e8]">17.4678° W</div>
+                <div className="text-xs tracking-[0.2em] text-d-paper/70 uppercase">Longitude</div>
+                <div className="tnum mt-1 font-mono">17.4678° W</div>
               </div>
               <a
                 href="https://maps.google.com/?q=14.7246,-17.4678"
                 target="_blank"
                 rel="noreferrer"
-                className="ml-auto flex items-center gap-1.5 self-end text-[10px] font-bold text-[#f4b18f] hover:text-white"
+                className="ml-auto flex min-h-11 items-center gap-1.5 self-end font-semibold text-d-lime hover:underline"
               >
-                Voir sur la carte <ArrowUpRight size={13} />
+                Voir sur la carte <ArrowUpRight size={15} />
               </a>
             </div>
           </div>
         </div>
       </section>
 
-      <footer className="bg-[#f6f3eb]">
-        <div className="mx-auto flex max-w-[1260px] flex-col gap-4 px-5 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+      <footer className="border-t border-d-hairline">
+        <div className="mx-auto flex max-w-[1260px] flex-col gap-5 border-x border-d-hairline px-5 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-8">
           <Logo />
-          <p className="text-[10px] leading-relaxed text-[#80857b]">
+          <p className="text-[0.9375rem] text-d-ink-soft">
             Une vitrine de démonstration — panier indicatif, aucune commande ni paiement n’est
             effectué.
           </p>
-          <span className="text-[10px] text-[#879087]">Une boutique portée par Selly.</span>
+          <span className="flex items-center gap-2 text-[0.9375rem] text-d-ink-soft">
+            Une boutique portée par{' '}
+            <img src="/brand/selly-wordmark.png" alt="Selly" className="h-5 w-auto" />
+          </span>
         </div>
       </footer>
 
@@ -865,21 +870,19 @@ export function DraftStore() {
         type="button"
         onClick={() => openChat()}
         aria-label="Ouvrir Selly, votre conseillère de boutique"
-        className="fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center gap-2.5 rounded-full bg-[#e57b56] px-0 text-white shadow-[0_12px_35px_rgba(151,79,52,.27)] transition hover:-translate-y-1 hover:bg-[#d96e49] sm:bottom-7 sm:right-8 sm:h-[58px] sm:w-auto sm:justify-start sm:px-5"
+        className="ask-float press fixed right-4 bottom-4 z-40 flex min-h-14 items-center gap-3 bg-d-ink px-4 text-d-paper sm:right-8 sm:bottom-7 sm:px-5"
       >
-        <span className="grid h-8 w-8 place-items-center rounded-full bg-white/20">
-          <Sparkles size={17} />
-        </span>
+        <img src="/brand/selly-s-light.png" alt="" className="w-6" />
         <span className="hidden text-left sm:block">
-          <span className="block text-xs font-bold">Parler à Selly</span>
-          <span className="block text-[9px] text-white/80">Votre conseillère de boutique</span>
+          <span className="block font-semibold">Parler à Selly</span>
+          <span className="block text-sm text-d-paper/75">Votre conseillère de boutique</span>
         </span>
       </button>
 
       {toast && (
         <div
           role="status"
-          className="fixed bottom-[90px] left-1/2 z-[80] -translate-x-1/2 rounded-full bg-[#214d3b] px-5 py-3 text-xs font-semibold text-white shadow-lg"
+          className="d-arrive fixed bottom-24 left-1/2 z-[80] -translate-x-1/2 bg-d-ink px-5 py-3 font-medium text-d-paper"
         >
           {toast}
         </div>
@@ -887,7 +890,7 @@ export function DraftStore() {
 
       {chatOpen && (
         <div
-          className="fixed inset-0 z-[60] flex items-end justify-center bg-[#1a3528]/30 p-0 backdrop-blur-[2px] sm:items-center sm:p-5"
+          className="sf-backdrop fixed inset-0 z-[60] flex items-end justify-center bg-d-ink/35 sm:items-center sm:p-5"
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) setChatOpen(false);
           }}
@@ -896,45 +899,39 @@ export function DraftStore() {
             role="dialog"
             aria-modal="true"
             aria-label="Discussion démo avec Selly"
-            className="flex max-h-[88dvh] w-full max-w-[430px] flex-col overflow-hidden rounded-t-[26px] border border-[#d8ddcf] bg-[#f9f7f0] shadow-[0_25px_80px_rgba(24,48,35,.27)] sm:rounded-[26px]"
+            className="sf-sheet flex max-h-[88dvh] w-full max-w-[440px] flex-col overflow-clip border border-d-hairline bg-d-paper"
           >
-            <header className="flex items-center justify-between bg-[#214d3b] px-5 py-4 text-[#faf4e7]">
+            <header className="flex items-center justify-between bg-d-ink px-5 py-4 text-d-paper">
               <div className="flex items-center gap-3">
-                <span className="grid h-10 w-10 place-items-center rounded-full bg-[#e77d59]">
-                  <Sparkles size={18} />
+                <span className="grid size-11 place-items-center bg-d-lime">
+                  <img src="/brand/selly-s.png" alt="" className="w-6" />
                 </span>
                 <div>
-                  <h2 className="text-sm font-bold">Selly, la conseillère d’Awa</h2>
-                  <p className="mt-0.5 text-[10px] text-[#cfdbce]">
-                    Réponses démo · catalogue local
-                  </p>
+                  <h2 className="sf-serif text-xl">Selly, la conseillère d’Awa</h2>
+                  <p className="text-sm text-d-paper/70">Réponses démo · catalogue local</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setChatOpen(false)}
                 aria-label="Fermer la discussion"
-                className="grid h-9 w-9 place-items-center rounded-full transition hover:bg-white/10"
+                className="grid size-11 place-items-center hover:bg-d-paper/10"
               >
-                <X size={18} />
+                <X size={19} />
               </button>
             </header>
             <div
-              className="flex min-h-[250px] flex-1 flex-col gap-3 overflow-y-auto px-4 py-4 sm:px-5"
+              className="flex min-h-64 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4 sm:px-5"
               aria-live="polite"
             >
-              <div className="mb-1 rounded-xl border border-[#ddcdbb] bg-[#f2eadc] px-3 py-2 text-[10px] leading-relaxed text-[#776c5d]">
+              <p className="border-l-2 border-d-pending bg-d-pending-soft px-3 py-2 text-[0.9375rem] text-d-pending">
                 Ceci est une démonstration locale. Selly ne contacte pas une IA en direct et ne
                 passe aucune commande.
-              </div>
+              </p>
               {messages.map((m, i) => (
                 <div
                   key={`${i}-${m.from}`}
-                  className={`max-w-[87%] rounded-[17px] px-3.5 py-3 text-[12px] leading-[1.6] ${
-                    m.from === 'you'
-                      ? 'self-end rounded-br-[5px] bg-[#dfe9dc] text-[#2d5140]'
-                      : 'self-start rounded-bl-[5px] bg-white text-[#43574a] shadow-[0_2px_8px_rgba(27,56,37,.05)]'
-                  }`}
+                  className={`max-w-[87%] px-4 py-3 leading-relaxed ${m.from === 'you' ? 'self-end bg-d-ink text-d-paper' : 'self-start border border-d-hairline bg-d-paper-deep/50'}`}
                 >
                   {m.text}
                 </div>
@@ -943,14 +940,14 @@ export function DraftStore() {
                 <button
                   type="button"
                   onClick={() => setDraft('Qu’est-ce qui est disponible ?')}
-                  className="rounded-full border border-[#d7dfd3] px-3 py-2 text-[10px] font-semibold text-[#44654e] hover:bg-[#edf1e8]"
+                  className="sf-chip"
                 >
                   Qu’est-ce qui est dispo ?
                 </button>
                 <button
                   type="button"
                   onClick={() => setDraft('Quels sont les prix ?')}
-                  className="rounded-full border border-[#d7dfd3] px-3 py-2 text-[10px] font-semibold text-[#44654e] hover:bg-[#edf1e8]"
+                  className="sf-chip"
                 >
                   Voir les prix
                 </button>
@@ -958,22 +955,22 @@ export function DraftStore() {
             </div>
             <form
               onSubmit={send}
-              className="flex items-center gap-2 border-t border-[#e2dfd5] bg-[#fdfbf6] p-3.5 sm:p-4"
+              className="flex items-center gap-2 border-t border-d-hairline p-4"
             >
               <input
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 placeholder="Écrivez votre question…"
-                className="h-11 min-w-0 flex-1 rounded-full border border-[#e1e0d7] bg-white px-4 text-xs outline-none placeholder:text-[#9da197] focus:border-[#66816a]"
+                className="min-h-11 min-w-0 flex-1 border border-d-hairline bg-d-paper px-4 outline-none placeholder:text-d-ink-soft/70 focus:border-d-ink"
                 aria-label="Votre message"
               />
               <button
                 type="submit"
                 disabled={!draft.trim()}
                 aria-label="Envoyer le message"
-                className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#24583f] text-white transition hover:bg-[#174831] disabled:opacity-40"
+                className="grid size-11 shrink-0 place-items-center bg-d-ink text-d-paper disabled:opacity-40"
               >
-                <Send size={16} />
+                <Send size={17} />
               </button>
             </form>
           </section>
@@ -982,7 +979,7 @@ export function DraftStore() {
 
       {cartOpen && (
         <div
-          className="fixed inset-0 z-[70] flex justify-end bg-[#1a3528]/35 backdrop-blur-[2px]"
+          className="sf-backdrop fixed inset-0 z-[70] flex justify-end bg-d-ink/35"
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) setCartOpen(false);
           }}
@@ -991,79 +988,74 @@ export function DraftStore() {
             role="dialog"
             aria-modal="true"
             aria-label="Votre panier de démonstration"
-            className="flex h-full w-full max-w-[430px] flex-col bg-[#f9f7f0] shadow-2xl"
+            className="sf-drawer flex h-full w-full max-w-[440px] flex-col border-l border-d-hairline bg-d-paper"
           >
-            <header className="flex items-center justify-between border-b border-[#e4e1d6] px-5 py-5">
+            <header className="flex items-center justify-between border-b border-d-hairline px-5 py-5">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[.14em] text-[#c47758]">
-                  Votre sélection
-                </p>
-                <h2 className="mt-1 text-lg font-bold text-[#214b39]">
-                  Le panier <span className="text-sm font-medium text-[#879087]">({count})</span>
+                <p className="sf-eyebrow">Votre sélection</p>
+                <h2 className="sf-serif mt-1 text-3xl">
+                  Le panier <span className="tnum text-xl text-d-ink-soft">({count})</span>
                 </h2>
               </div>
               <button
                 type="button"
                 onClick={() => setCartOpen(false)}
                 aria-label="Fermer le panier"
-                className="grid h-10 w-10 place-items-center rounded-full bg-[#ebe9df]"
+                className="sf-icon-btn"
               >
-                <X size={18} />
+                <X size={19} />
               </button>
             </header>
             {count === 0 ? (
               <div className="flex flex-1 flex-col items-center justify-center px-7 text-center">
-                <span className="grid h-[72px] w-[72px] place-items-center rounded-full bg-[#e7eadf] text-[#49734f]">
-                  <ShoppingCart size={27} />
-                </span>
-                <h3 className="mt-5 text-lg font-bold text-[#2d4d3b]">
-                  Votre panier est tout neuf
-                </h3>
-                <p className="mt-2 max-w-[250px] text-xs leading-relaxed text-[#7b847b]">
+                <img
+                  src="/brand/selly-mascot.webp"
+                  alt=""
+                  width={800}
+                  height={800}
+                  className="size-28 object-contain"
+                />
+                <h3 className="sf-serif mt-5 text-2xl">Votre panier est tout neuf</h3>
+                <p className="mt-2 max-w-64 text-d-ink-soft">
                   Ajoutez une trouvaille de la sélection d’Awa pour la garder sous la main.
                 </p>
                 <button
                   type="button"
                   onClick={() => setCartOpen(false)}
-                  className="mt-5 rounded-full bg-[#24583f] px-5 py-3 text-xs font-bold text-white"
+                  className="sf-btn sf-btn-primary mt-6"
                 >
                   Continuer la visite
                 </button>
               </div>
             ) : (
               <>
-                <div className="flex-1 space-y-3 overflow-y-auto p-4">
+                <div className="flex-1 overflow-y-auto px-5">
                   {PRODUCTS.filter((p) => cart[p.id]).map((p) => (
-                    <div
-                      key={p.id}
-                      className="flex gap-3 rounded-[18px] border border-[#e5e0d4] bg-white p-3"
-                    >
-                      <div className="h-[76px] w-[76px] shrink-0 overflow-hidden rounded-[13px]">
+                    <div key={p.id} className="flex gap-4 border-b border-d-hairline py-4">
+                      <div className="size-20 shrink-0 overflow-clip border border-d-hairline">
                         <ProductArt product={p} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-sm font-bold text-[#2e4d3b]">{p.name}</div>
-                        <div className="mt-1 text-[11px] font-semibold text-[#576d5d]">
-                          {fcfa(p.price)}
-                        </div>
-                        <div className="mt-2 flex items-center gap-2">
+                        <div className="sf-serif text-xl font-semibold">{p.name}</div>
+                        <div className="sf-figure text-lg">{fcfa(p.price)}</div>
+                        <div className="mt-2 flex items-center border border-d-hairline w-fit">
                           <button
                             type="button"
                             aria-label={`Retirer une unité de ${p.name}`}
                             onClick={() => change(p, -1)}
-                            className="grid h-7 w-7 place-items-center rounded-full bg-[#eeeee6]"
+                            className="grid size-11 place-items-center"
                           >
-                            <Minus size={13} />
+                            <Minus size={15} />
                           </button>
-                          <span className="mono text-[11px]">{cart[p.id]}</span>
+                          <span className="tnum w-8 text-center font-semibold">{cart[p.id]}</span>
                           <button
                             type="button"
                             aria-label={`Ajouter une unité de ${p.name}`}
                             onClick={() => change(p, 1)}
-                            className="grid h-7 w-7 place-items-center rounded-full bg-[#eeeee6] disabled:opacity-35"
+                            className="grid size-11 place-items-center disabled:opacity-35"
                             disabled={(cart[p.id] ?? 0) >= p.stock}
                           >
-                            <Plus size={13} />
+                            <Plus size={15} />
                           </button>
                         </div>
                       </div>
@@ -1071,31 +1063,31 @@ export function DraftStore() {
                         type="button"
                         aria-label={`Retirer ${p.name} du panier`}
                         onClick={() => change(p, -(cart[p.id] ?? 0))}
-                        className="self-start p-1 text-[#98a097] hover:text-[#bd664c]"
+                        className="grid size-11 place-items-center self-start text-d-ink-soft hover:text-d-alert"
                       >
-                        <X size={15} />
+                        <X size={17} />
                       </button>
                     </div>
                   ))}
                 </div>
-                <div className="border-t border-[#e1ded3] bg-[#f5f2e9] p-5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-[#758078]">Sous-total indicatif</span>
-                    <span className="text-lg font-bold text-[#214b39]">{fcfa(subtotal)}</span>
+                <div className="border-t border-d-hairline p-5">
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-d-ink-soft">Sous-total indicatif</span>
+                    <span className="sf-figure text-3xl">{fcfa(subtotal)}</span>
                   </div>
-                  <div className="mt-3 rounded-xl bg-[#ece8dc] px-3 py-2.5 text-[10px] leading-relaxed text-[#746d5f]">
+                  <p className="mt-3 border-l-2 border-d-pending bg-d-pending-soft px-3 py-2 text-[0.9375rem] text-d-pending">
                     Démo uniquement : aucune commande n’est envoyée et aucun paiement n’est
                     encaissé.
-                  </div>
+                  </p>
                   <button
                     type="button"
                     onClick={() => {
                       setCartOpen(false);
                       openChat();
                     }}
-                    className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#24583f] text-xs font-bold text-white transition hover:bg-[#174831]"
+                    className="sf-btn sf-btn-primary mt-4 w-full"
                   >
-                    Poser une question à Selly <MessageCircle size={15} />
+                    Poser une question à Selly <MessageCircle size={16} />
                   </button>
                 </div>
               </>
