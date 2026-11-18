@@ -457,3 +457,29 @@
     }
   }
 }
+
+/* Checkout: the motion pieces (motion.css, unlayered) in the shop's colours and sharp corners; unlayered too. */
+.sf .ring-left {
+  stroke: var(--sf-ink);
+}
+.sf .ring-track {
+  stroke: var(--color-d-hairline);
+}
+.sf .pay-check {
+  border-radius: 0;
+  background: var(--sf-ink);
+}
+.sf .pay-stage + p[role="status"] {
+  color: var(--sf-ink);
+  font-family: var(--sf-serif);
+  font-size: 1.5rem;
+  font-weight: 500;
+}
+.sf .pay-bolt {
+  color: var(--sf-accent);
+}
+.sf .checkout-qr svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

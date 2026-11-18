@@ -192,3 +192,18 @@ export const X = make([
 ]);
 // Not in the draft: the check mark of a product just added.
 export const Check = make([['path', { d: 'M20 6 9 17l-5-5', key: 'check' }]]);
+export const Copy = make([
+  ['rect', { width: '14', height: '14', x: '8', y: '8', rx: '2', ry: '2', key: 'copy1' }],
+  ['path', { d: 'M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2', key: 'copy2' }],
+]);
+export const ExternalLink = make([
+  ['path', { d: 'M15 3h6v6', key: 'ext1' }],
+  ['path', { d: 'M10 14 21 3', key: 'ext2' }],
+  ['path', { d: 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6', key: 'ext3' }],
+]);
+export const RefreshCcw = make([
+  ['path', { d: 'M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8', key: 'rc1' }],
+  ['path', { d: 'M3 3v5h5', key: 'rc2' }],
+  ['path', { d: 'M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16', key: 'rc3' }],
+  ['path', { d: 'M16 16h5v5', key: 'rc4' }],
+]);
