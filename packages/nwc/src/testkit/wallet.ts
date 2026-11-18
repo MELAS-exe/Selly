@@ -48,6 +48,8 @@ export class FakeNwcWallet {
 
   /** Make the next make_invoice answer wrong, to test that Selly checks it. */
   tamperNext: Tamper = null;
+  /** Make the next make_invoice fail with this NIP-47 error, as a wallet without receiving capacity does. */
+  refuseNext: { code: string; message: string } | null = null;
   /** Requests received, for assertions. */
   readonly calls: string[] = [];
 
@@ -149,6 +151,9 @@ export class FakeNwcWallet {
       },
       makeInvoice: async (req) => {
         this.calls.push('make_invoice');
+        const refuse = this.refuseNext;
+        this.refuseNext = null;
+        if (refuse) return { result: undefined, error: refuse } as never;
         const tamper = this.tamperNext;
         this.tamperNext = null;
         const preimage = randomBytes(32);
