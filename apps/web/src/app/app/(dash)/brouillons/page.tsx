@@ -1,8 +1,6 @@
-import type { Metadata } from 'next';
-import { Drafts } from '@/components/dashboard/pages/drafts';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = { title: 'Brouillons photo' };
-
+// Photo drafts are made with Selly (the assistant over every page); the ones left to check sit in the catalogue.
 export default function Page() {
-  return <Drafts />;
+  redirect('/app/catalogue#brouillons');
 }

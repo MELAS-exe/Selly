@@ -5,7 +5,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, Suspense, useEffect, useState } from 'react';
 import { DashboardProvider, useDashboard, useResource } from './data';
 import { fmtAgo, initials } from './format';
 import {
@@ -28,6 +28,7 @@ import {
   Zap,
 } from './icons';
 import { PushOffer, registerServiceWorker } from './push';
+import { SellyAssistant } from './selly-assistant';
 import type { ConversationSummary, Draft, Page, VendorOrder } from './types';
 import '../landing/landing.css';
 import './dashboard.css';
@@ -88,16 +89,10 @@ function Frame({ children }: { children: ReactNode }) {
       count: toShip.data?.data.length,
     },
     { href: '/app/discussions', label: 'Discussions', icon: MessageCircle, count: waiting.length },
-    { href: '/app/catalogue', label: 'Catalogue', icon: Package },
-    {
-      href: '/app/brouillons',
-      label: 'Brouillons',
-      icon: ImagePlus,
-      count: drafts.data?.data.length,
-    },
+    // Drafts left to check (made outside a conversation with Selly) wait at the top of the catalogue.
+    { href: '/app/catalogue', label: 'Catalogue', icon: Package, count: drafts.data?.data.length },
     { href: '/app/portefeuille', label: 'Portefeuille', icon: Wallet },
     { href: '/app/abonnement', label: 'Abonnement', icon: Zap },
-    { href: '/app/assistant', label: 'Assistant', icon: Bot },
   ];
   const settings: NavItem = { href: '/app/reglages', label: 'Réglages', icon: Settings2 };
   const security: NavItem = { href: '/app/securite', label: 'Sécurité', icon: KeyRound };
@@ -284,6 +279,10 @@ function Frame({ children }: { children: ReactNode }) {
           {children}
         </div>
       </main>
+
+      <Suspense fallback={null}>
+        <SellyAssistant />
+      </Suspense>
 
       <nav className="mobile-nav" aria-label="Navigation rapide">
         {nav.slice(0, 4).map((item) => link(item, 'mobile'))}

@@ -9,8 +9,10 @@ import { ApiError } from '@/lib/browser-api';
 import { newKey, uploadImages, useDashboard, useResource } from '../data';
 import { fmtXof, formatOptions } from '../format';
 import { Camera, Eye, ImagePlus, Minus, Package, Pencil, Plus, Search, X } from '../icons';
+import { openSelly } from '../selly-assistant';
 import type { Category, Page, VendorProduct } from '../types';
 import { Badge, Empty, Failed, Loading, Modal, PageTitle } from '../ui';
+import { PendingDrafts } from './drafts';
 
 export function Catalogue() {
   const { mutate } = useDashboard();
@@ -42,9 +44,9 @@ export function Catalogue() {
         description="Le stock disponible tient compte des articles réservés par les commandes en attente de paiement."
         action={
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <Link href="/app/brouillons?photo=1" className="button">
+            <button type="button" className="button" onClick={() => openSelly({ photo: true })}>
               <ImagePlus size={15} /> Depuis une photo
-            </Link>
+            </button>
             <button type="button" className="button primary" onClick={() => setAdding(true)}>
               <Plus size={15} /> Nouveau produit
             </button>
@@ -81,6 +83,7 @@ export function Catalogue() {
           {shown.length} produit{shown.length > 1 ? 's' : ''}
         </span>
       </div>
+      <PendingDrafts />
       {products.error && !products.data ? (
         <Failed error={products.error} retry={products.reload} />
       ) : !products.data ? (

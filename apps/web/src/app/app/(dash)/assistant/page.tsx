@@ -1,8 +1,6 @@
-import type { Metadata } from 'next';
-import { Assistant } from '@/components/dashboard/pages/assistant';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = { title: 'Assistant' };
-
+// The assistant is Selly, over every dashboard page: this address opens it on the home page.
 export default function Page() {
-  return <Assistant />;
+  redirect('/app?selly=1');
 }

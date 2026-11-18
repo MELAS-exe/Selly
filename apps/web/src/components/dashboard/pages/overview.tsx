@@ -32,6 +32,7 @@ import {
   Zap,
 } from '../icons';
 import { SalesChart } from '../sales-chart';
+import { openSelly } from '../selly-assistant';
 import type {
   BtcXofRate,
   ConversationSummary,
@@ -114,7 +115,7 @@ export function Overview() {
       title: `${drafts.data.data.length} produit${drafts.data.data.length > 1 ? 's' : ''} à vérifier`,
       text: 'Confirmés par vous, ils rejoignent le catalogue.',
       when: 'Brouillons photo',
-      href: '/app/brouillons',
+      href: '/app/catalogue#brouillons',
       cta: 'Vérifier',
     });
   if (wallet.data?.status === 'degraded')
@@ -180,9 +181,9 @@ export function Overview() {
               : 'Votre boutique tourne. Voici ce qui mérite votre attention.'}
           </p>
         </div>
-        <Link href="/app/brouillons?photo=1" className="button primary">
+        <button type="button" className="button primary" onClick={() => openSelly({ photo: true })}>
           <ImagePlus size={15} /> Ajouter depuis une photo
-        </Link>
+        </button>
       </div>
 
       <div className="stats">
