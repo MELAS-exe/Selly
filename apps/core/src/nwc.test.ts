@@ -78,6 +78,7 @@ beforeAll(async () => {
     signals: new Signals(),
     keyring: Keyring.forTests(),
     log: silentLogger,
+    email: null,
   };
   gateway = new NwcGateway(
     ctx,

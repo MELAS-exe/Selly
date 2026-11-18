@@ -12990,11 +12990,47 @@
                   "pubkey"
                 ],
                 "additionalProperties": false
+              },
+              "email": {
+                "type": "object",
+                "description": "Alerts by email. address: confirmed (gets alerts); pending_address: waiting for its code (POST /api/v1/vendors/me/alerts/email, then /verify).",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "address": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "pending_address": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "enabled",
+                  "address",
+                  "pending_address"
+                ],
+                "additionalProperties": false
               }
             },
             "required": [
               "web_push",
-              "nostr_dm"
+              "nostr_dm",
+              "email"
             ],
             "additionalProperties": false
           },

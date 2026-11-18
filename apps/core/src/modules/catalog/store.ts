@@ -28,12 +28,24 @@ export interface DeliverySettings {
 export function alertSettings(v: Vendor) {
   const raw = (
     v.settings as {
-      alerts?: { web_push?: boolean; nostr_dm?: { enabled?: boolean; pubkey?: string | null } };
+      alerts?: {
+        web_push?: boolean;
+        nostr_dm?: { enabled?: boolean; pubkey?: string | null };
+        email_enabled?: boolean;
+        email?: { address: string; verified_at: string } | null;
+        email_pending?: { address: string; expires_at: string } | null;
+      };
     }
   ).alerts;
   return {
     web_push: raw?.web_push ?? true,
     nostr_dm: { enabled: raw?.nostr_dm?.enabled ?? false, pubkey: raw?.nostr_dm?.pubkey ?? null },
+    // Only a confirmed address gets alerts; the one waiting for its code is shown so the form can ask for it.
+    email: {
+      enabled: raw?.email_enabled ?? true,
+      address: raw?.email?.address ?? null,
+      pending_address: raw?.email_pending?.address ?? null,
+    },
   };
 }
 
