@@ -61,6 +61,8 @@ export function systemPrompt(
   profile: AgentProfile,
   conv: Conversation,
   now: Date,
+  /** The language of the customer's last message, when the shop accepts it and it is not French. */
+  replyLanguage?: 'en',
 ) {
   const shop = {
     nom: profile.display_name,
@@ -79,6 +81,7 @@ export function systemPrompt(
     conv.summary ? `<resume_conversation>${conv.summary}</resume_conversation>` : '',
     `<etat>${JSON.stringify(state)}</etat>`,
     `Date et heure (Dakar, UTC) : ${now.toISOString().slice(0, 16).replace('T', ' ')}`,
+    replyLanguage === 'en' ? 'Le client écrit en anglais : réponds-lui en anglais.' : '',
   ]
     .filter(Boolean)
     .join('\n');

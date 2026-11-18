@@ -107,7 +107,15 @@ export class AgentEngine {
       if (m.direction === 'in')
         for (const w of (m.text ?? '').match(/\b[A-Z0-9]{4,8}\b/g) ?? []) knownOrders.add(w);
 
-    const system = systemPrompt(role, profile, conv, this.now());
+    // Delivery fees of the shop profile are server facts in the prompt: a reply may quote them.
+    for (const z of profile.delivery.zones) ctx.out.amounts.add(z.fee.amount);
+    const lastText = req.inbound.map((m) => req.transcripts?.[m.id] ?? m.text ?? '').join(' ');
+    // Small models answer in French whatever the rule says: name the language when it is English.
+    const replyLanguage =
+      role === 'customer' && profile.languages.includes('en') && looksEnglish(lastText)
+        ? ('en' as const)
+        : undefined;
+    const system = systemPrompt(role, profile, conv, this.now(), replyLanguage);
     const tools = toolDefinitions(role);
     const toolCalls: Omit<ToolOutcome, 'result'>[] = [];
     let inputTokens = 0;
@@ -198,6 +206,17 @@ export class AgentEngine {
                 : `Montants non vérifiés dans la réponse : ${badAmounts.join(', ')}`,
             );
           }
+          // A reply that says the vendor takes over must really hand over: otherwise the customer waits
+          // for a vendor nobody alerted (seen on ollama:qwen2.5:7b).
+          if (role === 'customer' && !ctx.out.handoff && announcesHandoff(text))
+            ctx.out.handoff = {
+              reason: 'customer_request',
+              summary:
+                `L'assistant a annoncé un passage au vendeur. Dernier message : ${lastText}`.slice(
+                  0,
+                  500,
+                ),
+            };
           finalText = text;
           break;
         }
@@ -374,4 +393,28 @@ export function maskPhones<T>(value: T): T {
     return `${m.startsWith('+') ? `+${d.slice(0, 3)} ` : ''}*** ** ${d.slice(-2)}`;
   });
   return JSON.parse(json) as T;
+}
+
+const HANDOFF_PHRASES = [
+  /\bje\s+(?:vous\s+)?(?:passe|transmets|transf[eè]re)\s+(?:la\s+main|votre\s+(?:message|demande|question))/i,
+  /\bje\s+pr[ée]viens\s+(?:le|la)\s+(?:vendeu[rs]e?|boutique)/i,
+  /\b(?:le|la)\s+vendeu[rs]e?\s+(?:va\s+vous|vous)\s+(?:r[ée]pond|recontact|contact)/i,
+  /\b(?:i\s+will|i'll)\s+(?:hand\s+you\s+over|connect\s+you|pass\s+your\s+(?:message|request))/i,
+];
+
+/** « je passe la main au vendeur », « je transmets votre demande », « I'll connect you with the owner »… */
+export function announcesHandoff(text: string): boolean {
+  return HANDOFF_PHRASES.some((re) => re.test(text));
+}
+
+const EN_WORDS =
+  /\b(?:the|you|do|does|have|is|are|can|i|my|what|how|much|your|want|to|in|size|deliver|please|hello|hi)\b/g;
+const FR_WORDS = /\b(?:le|la|les|vous|est|avez|je|un|une|des|du|de|pour|combien|bonjour|svp|en)\b/g;
+
+/** Enough common English words, and more than French ones, to call a message English. */
+export function looksEnglish(text: string): boolean {
+  const t = text.toLowerCase();
+  const en = (t.match(EN_WORDS) ?? []).length;
+  const fr = (t.match(FR_WORDS) ?? []).length;
+  return en >= 2 && en > fr;
 }
