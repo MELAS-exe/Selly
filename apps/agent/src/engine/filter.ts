@@ -67,20 +67,30 @@ function safeHost(url: string): string | null {
 }
 
 /** Splits a trailing « Boutons: A | B » line into quick replies. */
+// « Boutons : A | B » on its own line or at the end of a sentence, in bold or not (models do both).
+const BUTTONS_RE = /(^|[ \t]+)[*_]*(?:boutons|buttons)[*_]*[ \t]*:[ \t]*[*_]*([^\n]*)/gim;
+
+/** Takes every « Boutons : A | B » out of the reply and turns the last one into quick replies. */
 export function extractQuickReplies(text: string): { text: string; quickReplies: QuickReply[] } {
-  const lines = text.trimEnd().split('\n');
-  const last = lines.at(-1) ?? '';
-  const m = /^\s*(?:boutons|buttons)\s*:\s*(.+)$/i.exec(last);
-  if (!m?.[1]) return { text, quickReplies: [] };
-  const labels = m[1]
+  const matches = [...text.matchAll(BUTTONS_RE)];
+  const last = matches.at(-1);
+  if (!last) return { text, quickReplies: [] };
+  const labels = (last[2] ?? '')
     .split('|')
-    .map((l) => l.trim().replace(/^["«]\s*|\s*["»]$/g, ''))
+    .map((l) =>
+      l
+        .trim()
+        .replace(/^[*_"«“\s]+|[*_"»”\s.]+$/g, '')
+        .trim(),
+    )
     .filter((l) => l.length > 0 && l.length <= 40)
     .slice(0, 4);
-  return {
-    text: lines.slice(0, -1).join('\n').trim(),
-    quickReplies: labels.map((label) => ({ id: slugify(label), label })),
-  };
+  const cleaned = text
+    .replace(BUTTONS_RE, '$1')
+    .replace(/[ \t]+$/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  return { text: cleaned, quickReplies: labels.map((label) => ({ id: slugify(label), label })) };
 }
 
 export function slugify(label: string): string {

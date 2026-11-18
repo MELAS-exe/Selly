@@ -21,6 +21,7 @@ import {
   callCostUsd,
   type Grade,
   grade,
+  PRICES,
   percentile,
   type TurnObservation,
 } from './grade';
@@ -33,15 +34,56 @@ function arg(name: string): string | undefined {
 }
 
 /** Records the usage of every call, for the cost per reply. */
+/**
+ * Keeps calls under a tokens-per-minute budget (Groq's free plan: 8,000 per model), by waiting before a
+ * call rather than meeting a 429 in the middle of a turn. Shared by every case of a run.
+ */
+export class Pacer {
+  private readonly spent: { at: number; tokens: number }[] = [];
+  constructor(private readonly tokensPerMinute: number) {}
+  async take(tokens: number) {
+    if (!Number.isFinite(this.tokensPerMinute) || this.tokensPerMinute <= 0) return;
+    for (;;) {
+      const now = Date.now();
+      while (this.spent[0] && now - this.spent[0].at >= 60_000) this.spent.shift();
+      const used = this.spent.reduce((sum, x) => sum + x.tokens, 0);
+      if (used + tokens <= this.tokensPerMinute || this.spent.length === 0) {
+        this.spent.push({ at: now, tokens });
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 60_000 - (now - (this.spent[0]?.at ?? now)) + 50));
+    }
+  }
+  /** Corrects the estimate with the real count once the call has answered. */
+  settle(estimate: number, actual: number) {
+    const last = this.spent.findLast((x) => x.tokens === estimate);
+    if (last) last.tokens = actual;
+  }
+}
+
+/** Rough size of a request in tokens (about 4 characters per token), for the pacer. */
+const estimateTokens = (req: LlmRequest) =>
+  Math.ceil(JSON.stringify([req.system, req.messages, req.tools ?? []]).length / 4) +
+  req.maxTokens / 4;
+
+/** Records the usage and the duration of every call, for the cost and the latency per reply. */
 class RecordingProvider implements LlmProvider {
   readonly name: string;
-  readonly calls: (CallUsage & { purpose: string })[] = [];
-  constructor(private readonly inner: LlmProvider) {
+  readonly calls: (CallUsage & { purpose: string; ms: number })[] = [];
+  constructor(
+    private readonly inner: LlmProvider,
+    private readonly pacer?: Pacer,
+  ) {
     this.name = inner.name;
   }
   async complete(req: LlmRequest): Promise<LlmResponse> {
+    const estimate = Math.round(estimateTokens(req));
+    await this.pacer?.take(estimate);
+    const started = Date.now();
     const res = await this.inner.complete(req);
+    this.pacer?.settle(estimate, res.usage.inputTokens + res.usage.outputTokens);
     this.calls.push({
+      ms: Date.now() - started,
       purpose: req.purpose,
       model: res.model,
       inputTokens: res.usage.inputTokens,
@@ -62,11 +104,16 @@ interface CaseResult {
   observation: TurnObservation;
   grade: Grade;
   costUsd: number | null;
+  tokens: { input: number; output: number };
   error?: string;
 }
 
-export async function runCase(c: EvalCase, makeProvider: () => LlmProvider): Promise<CaseResult> {
-  const provider = new RecordingProvider(makeProvider());
+export async function runCase(
+  c: EvalCase,
+  makeProvider: () => LlmProvider,
+  pacer?: Pacer,
+): Promise<CaseResult> {
+  const provider = new RecordingProvider(makeProvider(), pacer);
   const store = new MemoryStore();
   const app = buildApp({
     store,
@@ -77,6 +124,8 @@ export async function runCase(c: EvalCase, makeProvider: () => LlmProvider): Pro
       databaseUrl: '',
       coreUrl: '',
       mergeWindowMs: 0,
+      // Pacing waits happen inside a turn: the deadline must allow them. Latency is measured on the calls.
+      turnDeadlineMs: pacer ? 180_000 : 12_000,
       testEndpoint: true,
       serviceToken: 'eval-service-token',
     },
@@ -114,7 +163,10 @@ export async function runCase(c: EvalCase, makeProvider: () => LlmProvider): Pro
       reply: last?.reply.text ?? '',
       toolCalls: last?.tool_calls ?? [],
       mode: conv?.mode ?? 'bot',
-      latencyMs: last?.usage.latency_ms ?? 0,
+      // Time spent in model calls during the graded turn's case, per turn: pacing waits excluded.
+      latencyMs: Math.round(
+        provider.calls.reduce((sum, x) => sum + x.ms, 0) / Math.max(1, c.turns.length),
+      ),
     };
     const costs = provider.calls.map(callCostUsd);
     return {
@@ -128,6 +180,10 @@ export async function runCase(c: EvalCase, makeProvider: () => LlmProvider): Pro
       costUsd: costs.some((x) => x === null)
         ? null
         : costs.reduce<number>((s, x) => s + (x ?? 0), 0),
+      tokens: {
+        input: provider.calls.reduce((s, x) => s + x.inputTokens, 0),
+        output: provider.calls.reduce((s, x) => s + x.outputTokens, 0),
+      },
     };
   } catch (err) {
     const observation: TurnObservation = { reply: '', toolCalls: [], mode: 'bot', latencyMs: 0 };
@@ -148,6 +204,7 @@ export async function runCase(c: EvalCase, makeProvider: () => LlmProvider): Pro
         problems: [String(err)],
       },
       costUsd: null,
+      tokens: { input: 0, output: 0 },
       error: String(err),
     };
   } finally {
@@ -209,6 +266,10 @@ export function summarise(results: CaseResult[], model: string, eurPerUsd: numbe
     latencyMs: { p50: percentile(latencies, 50), p95: percentile(latencies, 95) },
     costUsd: { total: totalUsd, perReply: perReplyUsd },
     costEurPerReply: perReplyUsd === null ? null : perReplyUsd * eurPerUsd,
+    tokensPerReply: {
+      input: Math.round(results.reduce((s, r) => s + r.tokens.input, 0) / Math.max(1, turns)),
+      output: Math.round(results.reduce((s, r) => s + r.tokens.output, 0) / Math.max(1, turns)),
+    },
     eurPerUsd,
     byLang,
   };
@@ -229,6 +290,7 @@ function markdown(s: ReturnType<typeof summarise>, results: CaseResult[]): strin
     `| Reply language | ${s.language} % |`,
     `| Latency per turn p50 / p95 | ${s.latencyMs.p50} / ${s.latencyMs.p95} ms |`,
     `| Cost per reply | ${s.costUsd.perReply === null ? 'unknown model price' : `${s.costUsd.perReply.toFixed(5)} USD, about ${(s.costEurPerReply ?? 0).toFixed(5)} EUR (at ${s.eurPerUsd} EUR per USD)`} |`,
+    `| Tokens per reply (input / output) | ${s.tokensPerReply.input} / ${s.tokensPerReply.output} |`,
     `| Errors | ${s.errors} |`,
     '',
     'Plan limits assume about 0.004 EUR per reply (architecture.md section 8.7).',
@@ -254,23 +316,41 @@ function markdown(s: ReturnType<typeof summarise>, results: CaseResult[]): strin
 async function main() {
   // Request logs would drown the progress line; the report has what matters.
   process.env.NODE_ENV = 'test';
+  // --model, else LLM_PRIMARY when it names a real model (claude-…, groq:…, ollama:…, openai:…).
+  const fromEnv = process.env.LLM_PRIMARY ?? '';
   const model =
     arg('model') ??
-    (process.env.LLM_PRIMARY?.startsWith('claude-') ? process.env.LLM_PRIMARY : 'claude-opus-5-5');
+    (/^(claude-|groq:|ollama:|openai:)/.test(fromEnv) ? fromEnv : 'claude-opus-5-5');
+  providerFor(model); // fails now, with a clear message, on an unknown name or a missing key
   const limit = Number(arg('limit') ?? CASES.length);
   const only = arg('only')?.split(',').filter(Boolean);
   const concurrency = Number(arg('concurrency') ?? 4);
+  // Tokens per minute: Groq's free plan allows 8,000 per model, so 7,000 leaves a margin.
+  const tpm = Number(arg('tpm') ?? process.env.EVAL_TPM ?? (model.startsWith('groq:') ? 7000 : 0));
+  const pacer = tpm > 0 ? new Pacer(tpm) : undefined;
+  // Prices for a model the table does not know (USD per million tokens), e.g. a Groq model.
+  const priceIn = arg('price-in');
+  const priceOut = arg('price-out');
+  if (priceIn && priceOut)
+    PRICES[model] = {
+      input: Number(priceIn),
+      output: Number(priceOut),
+      cacheRead: Number(priceIn) / 2,
+    };
   const eurPerUsd = Number(process.env.EUR_PER_USD ?? 0.9);
   const cases = CASES.filter((c) => !only || only.some((p) => c.id.startsWith(p))).slice(0, limit);
 
   console.log(`Evaluating ${cases.length} cases on ${model} (concurrency ${concurrency})`);
-  const results = await pool(cases, concurrency, (c) => runCase(c, () => providerFor(model)));
+  if (pacer) console.log(`Pacing at ${tpm} tokens per minute.`);
+  const results = await pool(cases, concurrency, (c) =>
+    runCase(c, () => providerFor(model), pacer),
+  );
   const summary = summarise(results, model, eurPerUsd);
 
   const dir = join(here, 'results');
   mkdirSync(dir, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  const base = join(dir, `${stamp}-${model}`);
+  const base = join(dir, `${stamp}-${model.replace(/[^A-Za-z0-9._-]+/g, '_')}`);
   writeFileSync(`${base}.json`, JSON.stringify({ summary, results }, null, 2));
   writeFileSync(`${base}.md`, markdown(summary, results));
   console.log(markdown(summary, results).split('## Failures')[0]);

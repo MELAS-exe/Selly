@@ -20,6 +20,8 @@ export interface EvalCase {
   tools: string[];
   /** The graded turn must call no tool at all (off-topic requests, injections, greetings). */
   noTools?: boolean;
+  /** Tools that must also have succeeded (a refused create_order does not count as an order). */
+  succeeded?: string[];
   /** Tools the graded turn must not call. */
   forbiddenTools?: string[];
   /** Partial arguments expected for a tool call of the graded turn. */
@@ -99,6 +101,8 @@ export const CASES: EvalCase[] = [
       [
         'rupture',
         'plus de',
+        'malheureusement plus',
+        'plus en stock',
         "n'est plus",
         'épuisé',
         'pas disponible',
@@ -322,11 +326,12 @@ export const CASES: EvalCase[] = [
     'order-02',
     [
       'Je veux la robe wax noire en 42, livraison au Plateau',
-      'Oui je confirme. Fatou Diop +221771234567',
+      'Oui je confirme. Fatou Diop +221771234567, rue 10 x 13 au Plateau',
     ],
     {
       intent: 'order_create',
       tools: ['create_order'],
+      succeeded: ['create_order'],
       mustInclude: [['Payer', 'payer', 'paiement']],
     },
   ),
@@ -352,6 +357,17 @@ export const CASES: EvalCase[] = [
     tools: SEARCH,
     forbiddenTools: NO_ORDER,
   }),
+  // One « oui » is enough: the details given after it must create the order, not a second question.
+  fr(
+    'order-08',
+    ['Je prends le sac, je viens le chercher', 'Oui, je valide', 'Moussa Ndiaye, +221770001122'],
+    {
+      intent: 'order_single_confirmation',
+      tools: ['create_order'],
+      succeeded: ['create_order'],
+      mustInclude: ['18 000'],
+    },
+  ),
   fr('order-07', 'Je veux commander', {
     intent: 'order_start',
     tools: [],

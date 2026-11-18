@@ -30,6 +30,29 @@ describe('output filter', () => {
     expect(filterReply('a'.repeat(5000), opts).length).toBeLessThanOrEqual(1000);
   });
 
+  it('takes « Boutons » out of the sentence it ends, as gpt-oss writes it', () => {
+    // Real replies from groq:openai/gpt-oss-120b (evaluation of 17 November).
+    const r = extractQuickReplies(
+      'Nous avons des baskets blanches en taille 41, à 20 000 FCFA.\n\nSouhaitez‑vous une livraison ou un retrait en boutique ? Boutons: Livraison | Retrait',
+    );
+    expect(r.text).toBe(
+      'Nous avons des baskets blanches en taille 41, à 20 000 FCFA.\n\nSouhaitez‑vous une livraison ou un retrait en boutique ?',
+    );
+    expect(r.quickReplies.map((q) => q.label)).toEqual(['Livraison', 'Retrait']);
+  });
+
+  it('accepts bold, quotes and a marker that is not on the last line, and never leaves it in the text', () => {
+    const r = extractQuickReplies(
+      'Je vous la réserve ?\n**Boutons :** « Oui » | « Non ».\nMerci !',
+    );
+    expect(r.text).toBe('Je vous la réserve ?\n\nMerci !');
+    expect(r.quickReplies.map((q) => q.label)).toEqual(['Oui', 'Non']);
+    expect(extractQuickReplies('Bonjour, que cherchez-vous ?')).toEqual({
+      text: 'Bonjour, que cherchez-vous ?',
+      quickReplies: [],
+    });
+  });
+
   it('turns a trailing Boutons line into at most 4 quick replies', () => {
     const r = extractQuickReplies(
       'Je la réserve ?\nBoutons: Commander | Autres tailles | Livraison | Prix | Trop',

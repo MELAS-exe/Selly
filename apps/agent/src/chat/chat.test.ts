@@ -238,6 +238,46 @@ describe('a customer turn', () => {
     expect(JSON.stringify(llm.requests[1]?.messages.at(-1))).toContain('QUOTE_REQUIRED');
   });
 
+  it('creates the order when the address comes with the « oui », without a second quote', async () => {
+    const { openChat, send, llm, core } = setup();
+    const items = [{ variant_id: variantOf(core, 'robe-wax-noire', '42'), quantity: 1 }];
+    const customer = { display_name: 'Fatou', phone_e164: '+221771234567' };
+    llm.push(
+      () => [
+        toolCall('quote_cart', {
+          items,
+          delivery: { method: 'delivery', zone_id: 'dakar-plateau' },
+        }),
+      ],
+      () => [say('Total 16 000 FCFA. On valide ? Il me faut aussi votre adresse.')],
+      () => [
+        toolCall('create_order', {
+          items,
+          delivery: { method: 'delivery', zone_id: 'dakar-plateau', address_text: 'Rue 10 x 13' },
+          customer,
+        }),
+      ],
+      () => [say('Commande créée.')],
+      // Another zone changes the price: that still needs a new quote.
+      () => [
+        toolCall('create_order', {
+          items,
+          delivery: { method: 'delivery', zone_id: 'thies' },
+          customer,
+        }),
+      ],
+      () => [say('Je refais le total pour Thiès.')],
+    );
+    const { token } = await openChat();
+    await send(token, 'La robe noire en 42, livraison au Plateau');
+    await send(token, 'Oui. Fatou, +221771234567, rue 10 x 13');
+    expect(core.orders).toHaveLength(1);
+    expect(core.orders[0]?.total).toBe(16000);
+    await send(token, 'Finalement livrez à Thiès');
+    expect(core.orders).toHaveLength(1);
+    expect(JSON.stringify(llm.requests.at(-1)?.messages.at(-1))).toContain('QUOTE_REQUIRED');
+  });
+
   it('caps a discount at the vendor limit, whatever the model asks', async () => {
     const { openChat, send, llm, core } = setup();
     const items = [{ variant_id: variantOf(core, 'boubou-bazin-bleu'), quantity: 1 }];
