@@ -97,6 +97,9 @@ export class NwcGateway implements InvoiceGateway {
       .select()
       .from(wc)
       .where(and(eq(wc.owner, 'vendor'), eq(wc.vendorId, req.vendorId), ne(wc.status, 'revoked')));
+    // A Lightning Address wallet: the invoice comes from the address, and is settled through its verify link.
+    if (row?.kind === 'lightning_address' && row.lud16)
+      return this.fromAddress(row.id, row.lud16, req);
     if (!row?.uriCiphertext) throw new WalletUnavailableError('This vendor has no linked wallet.');
     return this.made(row, req, row.lud16);
   }

@@ -17,9 +17,15 @@ import {
   confirmSubscriptionPayment,
   createSubscriptionInvoice,
   reconcileSubscriptionInvoices,
+  startTrial,
 } from './modules/subscriptions/billing';
 import { PairingWatcher, startPairing } from './modules/wallet/pairing';
-import { linkWallet, liveWallet, unlinkWallet } from './modules/wallet/service';
+import {
+  linkLightningAddress,
+  linkWallet,
+  liveWallet,
+  unlinkWallet,
+} from './modules/wallet/service';
 import { Keyring, walletAad } from './secrets';
 import { Signals } from './signals';
 import { createShop, feed, idemKey, orderPayload } from './test-helpers';
@@ -606,4 +612,60 @@ describe('Lightning Address fallback', () => {
       await ln.close();
     }
   }, 20_000);
+});
+
+describe('Lightning Address as the wallet', () => {
+  const linkAddress = (vendorId: string, lud16: string) =>
+    linkLightningAddress(ctx, { owner: 'vendor', vendorId, lud16, actor: 'test' });
+
+  it('links an address with LUD-21, takes an order on it, and settles it by verify', async () => {
+    const ln = await lnurlServer({ verify: true });
+    try {
+      const s = await createShop(ctx.db, 'lnaddr-a', { plan: null });
+      const view = await linkAddress(s.vendorId, ln.lud16);
+      expect(view).toMatchObject({
+        kind: 'lightning_address',
+        status: 'active',
+        lud16: ln.lud16.toLowerCase(),
+      });
+      expect(ln.count()).toBe(1); // the test invoice, never paid
+      const trial = await startTrial(ctx, s.vendorId, 'pro');
+      expect(trial.subscription?.status).toBe('trialing');
+
+      const res = await post('/api/v1/orders', orderPayload('lnaddr-a', s.variantId), {
+        'idempotency-key': idemKey(),
+      });
+      expect(res.statusCode, res.body).toBe(201);
+      const o = res.json();
+      const [inv] = await ctx.db
+        .select()
+        .from(core.invoices)
+        .where(eq(core.invoices.orderId, o.order.id));
+      expect(inv).toMatchObject({ source: 'lnurl' });
+      await reconcileOnce(ctx);
+      expect(await status(o.order.public_token)).toBe('pending_payment');
+      ln.pay(o.invoice.payment_hash);
+      await reconcileOnce(ctx);
+      expect(await status(o.order.public_token)).toBe('paid');
+    } finally {
+      await ln.close();
+    }
+  });
+
+  it('refuses an address that cannot confirm payments, and one that is not an address', async () => {
+    const ln = await lnurlServer({ verify: false });
+    try {
+      const s = await createShop(ctx.db, 'lnaddr-b');
+      await expect(linkAddress(s.vendorId, ln.lud16)).rejects.toMatchObject({
+        code: 'VALIDATION_FAILED',
+        extra: { errors: [{ field: 'lud16', message: 'No payment verification (LUD-21)' }] },
+      });
+      await expect(linkAddress(s.vendorId, 'not an address')).rejects.toMatchObject({
+        code: 'VALIDATION_FAILED',
+      });
+      expect(await liveWallet(ctx.db, { owner: 'vendor', vendorId: s.vendorId })).toBeNull();
+    } finally {
+      await ln.close();
+    }
+  });
 });
