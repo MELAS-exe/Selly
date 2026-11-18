@@ -9,6 +9,8 @@ const config: NextConfig = {
   // Monorepo root, so the standalone build traces files from workspace packages (needed by the Docker image).
   outputFileTracingRoot: path.resolve(process.cwd(), '../..'),
   transpilePackages: ['@selly/ui'],
+  // The floating dev badge covers the dashboard's bottom bar and sidebar in screenshots.
+  devIndicators: false,
   // Mirrors production routing (docs/architecture.md section 11.1): chat, inbox and assistant go to the agent,
   // every other /api/v1 path goes to core. Internal endpoints are never proxied.
   async rewrites() {
