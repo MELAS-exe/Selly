@@ -1390,9 +1390,10 @@ select.form-control {
 }
 .product-meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 4px 10px;
   margin-top: auto;
   padding-top: 14px;
   font-size: 13px;
@@ -2481,4 +2482,15 @@ a.popover-item:hover {
   border-style: dashed;
   border-color: var(--line-strong);
   cursor: pointer;
+}
+.photo-pick .photo-first {
+  top: auto;
+  right: auto;
+  bottom: 4px;
+  left: 4px;
+  width: auto;
+  padding: 0 6px;
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: 0.04em;
 }

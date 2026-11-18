@@ -123,7 +123,8 @@ export interface VendorProduct {
   category_id: string | null;
   price: Money;
   status: 'active' | 'hidden' | 'archived';
-  images: Image[];
+  /** storage_key: sent back in image_keys to keep the photo when the product is edited. */
+  images: (Image & { storage_key: string })[];
   variants: VendorVariant[];
   created_at: string;
   updated_at: string;

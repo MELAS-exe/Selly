@@ -129,7 +129,8 @@ export async function vendorProductView(ctx: Context, p: Product) {
     category_id: p.categoryId,
     price: money(p.priceAmount, p.priceCurrency),
     status: p.status,
-    images: images.map((i) => imageView(ctx, i)),
+    // The storage key lets the dashboard keep a photo when it edits the product (PATCH image_keys).
+    images: images.map((i) => ({ ...imageView(ctx, i), storage_key: i.storageKey })),
     variants: variants.map((v) => vendorVariantView(p, v)),
     created_at: iso(p.createdAt),
     updated_at: iso(p.updatedAt),

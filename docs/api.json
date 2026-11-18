@@ -13901,7 +13901,7 @@
           "images": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Image"
+              "$ref": "#/components/schemas/VendorImage"
             }
           },
           "variants": {
@@ -16471,6 +16471,38 @@
         ],
         "additionalProperties": false,
         "description": "The dashboard numbers: the same as Metrics, plus the sales chart (paid orders and their revenue by payment date: one point a day, or a month for `year`) and the revenue of the same length of time just before (for `year`, the same dates last year). The agent gets Metrics only."
+      },
+      "VendorImage": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "width": {
+            "type": "integer"
+          },
+          "height": {
+            "type": "integer"
+          },
+          "dominant": {
+            "type": "string",
+            "pattern": "^#[0-9a-f]{6}$"
+          },
+          "storage_key": {
+            "type": "string",
+            "description": "Send it back in image_keys (PATCH /api/v1/inventory/{product_id}) to keep this photo."
+          }
+        },
+        "required": [
+          "url",
+          "width",
+          "height",
+          "dominant",
+          "storage_key"
+        ],
+        "additionalProperties": false,
+        "description": "A product photo, as the vendor sees it: with its storage key."
       }
     }
   }
