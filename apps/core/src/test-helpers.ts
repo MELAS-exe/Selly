@@ -121,7 +121,6 @@ export async function createShop(
       vendorId,
       title: 'Robe wax noire',
       slug: 'robe-wax-noire',
-      category: 'robes',
       description: 'Tissu élégant',
       priceAmount: 15000,
     })

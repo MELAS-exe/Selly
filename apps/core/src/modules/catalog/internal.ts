@@ -7,6 +7,7 @@ import { AppError } from '../../errors';
 import { iso, money } from '../../util';
 import { audit } from '../events/outbox';
 import { insertImages, type PreparedImage, processUpload } from '../media/images';
+import { requireOwnCategory } from './categories';
 import { imageView, isUuid, type Vendor, vendorSettings } from './store';
 
 const { products, productVariants: pv, productImages } = core;
@@ -125,7 +126,7 @@ export async function vendorProductView(ctx: Context, p: Product) {
     id: p.id,
     title: p.title,
     description: p.description,
-    category: p.category,
+    category_id: p.categoryId,
     price: money(p.priceAmount, p.priceCurrency),
     status: p.status,
     images: images.map((i) => imageView(ctx, i)),
@@ -152,7 +153,7 @@ export async function findVendorProduct(
 export interface ProductPatch {
   title?: string | undefined;
   description?: string | undefined;
-  category?: string | undefined;
+  category_id?: string | null | undefined;
   price?: { amount: number; currency: 'XOF' | 'SAT' } | undefined;
   status?: 'active' | 'hidden' | 'archived' | undefined;
   /**
@@ -185,6 +186,7 @@ export async function patchProduct(
       errors: [{ field: 'price.amount', message: 'Must be positive' }],
     });
   }
+  if (patch.category_id) await requireOwnCategory(ctx, vendor.id, patch.category_id);
   // Images are processed before the transaction, so a bad photo changes nothing.
   let images: PreparedImage[] | null = null;
   if (patch.image_keys) {
@@ -219,7 +221,7 @@ export async function patchProduct(
       .set({
         ...(patch.title !== undefined ? { title: patch.title } : {}),
         ...(patch.description !== undefined ? { description: patch.description } : {}),
-        ...(patch.category !== undefined ? { category: patch.category } : {}),
+        ...(patch.category_id !== undefined ? { categoryId: patch.category_id } : {}),
         ...(patch.price ? { priceAmount: patch.price.amount } : {}),
         ...(patch.status ? { status: patch.status } : {}),
         updatedAt: now,

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useState } from 'react';
+import { SiteHeader } from '../brand/site-header';
 import './landing.css';
 
 /** Text on a circle. Each instance gets its own path id: three copies used to share id="circlePath". */
@@ -95,50 +96,7 @@ export function Landing() {
 
   return (
     <div className="theme-paper-vermilion min-h-screen w-full overflow-hidden flex flex-col selection:bg-[#E3342F] selection:text-[#F6F4F0]">
-      <header
-        data-dark={onDark}
-        className={`fixed top-0 left-0 right-0 z-50 transition-colors duration-(--dur-ui) py-5 backdrop-blur-xl backdrop-saturate-150 border-b ${onDark ? 'bg-[#111]/45 border-white/10' : 'bg-[#F6F4F0]/55 border-[#1111111f]'}`}
-      >
-        <div className="max-w-7xl mx-auto px-6 md:px-12 flex justify-between items-center">
-          <div className="pv-serif text-2xl font-bold tracking-widest uppercase flex items-center gap-2">
-            <span className="relative block">
-              <img
-                src="/brand/selly-wordmark.png"
-                alt="Selly"
-                className={`h-7 md:h-8 w-auto transition-opacity duration-(--dur-ui) ${onDark ? 'opacity-0' : 'opacity-100'}`}
-              />
-              <img
-                src="/brand/selly-wordmark-light.png"
-                alt=""
-                aria-hidden="true"
-                className={`absolute inset-0 h-7 md:h-8 w-auto transition-opacity duration-(--dur-ui) ${onDark ? 'opacity-100' : 'opacity-0'}`}
-              />
-            </span>
-          </div>
-          <a
-            href="/app/login"
-            className="pv-sans text-xs uppercase tracking-widest font-medium hover:text-[#719541] transition-colors"
-          >
-            Create your shop{' '}
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="lucide lucide-arrow-right inline ml-1"
-              aria-hidden="true"
-            >
-              <path d="M5 12h14"></path>
-              <path d="m12 5 7 7-7 7"></path>
-            </svg>
-          </a>
-        </div>
-      </header>
+      <SiteHeader onDark={onDark} />
       <section className="relative pt-64 pb-56 md:pt-32 md:pb-24 px-6 md:px-12 max-w-7xl mx-auto w-full min-h-[85vh] flex flex-col items-center justify-center border-x border-[#1111111f]">
         <div className="absolute inset-0 z-30 pointer-events-none overflow-hidden">
           <div

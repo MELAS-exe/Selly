@@ -2,12 +2,13 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { type CSSProperties, ViewTransition } from 'react';
 import { Availability } from '@/components/availability';
+import { CategoryNav } from '@/components/category-nav';
 import { ProductVisual } from '@/components/product-visual';
 import { getStore } from '@/lib/core';
 import { formatMoney } from '@/lib/format';
 import type { StorePublic } from '@/lib/types';
 
-type Params = { params: Promise<{ slug: string }> };
+type Params = { params: Promise<{ slug: string }>; searchParams: Promise<{ category?: string }> };
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
@@ -45,9 +46,10 @@ const days: Record<string, string> = {
   'lun-ven': 'Du lundi au vendredi',
 };
 
-export default async function StorePage({ params }: Params) {
+export default async function StorePage({ params, searchParams }: Params) {
   const { slug } = await params;
-  const { store, products } = await getStore(slug);
+  const { category } = await searchParams;
+  const { store, products } = await getStore(slug, { category });
 
   return (
     <main>
@@ -92,9 +94,14 @@ export default async function StorePage({ params }: Params) {
         <h2 id="catalogue" className="sr-only">
           Articles
         </h2>
+        <div className="mb-4">
+          <CategoryNav slug={slug} categories={store.categories} active={category} />
+        </div>
         {products.length === 0 ? (
           <p className="rounded-[var(--radius-tile)] bg-mist p-6 text-muted">
-            Aucun article en ligne pour le moment. Revenez bientôt, ou écrivez au vendeur.
+            {category
+              ? 'Aucun article dans cette catégorie pour le moment.'
+              : 'Aucun article en ligne pour le moment. Revenez bientôt, ou écrivez au vendeur.'}
           </p>
         ) : (
           <ul className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3">
