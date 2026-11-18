@@ -1,6 +1,7 @@
 'use client';
 
 import { useId } from 'react';
+import { SellyMark } from '@/components/brand/selly-mark';
 
 /** Text on a turning circle around the S mark, as on the landing page (paused off screen by nothing: it is small). */
 export function Stamp({ text }: { text: string }) {
@@ -13,7 +14,7 @@ export function Stamp({ text }: { text: string }) {
           <textPath href={`#${id}`}>{text}</textPath>
         </text>
       </svg>
-      <img src="/brand/selly-s.png" alt="" className="absolute inset-0 m-auto w-9" />
+      <SellyMark className="absolute inset-0 m-auto w-9 text-[var(--sf-accent-text,#173b32)]" />
     </div>
   );
 }

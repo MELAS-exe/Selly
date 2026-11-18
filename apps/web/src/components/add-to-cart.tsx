@@ -7,6 +7,7 @@ import { formatMoney, optionName } from '@/lib/format';
 import type { ProductDetail, PublicVariant } from '@/lib/types';
 import { flyToCart } from './motion/fly-to-cart';
 import { durationToken } from './motion/tokens';
+import { openCart } from './storefront/cart-drawer';
 
 /** Brings the confirmation into view once it has opened, if the add button sat at the bottom. */
 function revealStatus(el: HTMLDivElement | null) {
@@ -280,12 +281,13 @@ export function AddToCart({ slug, product }: { slug: string; product: ProductDet
           <div role="status" className="rounded-[var(--radius-tile)] bg-leaf-soft p-4">
             <p className="font-semibold text-leaf">Ajouté au panier.</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Link
-                href={`/s/${slug}/cart`}
+              <button
+                type="button"
+                onClick={openCart}
                 className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] bg-indigo px-5 font-semibold text-paper"
               >
                 Voir le panier
-              </Link>
+              </button>
               <Link
                 href={`/s/${slug}`}
                 className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] border border-line bg-paper px-5 font-semibold"

@@ -12,6 +12,7 @@ import {
   MessageCircle,
   PackageCheck,
   Search,
+  ShoppingBag,
   Sparkles,
   Store,
   X,
@@ -261,32 +262,6 @@ function InfoBand({ store }: { store: StorePublic }) {
 }
 
 /** A band of the shop's real facts, scrolling (decorative: the same facts are in the band above). */
-function Ticker({ store }: { store: StorePublic }) {
-  const address = pickupAddress(store);
-  const facts = [
-    'Paiement en bitcoin, direct',
-    ...(address ? ['Retrait gratuit à la boutique'] : []),
-    ...store.delivery.zones.map((z) => `Livraison ${z.label}`),
-    ...(store.chat.enabled ? ['Conseils avec Selly'] : []),
-    'Fait avec soin',
-  ];
-  return (
-    <div aria-hidden="true" className="overflow-clip border-b border-d-hairline py-5">
-      <div className="sf-ticker flex w-max items-center gap-10 pr-10">
-        {[...facts, ...facts].map((f, i) => (
-          <span
-            key={`${f}-${i}`}
-            className="sf-serif flex items-center gap-10 text-3xl whitespace-nowrap italic sm:text-4xl"
-          >
-            {f}
-            <span className="text-2xl text-[var(--sf-accent)] not-italic">✦</span>
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function Card({
   p,
   slug,
@@ -396,7 +371,6 @@ export default async function StorePage({ params, searchParams }: Params) {
       )}
       <Hero store={store} slug={slug} featured={featured} second={second} />
       <InfoBand store={store} />
-      <Ticker store={store} />
 
       <section
         id="catalogue"
@@ -522,13 +496,7 @@ export default async function StorePage({ params, searchParams }: Params) {
           </div>
         ) : (
           <div className="flex min-h-72 flex-col items-center justify-center border border-dashed border-d-ink/25 px-5 py-10 text-center">
-            <img
-              src="/brand/selly-mascot.webp"
-              alt=""
-              width={800}
-              height={800}
-              className="size-24 object-contain"
-            />
+            <ShoppingBag size={40} className="text-[var(--sf-accent-text)]" aria-hidden="true" />
             <p className="sf-serif mt-4 text-2xl">
               {filtered
                 ? 'Rien dans les rayons pour cette recherche'

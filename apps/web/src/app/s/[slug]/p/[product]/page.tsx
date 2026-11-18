@@ -4,6 +4,7 @@ import { ViewTransition } from 'react';
 import { AddToCart } from '@/components/add-to-cart';
 import { Availability } from '@/components/availability';
 import { AskSelly } from '@/components/chat/ask-selly';
+import { PhotoZoom } from '@/components/storefront/photo-viewer';
 import { Visual } from '@/components/storefront/visual';
 import { getProduct, getStore } from '@/lib/core';
 import { formatMoney } from '@/lib/format';
@@ -78,20 +79,24 @@ export default async function ProductPage({ params }: Params) {
               className="relative overflow-clip border border-d-hairline bg-d-paper-deep"
             >
               <ViewTransition name={`product-${product.slug}`} share="morph" default="none">
-                <Visual
-                  image={first ?? null}
-                  title={product.title}
-                  sizes="(min-width: 1024px) 620px, 100vw"
-                  priority
-                />
+                <PhotoZoom images={product.images} index={0} title={product.title}>
+                  <Visual
+                    image={first ?? null}
+                    title={product.title}
+                    sizes="(min-width: 1024px) 620px, 100vw"
+                    priority
+                  />
+                </PhotoZoom>
               </ViewTransition>
             </div>
           </div>
           {rest.length > 0 && (
             <ul className="mt-6 grid grid-cols-4 gap-3">
-              {rest.map((img) => (
+              {rest.map((img, i) => (
                 <li key={img.url} className="overflow-clip border border-d-hairline">
-                  <Visual image={img} title={product.title} sizes="140px" ratio="aspect-square" />
+                  <PhotoZoom images={product.images} index={i + 1} title={product.title}>
+                    <Visual image={img} title={product.title} sizes="140px" ratio="aspect-square" />
+                  </PhotoZoom>
                 </li>
               ))}
             </ul>

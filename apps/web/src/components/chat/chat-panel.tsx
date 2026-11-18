@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ChatBubbleIn } from '@/components/motion/chat-bubble-in';
 import { TypingDots } from '@/components/motion/typing-dots';
 import { ensureSession, newClientMessageId, sendMessage, subscribe } from '@/lib/chat';
@@ -117,12 +118,14 @@ export function ChatPanel({
     }
   }
 
-  return (
+  // Rendered at the shop root: a parent with a transform or a backdrop-filter (the product page, the header) would
+  // trap a fixed overlay inside it, leaving the page readable through the "backdrop".
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
-      className="fixed inset-0 z-30 flex items-end justify-center bg-ink/40 sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 backdrop-blur-[2px] sm:items-center"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="open-rows flex h-[85dvh] w-full max-w-sm flex-col rounded-t-[var(--radius-tile)] bg-paper sm:h-[32rem] sm:rounded-[var(--radius-tile)]">
@@ -241,7 +244,8 @@ export function ChatPanel({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.querySelector('.sf') ?? document.body,
   );
 }
 

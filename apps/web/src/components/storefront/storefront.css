@@ -337,16 +337,6 @@
     }
   }
 
-  /* The ticker of shop facts. */
-  .sf-ticker {
-    animation: sf-ticker 42s linear infinite;
-  }
-  @keyframes sf-ticker {
-    to {
-      transform: translateX(-50%);
-    }
-  }
-
   /* The boutique section's rings turn very slowly. */
   .sf-ring {
     animation: pv-spin 60s linear infinite;
@@ -448,7 +438,6 @@
     .sf-card .card-media,
     .sf-card .card-media img,
     .sf-card .card-media .sf-placeholder,
-    .sf-ticker,
     .sf-ring {
       animation: none;
     }
@@ -482,4 +471,23 @@
   display: block;
   width: 100%;
   height: 100%;
+}
+
+/* The photo viewer: a short fade in, and each photo eases in as the customer moves through them. */
+.sf-viewer {
+  animation: sf-viewer-in 180ms ease-out;
+}
+.sf-viewer-img {
+  animation: sf-viewer-in 220ms ease-out;
+}
+@keyframes sf-viewer-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sf-viewer,
+  .sf-viewer-img {
+    animation: none;
+  }
 }

@@ -1,21 +1,34 @@
 'use client';
 
 // The shop's cart, in a drawer: the real cart of this shop (lib/cart.ts, localStorage), with quantities and an
-// indicative subtotal. The exact total (delivery, rate in sats) comes from core when the order is made; until the
-// cart page exists, "Commander" hands the cart to Selly in the chat, which creates orders (architecture.md 6.2).
+// indicative subtotal. "Commander" asks who and where (cart-checkout.tsx): core quotes the exact total, makes the
+// order, and the customer pays on the order page (architecture.md 6.2). Anything can open it with openCart().
 
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { type CartLine, countItems, readCart, setQuantity, writeCart } from '@/lib/cart';
 import { formatMoney, formatOptions } from '@/lib/format';
+import type { StorePublic } from '@/lib/types';
 import { durationToken, motionToken, prefersReducedMotion } from '../motion/tokens';
-import { askSelly } from './ask-button';
-import { MessageCircle, Minus, Plus, ShoppingBag, X } from './draft-icons';
+import { CartCheckout } from './cart-checkout';
+import { ArrowRight, Minus, Plus, ShoppingBag, X } from './draft-icons';
 
-/** `ordersOpen` is false while the vendor has no wallet: the cart works, ordering waits. */
-export function CartDrawer({ slug, ordersOpen = true }: { slug: string; ordersOpen?: boolean }) {
+/** Opens the shop's cart drawer, from anywhere on the page ("Voir le panier" after adding). */
+export const openCart = () => window.dispatchEvent(new Event('selly:cart-open'));
+
+/** `ordersOpen` is false while the shop is not published (its owner's preview): the cart works, ordering waits. */
+export function CartDrawer({
+  slug,
+  delivery,
+  ordersOpen = true,
+}: {
+  slug: string;
+  delivery: StorePublic['delivery'];
+  ordersOpen?: boolean;
+}) {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [open, setOpen] = useState(false);
+  const [step, setStep] = useState<'cart' | 'checkout'>('cart');
   const badge = useRef<HTMLSpanElement>(null);
   const dialog = useRef<HTMLDivElement>(null);
   const opener = useRef<HTMLButtonElement>(null);
@@ -41,9 +54,15 @@ export function CartDrawer({ slug, ordersOpen = true }: { slug: string; ordersOp
       });
     };
     sync();
+    const show = () => {
+      setStep('cart');
+      setOpen(true);
+    };
+    window.addEventListener('selly:cart-open', show);
     window.addEventListener('selly:cart', changed);
     window.addEventListener('storage', sync);
     return () => {
+      window.removeEventListener('selly:cart-open', show);
       window.removeEventListener('selly:cart', changed);
       window.removeEventListener('storage', sync);
     };
@@ -71,7 +90,10 @@ export function CartDrawer({ slug, ordersOpen = true }: { slug: string; ordersOp
         type="button"
         data-cart-target
         className="sf-icon-btn relative"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setStep('cart');
+          setOpen(true);
+        }}
         aria-label={
           count > 0
             ? `Ouvrir le panier, ${count} article${count > 1 ? 's' : ''}`
@@ -122,12 +144,10 @@ export function CartDrawer({ slug, ordersOpen = true }: { slug: string; ordersOp
               </header>
               {count === 0 ? (
                 <div className="flex flex-1 flex-col items-center justify-center px-7 text-center">
-                  <img
-                    src="/brand/selly-mascot.webp"
-                    alt=""
-                    width={800}
-                    height={800}
-                    className="size-28 object-contain"
+                  <ShoppingBag
+                    size={44}
+                    className="text-[var(--sf-accent-text)]"
+                    aria-hidden="true"
                   />
                   <p className="sf-serif mt-5 text-2xl">Votre panier est tout neuf</p>
                   <p className="mt-2 max-w-64 text-d-ink-soft">
@@ -141,6 +161,13 @@ export function CartDrawer({ slug, ordersOpen = true }: { slug: string; ordersOp
                     Continuer la visite
                   </button>
                 </div>
+              ) : step === 'checkout' ? (
+                <CartCheckout
+                  slug={slug}
+                  lines={lines}
+                  delivery={delivery}
+                  onBack={() => setStep('cart')}
+                />
               ) : (
                 <>
                   <ul className="flex-1 overflow-y-auto px-5">
@@ -200,19 +227,16 @@ export function CartDrawer({ slug, ordersOpen = true }: { slug: string; ordersOp
                     </div>
                     <p className="mt-2 text-[0.9375rem] text-d-ink-soft">
                       {ordersOpen
-                        ? 'La livraison et le montant en sats sont calculés au moment de commander.'
-                        : 'Cette boutique ne prend pas encore de commandes en ligne. Selly répond à vos questions et prévient le vendeur.'}
+                        ? 'La livraison et le montant en sats sont calculés à l’étape suivante.'
+                        : 'Aperçu : la boutique prendra des commandes une fois publiée.'}
                     </p>
                     <button
                       type="button"
-                      onClick={() => {
-                        setOpen(false);
-                        askSelly();
-                      }}
-                      className="sf-btn sf-btn-primary mt-4 w-full"
+                      disabled={!ordersOpen}
+                      onClick={() => setStep('checkout')}
+                      className="sf-btn sf-btn-primary mt-4 w-full disabled:opacity-40"
                     >
-                      {ordersOpen ? 'Commander avec Selly' : 'Poser une question à Selly'}{' '}
-                      <MessageCircle size={16} />
+                      Commander <ArrowRight size={16} />
                     </button>
                   </div>
                 </>

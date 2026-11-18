@@ -96,7 +96,11 @@ export default async function ShopLayout({
             >
               <ArrowUpRight size={15} /> Partager
             </ShareButton>
-            <CartDrawer slug={slug} ordersOpen={store.ordering?.enabled !== false} />
+            <CartDrawer
+              slug={slug}
+              delivery={store.delivery}
+              ordersOpen={store.ordering?.enabled !== false}
+            />
             <ShopMenu />
           </div>
         </div>
