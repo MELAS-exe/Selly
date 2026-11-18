@@ -75,7 +75,8 @@ export function errorText(err: unknown): string {
       PLAN_LIMIT_REACHED: 'Limite de votre formule atteinte. Passez à la formule supérieure.',
       STEP_UP_REQUIRED: 'Confirmez avec votre clé Nostr pour faire ce changement.',
     };
-    if (code === 'VALIDATION_FAILED' && detail) return detail;
+    // Core writes these in French and says what to do (a wallet without receiving capacity, a bad field): show them.
+    if ((code === 'VALIDATION_FAILED' || code.startsWith('NWC_')) && detail) return detail;
     if (status === 409) return detail ?? 'Cette action vient d’être faite ailleurs. Rechargez.';
     return known[code] ?? detail ?? 'Une erreur s’est produite. Réessayez.';
   }
