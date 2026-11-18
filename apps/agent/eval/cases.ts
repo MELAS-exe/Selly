@@ -197,7 +197,7 @@ export const CASES: EvalCase[] = [
   }),
   fr('typo-05', 'livrez vs a thies', {
     intent: 'delivery',
-    tools: ['get_shop_info'],
+    tools: [],
     mustInclude: ['3 500'],
   }),
 
@@ -229,57 +229,57 @@ export const CASES: EvalCase[] = [
   // ------------------------------------------------------------ delivery, hours, location, returns, payment
   fr('shop-01', 'Vous livrez où ?', {
     intent: 'delivery',
-    tools: ['get_shop_info'],
+    tools: [],
     mustInclude: ['Plateau'],
   }),
   fr('shop-02', 'Combien coûte la livraison à Pikine ?', {
     intent: 'delivery',
-    tools: ['get_shop_info'],
+    tools: [],
     mustInclude: ['2 000'],
   }),
   fr('shop-03', 'Livraison à Thiès possible ?', {
     intent: 'delivery',
-    tools: ['get_shop_info'],
+    tools: [],
     mustInclude: ['3 500'],
   }),
   fr('shop-04', 'Vous êtes ouverts le dimanche ?', {
     intent: 'hours',
-    tools: ['get_shop_info'],
+    tools: [],
     mustInclude: [['lundi', 'lun']],
   }),
   fr('shop-05', 'Votre boutique est où ?', {
     intent: 'location',
-    tools: ['get_shop_info'],
+    tools: [],
     mustInclude: ['Sandaga'],
   }),
   fr('shop-06', 'Je peux venir récupérer moi-même ?', {
     intent: 'pickup',
-    tools: ['get_shop_info'],
+    tools: [],
     mustInclude: ['Sandaga'],
   }),
   fr('shop-07', 'Si la taille ne va pas, je peux échanger ?', {
     intent: 'returns',
-    tools: ['get_shop_info'],
+    tools: [],
     mustInclude: ['3 jours'],
   }),
   fr('shop-08', 'On paie comment ?', {
     intent: 'payment',
-    tools: ['get_shop_info'],
+    tools: [],
     mustInclude: [['bitcoin', 'Lightning']],
   }),
   fr('shop-09', "Je n'ai pas de bitcoin, je peux payer avec Wave ?", {
     intent: 'payment',
-    tools: ['get_shop_info'],
+    tools: [],
     mustInclude: [['bitcoin', 'Lightning']],
   }),
   fr('shop-10', 'Vous fermez à quelle heure ?', {
     intent: 'hours',
-    tools: ['get_shop_info'],
+    tools: [],
     mustInclude: ['20'],
   }),
   fr('shop-11', 'Vous pouvez livrer aujourd’hui à Dakar ?', {
     intent: 'delivery',
-    tools: ['get_shop_info'],
+    tools: [],
     mustInclude: ['Plateau'],
   }),
 
@@ -461,7 +461,7 @@ export const CASES: EvalCase[] = [
   }),
   en('en-06', 'Do you deliver to Pikine and how much?', {
     intent: 'delivery',
-    tools: ['get_shop_info'],
+    tools: [],
     mustInclude: ['2'],
   }),
 
@@ -473,11 +473,11 @@ export const CASES: EvalCase[] = [
   }),
   en('en-02', 'How much is delivery to Thiès?', {
     intent: 'delivery',
-    tools: ['get_shop_info'],
+    tools: [],
     mustInclude: ['3'],
   }),
-  en('en-03', 'What are your opening hours?', { intent: 'hours', tools: ['get_shop_info'] }),
-  en('en-04', 'Can I pay with Lightning?', { intent: 'payment', tools: ['get_shop_info'] }),
+  en('en-03', 'What are your opening hours?', { intent: 'hours', tools: [] }),
+  en('en-04', 'Can I pay with Lightning?', { intent: 'payment', tools: [] }),
   en('en-05', 'I want to talk to the owner', {
     intent: 'handoff',
     tools: ['handoff_to_vendor'],
@@ -493,7 +493,7 @@ export const CASES: EvalCase[] = [
   wo('wo-02', 'Ñaata la boubou bi ?', { intent: 'price', tools: SEARCH, mustInclude: ['35 000'] }),
   wo('wo-03', 'Ndax dangay yónnee ba Thiès ?', {
     intent: 'delivery',
-    tools: ['get_shop_info'],
+    tools: [],
     mustInclude: ['3 500'],
   }),
   wo('wo-04', 'Dama bëgg wax ak boroom bitik bi', {
@@ -509,7 +509,7 @@ export const CASES: EvalCase[] = [
   }),
   wo('wo-07', 'Fan la bitik bi nekk ?', {
     intent: 'location',
-    tools: ['get_shop_info'],
+    tools: [],
     mustInclude: ['Sandaga'],
   }),
   wo('wo-08', 'Salaam aleekum', { intent: 'greeting', tools: [], noTools: true }),
@@ -529,7 +529,7 @@ export const CASES: EvalCase[] = [
   mix('mix-02', 'Boubou bi combien ?', { intent: 'price', tools: SEARCH, mustInclude: ['35 000'] }),
   mix('mix-03', 'Livraison ba Pikine ñaata la ?', {
     intent: 'delivery',
-    tools: ['get_shop_info'],
+    tools: [],
     mustInclude: ['2 000'],
   }),
   mix('mix-04', 'Dernier prix bi, wàññil ma ci sac bi', {

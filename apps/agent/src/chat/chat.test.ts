@@ -126,6 +126,28 @@ describe('a customer turn', () => {
     expect((await history(token)).filter((m) => m.author === 'agent')).toHaveLength(2);
   });
 
+  it('hands over when the reply says so, even without the handoff tool', async () => {
+    const { openChat, send, llm, core, store } = setup();
+    llm.push(() => [say("D'accord, je passe la main au vendeur. Il vous répond très vite.")]);
+    const { token, conversationId } = await openChat();
+    await send(token, 'Je veux parler au vendeur');
+    expect((await store.getConversation(conversationId))?.mode).toBe('human');
+    expect(core.notifications.at(-1)).toMatchObject({ type: 'conversation.handoff' });
+  });
+
+  it('asks an English-speaking customer back in English', async () => {
+    const { openChat, send, llm } = setup();
+    llm.push(
+      () => [say('Hello!')],
+      () => [say('Bonjour !')],
+    );
+    const { token } = await openChat();
+    await send(token, 'Do you have the black dress in size 42?');
+    expect(llm.requests[0]?.system.dynamic).toContain('réponds-lui en anglais');
+    await send(token, 'Vous avez la robe en 40 ?');
+    expect(llm.requests[1]?.system.dynamic).not.toContain('anglais');
+  });
+
   it('never lets the model announce an order it did not create', async () => {
     const { openChat, send, history, llm, core } = setup();
     llm.push(
