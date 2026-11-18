@@ -1,10 +1,11 @@
-export default function Page() {
-  return (
-    <main className="mx-auto max-w-xl p-6">
-      <h1 className="text-2xl font-semibold">Tableau de bord</h1>
-      <p className="mt-2 text-neutral-600">
-        TODO (Dev 1): PWA du vendeur (commandes, discussions, stock, portefeuille, abonnement).
-      </p>
-    </main>
-  );
+import type { Metadata } from 'next';
+import { DraftDashboard } from '@/components/dashboard/draft-app';
+
+export const metadata: Metadata = {
+  title: 'Tableau de bord',
+  robots: { index: false },
+};
+
+export default function DashboardPage() {
+  return <DraftDashboard />;
 }
