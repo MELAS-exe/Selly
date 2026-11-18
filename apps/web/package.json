@@ -12,11 +12,13 @@
   "dependencies": {
     "@selly/ui": "workspace:*",
     "next": "^16.0.0",
+    "nostr-tools": "2.26.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@selly/config": "workspace:*",
+    "@selly/nostr": "workspace:*",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "^24",
     "@types/react": "^19",
