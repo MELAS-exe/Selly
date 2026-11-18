@@ -1,18 +1,16 @@
 'use client';
 
 // Web Push for the vendor (apps/web/AGENTS.md): register the service worker, subscribe with the VAPID key, send the
-// subscription to core. Offered after a first sale, never on the first visit; also a switch in "More".
+// subscription to core. Offered once after a first paid order seen live, never on the first visit; also a switch
+// in Réglages. Logic from the first dashboard (PR #30), in the draft's design.
 
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/browser-api';
-import { dash } from '@/lib/i18n/dashboard';
-import { useLive } from './live';
-import { btn } from './ui';
 
 const KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '';
 const DISMISSED = 'selly:push-offer-dismissed';
 
-type PushState = 'unsupported' | 'unconfigured' | 'default' | 'granted' | 'denied' | 'on';
+export type PushState = 'unsupported' | 'unconfigured' | 'default' | 'granted' | 'denied' | 'on';
 
 function supported() {
   return (
@@ -80,95 +78,79 @@ function usePushState() {
   return [state, setState] as const;
 }
 
-/** The switch in "More". */
+const TEXT: Record<PushState, string> = {
+  on: 'Activées sur cet appareil.',
+  denied: 'Bloquées par le navigateur : autorisez-les dans les réglages du site.',
+  unconfigured: 'Pas encore disponibles sur ce serveur.',
+  unsupported: 'Ce navigateur ne les gère pas. Installez l’application depuis Chrome ou Safari.',
+  default: 'Une alerte quand une commande est payée ou qu’un client vous attend.',
+  granted: 'Une alerte quand une commande est payée ou qu’un client vous attend.',
+};
+
+/** The switch in Réglages. */
 export function PushToggle() {
   const [state, setState] = usePushState();
   const [busy, setBusy] = useState(false);
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <p className="font-display text-2xl">{dash.more.notifications}</p>
-        <p className="text-d-ink-soft">
-          {state === 'on'
-            ? dash.push.done
-            : state === 'denied'
-              ? dash.push.denied
-              : state === 'unconfigured' || state === 'unsupported'
-                ? dash.push.unavailable
-                : dash.more.notificationsHint}
-        </p>
-      </div>
+    <div className="info-row" style={{ alignItems: 'center' }}>
+      <span style={{ display: 'block' }}>
+        <b style={{ display: 'block', color: 'var(--ink)' }}>Notifications sur cet appareil</b>
+        {TEXT[state]}
+      </span>
       {(state === 'default' || state === 'granted') && (
         <button
           type="button"
           disabled={busy}
-          className={btn.secondary}
+          className="button small"
           onClick={async () => {
             setBusy(true);
             setState(await enablePush().catch(() => 'default' as const));
             setBusy(false);
           }}
         >
-          {dash.more.enable}
+          Activer
         </button>
-      )}
-      {state === 'on' && (
-        <span className="rounded-full bg-d-paid-soft px-3 py-1 text-d-paid">
-          {dash.more.enabled}
-        </span>
       )}
     </div>
   );
 }
 
 /** After a paid order arrives live, offer alerts once (unless they are on, blocked or dismissed). */
-export function PushOffer() {
-  const { subscribe } = useLive();
+export function PushOffer({ trigger }: { trigger: boolean }) {
   const [state, setState] = usePushState();
-  const [show, setShow] = useState(false);
-
-  useEffect(
-    () =>
-      subscribe((e) => {
-        if (e.type !== 'order.paid') return;
-        let dismissed = false;
-        try {
-          dismissed = localStorage.getItem(DISMISSED) === '1';
-        } catch {}
-        if (!dismissed) setShow(true);
-      }),
-    [subscribe],
-  );
-
-  if (!show || !(state === 'default' || state === 'granted')) return null;
+  const [dismissed, setDismissed] = useState(true);
+  useEffect(() => {
+    try {
+      setDismissed(localStorage.getItem(DISMISSED) === '1');
+    } catch {}
+  }, []);
+  if (!trigger || dismissed || !(state === 'default' || state === 'granted')) return null;
   const close = () => {
-    setShow(false);
+    setDismissed(true);
     try {
       localStorage.setItem(DISMISSED, '1');
     } catch {}
   };
   return (
-    <div
-      role="dialog"
-      aria-label={dash.more.notifications}
-      className="d-arrive flex flex-wrap items-center justify-between gap-3 border-b border-d-hairline bg-d-paid-soft px-4 py-3 lg:px-8"
-    >
-      <p>{dash.push.offer}</p>
-      <div className="flex gap-2">
+    <div className="banner" role="dialog" aria-label="Notifications">
+      <span>
+        Une commande vient d’être payée. Être prévenu sur ce téléphone la prochaine fois ?
+      </span>
+      <span style={{ display: 'flex', gap: 8 }}>
         <button
           type="button"
-          className={btn.primary}
+          className="button small primary"
           onClick={async () => {
             setState(await enablePush().catch(() => 'default' as const));
             close();
           }}
         >
-          {dash.push.accept}
+          Activer
         </button>
-        <button type="button" className={btn.secondary} onClick={close}>
-          {dash.push.later}
+        <button type="button" className="button small" onClick={close}>
+          Plus tard
         </button>
-      </div>
+      </span>
     </div>
   );
 }

@@ -1,7 +1,8 @@
-'use client';
+import type { Metadata } from 'next';
+import { Catalogue } from '@/components/dashboard/pages/catalogue';
 
-import { Catalog } from '@/components/dashboard/catalog';
+export const metadata: Metadata = { title: 'Catalogue' };
 
-export default function CatalogPage() {
-  return <Catalog />;
+export default function Page() {
+  return <Catalogue />;
 }

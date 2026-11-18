@@ -1,9 +1,9 @@
-'use client';
+import type { Metadata } from 'next';
+import { Discussions } from '@/components/dashboard/pages/discussions';
 
-import { useParams } from 'next/navigation';
-import { Chats } from '@/components/dashboard/chats';
+export const metadata: Metadata = { title: 'Discussion' };
 
-export default function ChatPage() {
-  const { id } = useParams<{ id: string }>();
-  return <Chats selectedId={id} />;
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return <Discussions id={id} />;
 }

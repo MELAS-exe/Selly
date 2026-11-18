@@ -1,7 +1,8 @@
-'use client';
+import type { Metadata } from 'next';
+import { Discussions } from '@/components/dashboard/pages/discussions';
 
-import { Chats } from '@/components/dashboard/chats';
+export const metadata: Metadata = { title: 'Discussions' };
 
-export default function ChatsPage() {
-  return <Chats />;
+export default function Page() {
+  return <Discussions />;
 }

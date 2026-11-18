@@ -1,7 +1,7 @@
 // Orders for the agent: status by number, the vendor's order list, fulfilment and sales numbers
 // (architecture.md section 5.2 group G). Every query is scoped to the vendor of the route.
 import { core } from '@selly/db';
-import { and, desc, eq, gte, inArray, sql } from '@selly/db/orm';
+import { and, desc, eq, gte, inArray, lt, sql } from '@selly/db/orm';
 import type { Context } from '../../context';
 import { AppError } from '../../errors';
 import { iso, money } from '../../util';
@@ -41,8 +41,13 @@ export async function findOrder(ctx: Context, vendor: Vendor, ref: string): Prom
   return o;
 }
 
+export type Period = 'today' | '7d' | '30d';
+/** The dashboard also shows the calendar year, month by month. */
+export type DashboardPeriod = Period | 'year';
+
 /** Start of the period in UTC (Senegal is UTC all year, architecture.md F10). */
-export function periodStart(period: 'today' | '7d' | '30d', now: Date): Date {
+export function periodStart(period: DashboardPeriod, now: Date): Date {
+  if (period === 'year') return new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
   const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   return period === 'today'
     ? today
@@ -122,7 +127,7 @@ export async function fulfillOrder(
  * Sales numbers for a period. Orders are counted by creation date, revenue by payment date.
  * chats_waiting is the agent's own data and is always 0 here; agent_turns is this calendar month.
  */
-export async function metrics(ctx: Context, vendor: Vendor, period: 'today' | '7d' | '30d') {
+export async function metrics(ctx: Context, vendor: Vendor, period: DashboardPeriod) {
   const now = ctx.now();
   const from = periodStart(period, now);
   const [counts] = await ctx.db
@@ -135,19 +140,7 @@ export async function metrics(ctx: Context, vendor: Vendor, period: 'today' | '7
     })
     .from(orders)
     .where(and(eq(orders.vendorId, vendor.id), gte(orders.createdAt, from)));
-  const [revenue] = await ctx.db
-    .select({
-      xof: sql<number>`coalesce(sum(${orders.totalXof}) filter (where ${orders.pricingCurrency} = 'XOF'), 0)::bigint`,
-      msat: sql<number>`coalesce(sum(${orders.totalMsat}), 0)::bigint`,
-    })
-    .from(orders)
-    .where(
-      and(
-        eq(orders.vendorId, vendor.id),
-        inArray(orders.status, ['paid', 'fulfilled']),
-        gte(orders.paidAt, from),
-      ),
-    );
+  const revenue = await revenueBetween(ctx, vendor, from);
   const low = await ctx.db
     .select({
       id: pv.id,
@@ -171,7 +164,7 @@ export async function metrics(ctx: Context, vendor: Vendor, period: 'today' | '7
   return {
     period,
     orders: counts ?? { created: 0, paid: 0, fulfilled: 0, pending: 0, expired: 0 },
-    revenue: { xof: Number(revenue?.xof ?? 0), sat: Math.floor(Number(revenue?.msat ?? 0) / 1000) },
+    revenue,
     low_stock: low.map((l) => ({
       variant_id: l.id,
       title: l.title,
@@ -180,5 +173,74 @@ export async function metrics(ctx: Context, vendor: Vendor, period: 'today' | '7
     })),
     chats_waiting: 0,
     agent_turns: usage.agent_turns,
+  };
+}
+
+/** Paid orders' totals by payment date, from `from` (and before `to`). XOF counts orders priced in XOF only. */
+async function revenueBetween(ctx: Context, vendor: Vendor, from: Date, to?: Date) {
+  const [r] = await ctx.db
+    .select({
+      xof: sql<number>`coalesce(sum(${orders.totalXof}) filter (where ${orders.pricingCurrency} = 'XOF'), 0)::bigint`,
+      msat: sql<number>`coalesce(sum(${orders.totalMsat}), 0)::bigint`,
+    })
+    .from(orders)
+    .where(
+      and(
+        eq(orders.vendorId, vendor.id),
+        inArray(orders.status, ['paid', 'fulfilled']),
+        gte(orders.paidAt, from),
+        ...(to ? [lt(orders.paidAt, to)] : []),
+      ),
+    );
+  return { xof: Number(r?.xof ?? 0), sat: Math.floor(Number(r?.msat ?? 0) / 1000) };
+}
+
+/**
+ * The dashboard's numbers: the agent's metrics, plus the sales chart (paid orders and their revenue, by day, or
+ * by month for the year) and the revenue of the period just before, for the trend. Not sent to the agent: the
+ * model does not need a series in its context.
+ */
+export async function dashboardMetrics(ctx: Context, vendor: Vendor, period: DashboardPeriod) {
+  const base = await metrics(ctx, vendor, period);
+  const now = ctx.now();
+  const from = periodStart(period, now);
+  const unit = period === 'year' ? 'month' : 'day';
+  const rows = await ctx.db
+    .select({
+      bucket: sql<string>`to_char(date_trunc(${unit}, ${orders.paidAt} at time zone 'UTC'), 'YYYY-MM-DD')`,
+      paid: sql<number>`count(*)::int`,
+      xof: sql<number>`coalesce(sum(${orders.totalXof}) filter (where ${orders.pricingCurrency} = 'XOF'), 0)::bigint`,
+    })
+    .from(orders)
+    .where(
+      and(
+        eq(orders.vendorId, vendor.id),
+        inArray(orders.status, ['paid', 'fulfilled']),
+        gte(orders.paidAt, from),
+      ),
+    )
+    .groupBy(sql`1`);
+  const byBucket = new Map(rows.map((r) => [r.bucket, r]));
+  const series: { date: string; orders: number; revenue_xof: number }[] = [];
+  for (const d = new Date(from); d <= now; ) {
+    const key = d.toISOString().slice(0, 10);
+    const r = byBucket.get(key);
+    series.push({ date: key, orders: r?.paid ?? 0, revenue_xof: Number(r?.xof ?? 0) });
+    if (unit === 'month') d.setUTCMonth(d.getUTCMonth() + 1);
+    else d.setUTCDate(d.getUTCDate() + 1);
+  }
+  // The same length of time just before (for the year: the same dates last year).
+  const prevFrom =
+    period === 'year'
+      ? new Date(Date.UTC(from.getUTCFullYear() - 1, 0, 1))
+      : new Date(from.getTime() - (now.getTime() - from.getTime()));
+  const prevTo =
+    period === 'year'
+      ? new Date(Date.UTC(now.getUTCFullYear() - 1, now.getUTCMonth(), now.getUTCDate()))
+      : from;
+  return {
+    ...base,
+    revenue_previous: await revenueBetween(ctx, vendor, prevFrom, prevTo),
+    series,
   };
 }

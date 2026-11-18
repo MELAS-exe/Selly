@@ -1,9 +1,9 @@
-'use client';
+import type { Metadata } from 'next';
+import { OrderDetail } from '@/components/dashboard/pages/orders';
 
-import { useParams } from 'next/navigation';
-import { Orders } from '@/components/dashboard/orders';
+export const metadata: Metadata = { title: 'Commande' };
 
-export default function OrderPage() {
-  const { id } = useParams<{ id: string }>();
-  return <Orders selectedId={id} />;
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return <OrderDetail id={id} />;
 }
