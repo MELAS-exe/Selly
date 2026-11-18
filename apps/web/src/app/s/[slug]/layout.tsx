@@ -1,10 +1,18 @@
-import Link from 'next/link';
 import type { CSSProperties, ReactNode } from 'react';
-import { CartButton } from '@/components/cart-button';
 import { AskSelly } from '@/components/chat/ask-selly';
-import { Woven } from '@/components/motion/woven';
-import { brandStyle } from '@/lib/brand-colors';
+import { AskButton } from '@/components/storefront/ask-button';
+import { CartDrawer } from '@/components/storefront/cart-drawer';
+import { ArrowUpRight } from '@/components/storefront/draft-icons';
+import { deliveryLabel } from '@/components/storefront/facts';
+import { storefrontSerif } from '@/components/storefront/fonts';
+import { ShareButton } from '@/components/storefront/share-button';
+import { ShopMark } from '@/components/storefront/shop-mark';
+import { ShopMenu } from '@/components/storefront/shop-menu';
+import { storefrontStyle } from '@/lib/brand-colors';
 import { getStore } from '@/lib/core';
+import '@/components/storefront/storefront.css';
+// The turning stamp (pv-spin) lives with the landing page's styles.
+import '@/components/landing/landing.css';
 
 export default async function ShopLayout({
   children,
@@ -15,64 +23,107 @@ export default async function ShopLayout({
 }) {
   const { slug } = await params;
   const { store } = await getStore(slug);
-  // A store response cached before branding existed has none: fall back to the default look.
-  const branding = store.branding ?? {
-    logo_url: null,
-    primary_color: '',
-    accent_color: '',
-    banner: null,
-  };
-  const { banner } = branding;
+  const banner = store.branding?.banner;
+  const delivery = deliveryLabel(store);
+  const announce =
+    banner?.text ??
+    (delivery
+      ? `${delivery.title}, ${delivery.sub}`
+      : 'Paiement en bitcoin, directement à la boutique');
 
   return (
-    <div className="min-h-dvh bg-paper" style={brandStyle(branding) as CSSProperties}>
-      <div aria-hidden="true" className="wax h-1.5" />
-      {banner?.text && (
-        <div className="bg-ochre px-4 py-2 text-center text-sm font-semibold text-paper">
-          {banner.href ? (
-            <a href={banner.href} className="underline underline-offset-2">
-              {banner.text}
+    <div
+      className={`sf ${storefrontSerif.variable} min-h-dvh text-[var(--sf-ink)]`}
+      style={storefrontStyle(store.branding) as CSSProperties}
+    >
+      <div className="bg-[var(--sf-ink)] px-4 py-2.5 text-center text-[0.9375rem] text-d-paper">
+        <span className="inline-flex items-center justify-center gap-2.5">
+          <span aria-hidden="true" className="size-1.5 shrink-0 bg-[var(--sf-accent)]" />
+          {banner?.href ? (
+            <a href={banner.href} className="underline underline-offset-4">
+              {announce}
             </a>
           ) : (
-            banner.text
+            announce
           )}
-        </div>
-      )}
+        </span>
+      </div>
+
       <header
-        className="sticky top-0 z-10 border-b border-line bg-paper/95 backdrop-blur"
+        className="sticky top-0 z-30 border-b border-d-hairline bg-d-paper/90 backdrop-blur-md"
         style={{ viewTransitionName: 'shop-header' }}
       >
         <span aria-hidden="true" className="header-shade" />
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-1.5">
-          <Link
+        <div className="relative mx-auto flex h-20 max-w-[1260px] items-center justify-between gap-4 px-5 sm:px-8">
+          <a
             href={`/s/${slug}`}
-            className="flex min-h-11 min-w-0 items-center gap-2 truncate text-lg font-bold"
+            aria-label={`${store.display_name}, accueil de la boutique`}
+            className="min-w-0"
           >
-            {branding.logo_url && (
-              // The shop's own logo: no width/height from the API (one size), so this stays a plain img.
-              <img
-                src={branding.logo_url}
-                alt=""
-                className="size-8 shrink-0 rounded-full object-cover"
-              />
+            <ShopMark name={store.display_name} logo={store.branding?.logo_url ?? null} />
+          </a>
+          <nav className="hidden items-center gap-9 md:flex" aria-label="Navigation de la boutique">
+            <a
+              className="min-h-11 content-center font-medium hover:underline hover:underline-offset-8"
+              href={`/s/${slug}#catalogue`}
+            >
+              La sélection
+            </a>
+            <a
+              className="min-h-11 content-center font-medium hover:underline hover:underline-offset-8"
+              href={`/s/${slug}#boutique`}
+            >
+              La boutique
+            </a>
+            {store.chat.enabled && (
+              <AskButton className="flex min-h-11 items-center gap-1.5 font-medium hover:underline hover:underline-offset-8">
+                Parler à Selly <ArrowUpRight size={15} />
+              </AskButton>
             )}
-            <span className="truncate">{store.display_name}</span>
-          </Link>
-          <CartButton slug={slug} />
+          </nav>
+          <div className="flex items-center gap-2">
+            <ShareButton
+              url={`/s/${slug}`}
+              title={store.display_name}
+              className="sf-btn sf-btn-ghost hidden !min-h-11 sm:inline-flex"
+            >
+              <ArrowUpRight size={15} /> Partager
+            </ShareButton>
+            <CartDrawer slug={slug} />
+            <ShopMenu />
+          </div>
         </div>
       </header>
-      <Woven />
+
       {children}
-      <AskSelly slug={slug} storeName={store.display_name} whatsappLink={store.whatsapp_link} />
-      <footer className="mx-auto max-w-3xl px-4 pt-10 pb-8 text-muted">
-        <p>
-          Paiement en bitcoin, directement au vendeur.{' '}
-          <Link href="/aide/payer-en-bitcoin" className="font-medium text-indigo underline">
-            Comment payer
-          </Link>
-        </p>
-        {store.powered_by_badge && <p className="mt-1">Boutique créée avec Selly</p>}
+
+      <footer className="border-t border-d-hairline">
+        <div className="mx-auto flex max-w-[1260px] flex-col gap-5 border-x border-d-hairline px-5 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+          <ShopMark name={store.display_name} logo={store.branding?.logo_url ?? null} />
+          <p className="text-[0.9375rem] text-d-ink-soft">
+            Paiement en bitcoin, directement à la boutique.{' '}
+            <a
+              href="/aide/payer-en-bitcoin"
+              className="font-medium text-[var(--sf-ink)] underline underline-offset-4"
+            >
+              Comment payer
+            </a>
+          </p>
+          {store.powered_by_badge && (
+            <a
+              href="/"
+              className="flex min-h-11 items-center gap-2 text-[0.9375rem] text-d-ink-soft"
+            >
+              Une boutique portée par{' '}
+              <img src="/brand/selly-wordmark.png" alt="Selly" className="h-5 w-auto" />
+            </a>
+          )}
+        </div>
       </footer>
+
+      {store.chat.enabled && (
+        <AskSelly slug={slug} storeName={store.display_name} whatsappLink={store.whatsapp_link} />
+      )}
     </div>
   );
 }

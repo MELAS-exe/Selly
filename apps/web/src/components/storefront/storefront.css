@@ -16,6 +16,15 @@
     --sf-paper-deep: var(--color-d-paper-deep);
     --sf-line: var(--color-d-hairline);
     --sf-serif: var(--font-sf-serif), "Cormorant Garamond", Georgia, "Times New Roman", serif;
+    /* The older storefront components (add to cart, chat, availability) read these: map them onto the design system
+     so they follow it without a rewrite. Sharp corners, paper, the shop's ink. */
+    --radius-tile: 0px;
+    --radius-control: 0px;
+    --color-ink: var(--sf-ink);
+    --color-paper: var(--color-d-paper);
+    --color-line: var(--color-d-hairline);
+    --color-muted: var(--color-d-ink-soft);
+    --color-mist: var(--color-d-paper-deep);
     background-color: var(--sf-paper);
     color: var(--sf-ink);
     font-size: 16px;
@@ -202,6 +211,15 @@
     .sf .product-card:hover .card-media .product-art {
       scale: 1.04;
     }
+  }
+
+  /* A product without a photo yet: the draft's dot pattern on deeper paper. */
+  .sf-placeholder {
+    background-image: radial-gradient(
+      color-mix(in srgb, var(--sf-ink) 14%, transparent) 1px,
+      transparent 1px
+    );
+    background-size: 15px 15px;
   }
 
   /* Entrances (time-based, once). */

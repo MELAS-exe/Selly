@@ -1,6 +1,6 @@
 // Server components only: never import this file from a 'use client' module.
 import { notFound } from 'next/navigation';
-import type { CheckoutView, ProductDetail, StorePage } from './types';
+import type { CheckoutView, ProductDetail, ProductSummary, StorePage } from './types';
 import type { PlansResponse } from './vendor-types';
 
 // Server components call core directly. The browser goes through the /api/v1 rewrites in next.config.ts.
@@ -37,6 +37,17 @@ export const getStore = (slug: string, query?: { category?: string; cursor?: str
   if (query?.cursor) qs.set('cursor', query.cursor);
   const suffix = qs.size > 0 ? `?${qs}` : '';
   return get<StorePage>(`/api/v1/stores/${enc(slug)}${suffix}`, { next: { revalidate: 30 } });
+};
+
+/** Catalog search for the storefront (`q`, `category`): GET /stores/{slug}/products. */
+export const searchProducts = (slug: string, query: { q?: string; category?: string }) => {
+  const qs = new URLSearchParams();
+  if (query.q) qs.set('q', query.q);
+  if (query.category) qs.set('category', query.category);
+  return get<{ data: ProductSummary[]; next_cursor: string | null }>(
+    `/api/v1/stores/${enc(slug)}/products?${qs}`,
+    { next: { revalidate: 30 } },
+  );
 };
 
 export const getProduct = (slug: string, product: string) =>
