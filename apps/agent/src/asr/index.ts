@@ -70,7 +70,90 @@ export class HttpAsr implements AsrProvider {
   }
 }
 
+/**
+ * Whisper behind an OpenAI-compatible `/audio/transcriptions` endpoint (Groq: whisper-large-v3).
+ * Whisper has no Wolof: French and English notes work, Wolof ones come back unsure and the agent asks
+ * for a written message. Measure it with eval/asr-eval.ts before relying on it.
+ */
+export class WhisperAsr implements AsrProvider {
+  readonly name: string;
+  constructor(
+    private readonly baseUrl: string,
+    private readonly apiKey: string,
+    private readonly model = 'whisper-large-v3',
+    private readonly timeoutMs = 10_000,
+    private readonly fetchImpl: typeof fetch = fetch,
+    private readonly vocabulary = WHISPER_VOCABULARY,
+  ) {
+    this.name = `whisper:${model}`;
+  }
+
+  async transcribe(
+    audio: Buffer,
+    contentType: string,
+    signal?: AbortSignal,
+  ): Promise<Transcript | null> {
+    const ext = contentType.includes('ogg') ? 'ogg' : contentType.includes('mp4') ? 'm4a' : 'webm';
+    const form = new FormData();
+    form.set('file', new Blob([new Uint8Array(audio)], { type: contentType }), `voice.${ext}`);
+    form.set('model', this.model);
+    form.set('response_format', 'verbose_json');
+    form.set('temperature', '0');
+    // Vocabulary hint: place names and shop words Whisper would otherwise mishear (« Pikine » → « Pékin »).
+    form.set('prompt', this.vocabulary);
+    const res = await this.fetchImpl(`${this.baseUrl.replace(/\/$/, '')}/audio/transcriptions`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${this.apiKey}` },
+      body: form,
+      signal: signal ?? AbortSignal.timeout(this.timeoutMs),
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as {
+      text?: string;
+      language?: string;
+      segments?: { avg_logprob?: number; no_speech_prob?: number }[];
+    };
+    if (typeof body.text !== 'string') return null;
+    return {
+      text: body.text.trim(),
+      confidence: whisperConfidence(body.segments ?? []),
+      language: whisperLanguage(body.language),
+    };
+  }
+}
+
+export const WHISPER_VOCABULARY =
+  'Dakar, Plateau, Pikine, Guédiawaye, Rufisque, Thiès, Sandaga, FCFA, wax, bazin, boubou, robe, baskets, livraison, commande.';
+
+/** Mean token probability over the segments, lowered by the chance that a segment is not speech. */
+export function whisperConfidence(
+  segments: { avg_logprob?: number; no_speech_prob?: number }[],
+): number {
+  if (segments.length === 0) return 0;
+  const scores = segments.map(
+    (s) => Math.exp(s.avg_logprob ?? -10) * (1 - (s.no_speech_prob ?? 0)),
+  );
+  return Math.max(0, Math.min(1, scores.reduce((a, b) => a + b, 0) / scores.length));
+}
+
+function whisperLanguage(language: string | undefined): Transcript['language'] {
+  const l = (language ?? '').toLowerCase();
+  if (l === 'french' || l === 'fr') return 'fr';
+  if (l === 'english' || l === 'en') return 'en';
+  if (l === 'wolof' || l === 'wo') return 'wo';
+  return 'unknown';
+}
+
+/** ASR_URL (any service with the HttpAsr contract), or ASR_PROVIDER=groq-whisper with GROQ_API_KEY. */
 export function asrFromEnv(env: NodeJS.ProcessEnv = process.env): AsrProvider {
+  if (env.ASR_PROVIDER === 'groq-whisper') {
+    if (!env.GROQ_API_KEY) throw new Error('ASR_PROVIDER=groq-whisper needs GROQ_API_KEY.');
+    return new WhisperAsr(
+      env.GROQ_BASE_URL || 'https://api.groq.com/openai/v1',
+      env.GROQ_API_KEY,
+      env.ASR_MODEL || 'whisper-large-v3',
+    );
+  }
   return env.ASR_URL ? new HttpAsr(env.ASR_URL, env.ASR_API_KEY ?? '') : new NoAsr();
 }
 

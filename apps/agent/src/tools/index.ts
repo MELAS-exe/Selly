@@ -220,7 +220,13 @@ const createOrder = tool({
   }),
   async run(p, ctx) {
     const q = ctx.state.lastQuote;
-    if (!q || !sameJson(q.items, p.items) || !sameJson(q.delivery, p.delivery)) {
+    // Only what sets the price must match the quote: the method and the zone. The address and the note
+    // often come with the customer's « oui »; asking for a new quote then meant a second confirmation.
+    const priced = (d: unknown) => {
+      const x = (d ?? {}) as { method?: unknown; zone_id?: unknown };
+      return { method: x.method, zone_id: x.zone_id ?? null };
+    };
+    if (!q || !sameJson(q.items, p.items) || !sameJson(priced(q.delivery), priced(p.delivery))) {
       return {
         error: 'QUOTE_REQUIRED',
         hint: 'Appelle quote_cart avec ces articles et cette livraison, annonce le total au client et attends son accord.',
