@@ -68,7 +68,7 @@ export default async function ProductPage({ params }: Params) {
         )}
       </div>
 
-      <div className="mt-5 sm:mt-0">
+      <div className="pd-in mt-5 sm:mt-0">
         <h1 className="text-[1.75rem] leading-tight font-bold tracking-[-0.01em]">
           {product.title}
         </h1>

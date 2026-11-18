@@ -42,6 +42,7 @@ export default async function ShopLayout({
         className="sticky top-0 z-10 border-b border-line bg-paper/95 backdrop-blur"
         style={{ viewTransitionName: 'shop-header' }}
       >
+        <span aria-hidden="true" className="header-shade" />
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-1.5">
           <Link
             href={`/s/${slug}`}

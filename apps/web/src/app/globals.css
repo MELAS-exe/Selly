@@ -422,3 +422,180 @@ html[data-woven] .card-rise::after {
 .swap-in {
   animation: settle var(--dur-ui) linear both;
 }
+
+/* ------------------------------------------------------------------------------------------ */
+/* Shop: more motion. Scroll-driven where the browser has it, compositor properties only.     */
+/* ------------------------------------------------------------------------------------------ */
+
+/* The shop header firms up as the page scrolls: a soft shade fades in under it. */
+.header-shade {
+  position: absolute;
+  inset: auto 0 -12px 0;
+  height: 12px;
+  background: linear-gradient(rgb(22 26 51 / 0.1), transparent);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Tiles lift under the pointer; the photo leans in. */
+@media (hover: hover) {
+  .tile-press {
+    transition:
+      transform var(--dur-tap) var(--ease-out-expo),
+      translate var(--dur-ui) var(--ease-out-expo);
+  }
+  .tile-press:hover {
+    translate: 0 -4px;
+  }
+  .tile-photo img,
+  .tile-photo > div {
+    transition: scale var(--dur-hero) var(--ease-out-expo);
+  }
+  .tile-press:hover .tile-photo img,
+  .tile-press:hover .tile-photo > div {
+    scale: 1.05;
+  }
+}
+
+/* The chosen category chip settles with a small bounce. */
+.chip[aria-current] {
+  animation: pop var(--dur-ui) var(--ease-snap);
+}
+
+/* "Plus que quelques pièces": a slow pulse on the dot. */
+.low-dot {
+  animation: low-pulse 1.8s ease-in-out infinite;
+}
+@keyframes low-pulse {
+  50% {
+    opacity: 0.35;
+    scale: 0.7;
+  }
+}
+
+/* The product's facts arrive in a short cascade, legible from the first frame. */
+.pd-in > * {
+  animation: pd-in var(--dur-ui) var(--ease-out-expo) both;
+}
+.pd-in > :nth-child(2) {
+  animation-delay: calc(var(--dur-tap) / 3);
+}
+.pd-in > :nth-child(3) {
+  animation-delay: calc(var(--dur-tap) * 2 / 3);
+}
+.pd-in > :nth-child(n + 4) {
+  animation-delay: var(--dur-tap);
+}
+@keyframes pd-in {
+  from {
+    opacity: 0.4;
+    translate: 0 10px;
+  }
+}
+
+/* Add to cart, once the choice is complete: one sheen across the button. */
+.ready::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgb(255 255 255 / 0.35) 50%,
+    transparent 70%
+  );
+  transform: translateX(-100%);
+  animation: sheen calc(var(--dur-hero) * 1.4) var(--ease-out-expo) calc(var(--dur-tap)) both;
+  pointer-events: none;
+}
+@keyframes sheen {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* "Demander à Selly": arrives after the page has settled, then calls once with a ring. */
+.ask-float {
+  /* backwards, not both: once in, the button's own press feedback (transform) must work again. */
+  animation: ask-in var(--dur-hero) var(--ease-snap) 900ms backwards;
+}
+.ask-float::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 2px solid var(--color-indigo);
+  opacity: 0;
+  pointer-events: none;
+  animation: ask-ring 1.4s var(--ease-out-expo) 2.4s 2;
+}
+@keyframes ask-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.85);
+  }
+}
+@keyframes ask-ring {
+  from {
+    opacity: 0.6;
+    scale: 1;
+  }
+  to {
+    opacity: 0;
+    scale: 1.35;
+  }
+}
+
+@supports (animation-timeline: scroll()) {
+  .header-shade {
+    animation: settle-in linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 80px;
+  }
+  /* The print drifts slower than the page: depth behind the shop card. */
+  .loom-drift {
+    animation: loom-drift linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 420px;
+  }
+  /* Tiles past the first six arrive as they scroll into view. */
+  .tile-view {
+    animation: tile-in linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 80%;
+  }
+}
+@keyframes settle-in {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes loom-drift {
+  to {
+    transform: translateY(110px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header-shade {
+    animation: none;
+    opacity: 1;
+  }
+  .loom-drift,
+  .tile-view,
+  .chip[aria-current],
+  .pd-in > *,
+  .ready::after,
+  .ask-float::after {
+    animation: none;
+  }
+  .ask-float {
+    animation: settle var(--dur-ui) linear 900ms both;
+  }
+  .tile-press:hover,
+  .tile-press:hover .tile-photo img,
+  .tile-press:hover .tile-photo > div {
+    translate: none;
+    scale: none;
+  }
+}
