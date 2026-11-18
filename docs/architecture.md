@@ -338,13 +338,13 @@ Boundary rules:
 
 Why these numbers: a Starter shop pays about the price of a few mobile data bundles per month. The limits follow the cost of the agent. If one agent reply costs about 0.004 EUR (an assumption that §8.7 must measure), a Pro shop that uses all 1,500 replies costs about 6 EUR and a Business shop about 24 EUR, against 13.50 and 36 EUR of income. The pilot with five vendors tests both the prices and the limits before launch (§14.3). Plan prices live in the database. A price change applies to new invoices only and is announced 30 days ahead.
 
-**Trial.** A new vendor with a working wallet can start a 14-day Pro trial without paying. One trial per Nostr key and per wallet public key (`core.trial_claims`).
+**Trial.** Every new shop starts on a 14-day Pro trial when it is created, without paying and without a wallet. During the trial the dashboard, the catalog, the storefront and the chat all work; only orders wait for a wallet (`ORDERS_NOT_OPEN`, and `ordering.reason = wallet_missing` on the store profile). One trial per Nostr key and per wallet public key (`core.trial_claims`): a wallet linked during an unpaid trial joins the claims, and a wallet that already gave another shop its trial is refused (`TRIAL_ALREADY_USED`) until the vendor pays for a plan. A key that already had a trial gets none and must pick a plan.
 
 **Lifecycle** (state machine in §4.4):
 
 - `trialing` or `active`: everything on. Reminders go out 7, 3 and 1 days before the end (dashboard banner, Web Push, and a Nostr direct message when the vendor has that alert on).
-- `grace`: 7 days after the end, everything still on, with a banner.
-- `suspended`: the storefront shows « Boutique momentanément fermée » and takes no new orders (`STORE_PAUSED`), the chat is off, and the dashboard stays open so the vendor can renew and read orders. Orders created before suspension can still be paid and are still confirmed, because the money goes to the vendor's wallet. Data is kept for 90 days.
+- `grace`: 7 days after the end of a paid period, everything still on, with a banner. An unpaid trial has no grace: it is `suspended` as soon as it ends.
+- `suspended`: the shop link opens on « Boutique momentanément fermée » only (no catalog, no product pages: `STORE_PAUSED`), it takes no new orders, the chat is off, and the dashboard stays open so the vendor can renew and read orders. Orders created before suspension can still be paid and are still confirmed, because the money goes to the vendor's wallet. Data is kept for 90 days.
 - A payment at any time returns the subscription to `active`.
 
 **Paying.** One subscription invoice per request, created on the platform's NWC wallet through the same `payments` code as order invoices (§3.6):
@@ -1353,6 +1353,7 @@ Order of operations: compute the totals. Get the rate quote (skipped for sats-pr
 | Status | Code                      | When                                                                                                |
 | ------ | ------------------------- | --------------------------------------------------------------------------------------------------- |
 | 403    | `STORE_PAUSED`            | The vendor's subscription is suspended, or the shop is not live yet.                                |
+| 403    | `ORDERS_NOT_OPEN`         | The shop is open but the vendor has not linked a wallet yet, so it takes no orders.                 |
 | 409    | `OUT_OF_STOCK`            | A line cannot be reserved. `errors[]` gives what is available.                                      |
 | 409    | `PRICE_CHANGED`           | `expected_total` differs from the server total. The body carries the new quote.                     |
 | 422    | `VALIDATION_FAILED`       | Missing or invalid fields, unknown zone, no phone number.                                           |
@@ -1715,6 +1716,7 @@ Every error is `application/problem+json` with a stable `code`. The catalog live
 | `CHALLENGE_INVALID`                                                                                      | 401                     | no                 | « La signature n'est pas valide, réessayez. » Asks for a new challenge                 | not applicable                                         |
 | `CHAT_SESSION_EXPIRED`                                                                                   | 401                     | no                 | the widget opens a new session                                                         | not applicable                                         |
 | `STORE_PAUSED`                                                                                           | 403                     | no                 | « Boutique momentanément fermée »                                                      | not applicable                                         |
+| `ORDERS_NOT_OPEN`                                                                                        | 403                     | no                 | the cart says the shop does not take orders yet                                        | answers questions, hands over to the vendor            |
 | `CHAT_UNAVAILABLE`                                                                                       | 403                     | no                 | hides the chat                                                                         | not applicable                                         |
 | `PLAN_LIMIT_REACHED`                                                                                     | 409                     | no                 | shows the limit and the upgrade button                                                 | not applicable                                         |
 | `FEATURE_NOT_IN_PLAN`                                                                                    | 403                     | no                 | shows what the next plan adds                                                          | « Écrivez-moi votre message » (voice notes)            |

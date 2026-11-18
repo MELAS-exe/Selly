@@ -251,9 +251,14 @@ export async function listInvoices(
 
 // ---------------------------------------------------------------------------------------------- trial
 
+/** One trial per wallet: an NWC wallet by its public key, a Lightning Address by the address. */
+const walletClaimOf = (w: { walletPubkey: string | null; lud16: string | null } | undefined) =>
+  w?.walletPubkey ?? (w?.lud16 ? `lud16:${w.lud16.toLowerCase()}` : null);
+
 /**
- * A 14-day Pro trial for a vendor with a working wallet. One per Nostr key and per wallet: the claims are written
- * with the subscription, so a second shop on the same key or wallet is refused.
+ * A 14-day Pro trial, started when the shop is created. No wallet is needed: the shop and the dashboard work in
+ * full, only orders wait for a wallet. One trial per Nostr key and per wallet: the claims are written with the
+ * subscription, and a wallet linked later joins them (claimTrialWallet).
  */
 export async function startTrial(ctx: Context, vendorId: string, planId: string) {
   if (planId !== TRIAL_PLAN)
@@ -270,13 +275,7 @@ export async function startTrial(ctx: Context, vendorId: string, planId: string)
         eq(core.walletConnections.status, 'active'),
       ),
     );
-  // One trial per wallet: an NWC wallet by its public key, a Lightning Address by the address.
-  const walletClaim =
-    wallet?.walletPubkey ?? (wallet?.lud16 ? `lud16:${wallet.lud16.toLowerCase()}` : null);
-  if (!wallet || !walletClaim)
-    throw new AppError('VALIDATION_FAILED', 'Link a working wallet before starting the trial.', {
-      errors: [{ field: 'wallet', message: 'Missing' }],
-    });
+  const walletClaim = walletClaimOf(wallet);
 
   const now = ctx.now();
   const end = new Date(now.getTime() + TRIAL_DAYS * DAY_MS);
@@ -298,7 +297,7 @@ export async function startTrial(ctx: Context, vendorId: string, planId: string)
       .where(eq(vendorKeys.vendorId, vendorId));
     const claims = [
       ...keys.map((k) => ({ claimKey: `key:${k.pubkey}`, kind: 'key' as const })),
-      { claimKey: `wallet:${walletClaim}`, kind: 'wallet' as const },
+      ...(walletClaim ? [{ claimKey: `wallet:${walletClaim}`, kind: 'wallet' as const }] : []),
     ];
     for (const c of claims) {
       const ok = await tx
@@ -331,6 +330,36 @@ export async function startTrial(ctx: Context, vendorId: string, planId: string)
     await announce(tx, sub, now, { reason: 'trial_started' });
   });
   return subscriptionView(ctx, vendorId);
+}
+
+/**
+ * A wallet linked during an unpaid trial joins the trial's claims, in the caller's transaction, so one wallet still
+ * gives one trial when the trial started before any wallet. A wallet that already gave another shop its trial is
+ * refused until the vendor pays for a plan.
+ */
+export async function claimTrialWallet(
+  tx: Database,
+  vendorId: string,
+  wallet: { walletPubkey: string | null; lud16: string | null },
+  now: Date,
+) {
+  const claim = walletClaimOf(wallet);
+  if (!claim) return;
+  const [sub] = await tx.select().from(subscriptions).where(eq(subscriptions.vendorId, vendorId));
+  if (!sub || sub.status !== 'trialing' || !sub.trialEndsAt || now >= sub.trialEndsAt) return;
+  const claimKey = `wallet:${claim}`;
+  const [held] = await tx.select().from(trialClaims).where(eq(trialClaims.claimKey, claimKey));
+  if (held && held.vendorId !== vendorId)
+    throw new AppError(
+      'TRIAL_ALREADY_USED',
+      'Ce portefeuille a déjà servi à l’essai gratuit d’une autre boutique. Choisissez une formule, ou liez un autre portefeuille.',
+      { errors: [{ claim: 'wallet' }] },
+    );
+  if (!held)
+    await tx
+      .insert(trialClaims)
+      .values({ claimKey, vendorId, claimedAt: now })
+      .onConflictDoNothing();
 }
 
 // ---------------------------------------------------------------------------------------------- invoices

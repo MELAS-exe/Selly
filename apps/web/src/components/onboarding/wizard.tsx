@@ -22,10 +22,10 @@ import type {
 
 type Screen = OnboardingStep | 'loading' | 'failed';
 
+// The trial starts with the shop, so the plan step only appears for a key that already had one.
 const STEPS: { id: Exclude<OnboardingStep, 'done'>; label: string }[] = [
   { id: 'shop', label: 'Your shop' },
   { id: 'wallet', label: 'Your wallet' },
-  { id: 'plan', label: 'Your plan' },
 ];
 
 const inputClass =
@@ -58,6 +58,11 @@ export function Wizard() {
   const load = useCallback(async () => {
     try {
       const me = await api<Vendor>('/vendors/me');
+      // Trial over or plan suspended: the dashboard stays open to renew.
+      if (me.live_blockers.includes('subscription_suspended')) {
+        router.replace('/app/abonnement');
+        return;
+      }
       setVendor(me);
       setScreen(stepFor(me));
     } catch (err) {
@@ -78,13 +83,14 @@ export function Wizard() {
     api<PlansResponse>('/plans').then(setPlans, () => {});
   }, [load]);
 
-  /** Runs one step's request, then shows what is missing next. */
-  async function submit(task: () => Promise<unknown>) {
+  /** Runs one step's request, then shows what is missing next (or `then`, when nothing is). */
+  async function submit(task: () => Promise<unknown>, then?: Screen) {
     setBusy(true);
     setError(null);
     try {
       await task();
       await load();
+      if (then) setScreen((s) => (s === 'done' ? then : s));
     } catch (err) {
       setError(describeError(err));
     } finally {
@@ -162,13 +168,20 @@ export function Wizard() {
       {screen === 'shop' && (
         <ShopStep
           busy={busy}
-          onSubmit={(body) => submit(() => api<Vendor>('/vendors', { method: 'POST', body }))}
+          onSubmit={(body) =>
+            // The wallet is offered once, right after the shop exists; it can be skipped.
+            submit(() => api<Vendor>('/vendors', { method: 'POST', body }), 'wallet')
+          }
         />
       )}
       {screen === 'wallet' && (
         <WalletStep
           busy={busy}
           onSubmit={(body) => submit(() => api('/vendors/me/wallet', { method: 'PUT', body }))}
+          onSkip={() => {
+            setError(null);
+            setScreen('done');
+          }}
         />
       )}
       {screen === 'plan' && (
@@ -311,9 +324,11 @@ function ShopStep({
 function WalletStep({
   busy,
   onSubmit,
+  onSkip,
 }: {
   busy: boolean;
   onSubmit: (body: WalletLinkRequest) => void;
+  onSkip: () => void;
 }) {
   const ids = { uri: useId() };
   const [uri, setUri] = useState('');
@@ -343,7 +358,8 @@ function WalletStep({
         <h1 className="pv-serif text-4xl md:text-5xl font-light mb-3">Connect your wallet</h1>
         <p className="pv-sans text-sm text-black/60 leading-relaxed">
           Customers pay straight into your wallet. Selly only asks it for invoices and never touches
-          the money.
+          the money. Your free trial has started: you can do this later, but customers can only
+          order once a wallet is connected.
         </p>
       </div>
 
@@ -399,6 +415,9 @@ function WalletStep({
       <button type="submit" disabled={busy} className={primaryButton}>
         {busy ? 'Checking your wallet…' : 'Connect my wallet'}
       </button>
+      <button type="button" disabled={busy} onClick={onSkip} className={`${linkButton} self-start`}>
+        Skip for now
+      </button>
       <p className="pv-sans text-xs text-black/50">
         No wallet yet?{' '}
         <Link href="/aide/payer-en-bitcoin" className="underline underline-offset-4">
@@ -437,7 +456,7 @@ function PlanStep({
         <Bullet>
           Afterwards you pick a plan and pay from your own wallet. Nothing renews on its own.
         </Bullet>
-        <Bullet>One trial per key and per wallet.</Bullet>
+        <Bullet>One trial per key and per wallet. No wallet is needed to start.</Bullet>
       </ul>
       <button
         type="button"
@@ -507,6 +526,16 @@ function DoneStep({ vendor }: { vendor: Vendor }) {
           </a>
         </div>
       </div>
+
+      {!vendor.accepting_orders && (
+        <p className="pv-sans text-sm border border-[#1111111f] px-4 py-3 leading-relaxed">
+          Customers can browse and chat, but cannot order until you connect a wallet.{' '}
+          <Link href="/app/portefeuille" className="underline underline-offset-4">
+            Connect it from the dashboard
+          </Link>
+          .
+        </p>
+      )}
 
       <Link href="/app" className={`${primaryButton} inline-flex items-center justify-center`}>
         Go to my dashboard

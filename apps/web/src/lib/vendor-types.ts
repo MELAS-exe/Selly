@@ -93,7 +93,10 @@ export interface Vendor {
   locale: string;
   status: 'active' | 'suspended';
   store_url: string;
+  /** Online: a plan that is not suspended (the trial counts). A wallet is not needed. */
   live: boolean;
+  /** Live with a linked wallet: customers can order. */
+  accepting_orders: boolean;
   live_blockers: LiveBlocker[];
   created_at: string;
 }

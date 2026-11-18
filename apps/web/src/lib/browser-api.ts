@@ -60,6 +60,8 @@ export function problemMessage(p: Problem): string {
       return 'Trop de requêtes, réessayez dans un instant.';
     case 'STORE_PAUSED':
       return 'Boutique momentanément fermée.';
+    case 'ORDERS_NOT_OPEN':
+      return 'Cette boutique ne prend pas encore de commandes en ligne. Contactez le vendeur.';
     case 'VALIDATION_FAILED':
       return 'Certaines informations sont incomplètes. Vérifiez le formulaire.';
     case 'NETWORK':

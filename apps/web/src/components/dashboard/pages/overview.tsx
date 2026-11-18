@@ -141,7 +141,7 @@ export function Overview() {
               : `${s.trial ? 'Votre essai' : 'Votre formule'} se termine dans ${left} jour${left > 1 ? 's' : ''}`,
         text:
           s.status === 'suspended'
-            ? 'La boutique est fermée aux nouvelles commandes. Renouvelez pour la rouvrir.'
+            ? 'La boutique est fermée et son lien ne s’ouvre plus. Choisissez une formule pour la rouvrir.'
             : 'Le renouvellement n’est jamais automatique : réglez une facture quand vous voulez.',
         when: `${sub.data?.plan?.name ?? ''} · renouvellement manuel`,
         href: '/app/abonnement',

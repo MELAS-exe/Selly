@@ -70,11 +70,16 @@ export function stateOf(s: SubRow, now: Date) {
   };
 }
 
-/** trialing or active past the period end is grace; grace past its end is suspended. */
+/**
+ * active past the period end is grace; grace past its end is suspended. An unpaid trial has no grace: it is
+ * suspended as soon as it ends (still trialing at its end means nothing was paid, applyPayment sets active).
+ */
 export function effectiveStatus(
   s: { status: SubscriptionStatus; currentPeriodEnd: Date; graceEndsAt: Date | null },
   now: Date,
 ): { status: SubscriptionStatus; graceEndsAt: Date | null } {
+  if (s.status === 'trialing' && now >= s.currentPeriodEnd)
+    return { status: 'suspended', graceEndsAt: s.currentPeriodEnd };
   const graceEndsAt = s.graceEndsAt ?? new Date(s.currentPeriodEnd.getTime() + GRACE_DAYS * DAY_MS);
   if (s.status === 'suspended') return { status: 'suspended', graceEndsAt };
   if (now < s.currentPeriodEnd && s.status !== 'grace')

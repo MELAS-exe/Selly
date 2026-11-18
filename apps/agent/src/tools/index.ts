@@ -682,6 +682,15 @@ function describeCoreError(err: CoreError, ctx: ToolContext): Record<string, unk
       return { error: err.code, hint: 'Introuvable. Vérifie la référence avec le client.' };
     case 'STORE_PAUSED':
       return { error: err.code, hint: 'La boutique ne prend pas de commandes pour le moment.' };
+    case 'ORDERS_NOT_OPEN':
+      ctx.out.handoff = {
+        reason: 'payment_unavailable',
+        summary: 'Un client voulait commander, mais aucun portefeuille n’est lié à la boutique.',
+      };
+      return {
+        error: err.code,
+        hint: 'La boutique ne prend pas encore de commandes en ligne. Réponds aux questions, et dis que le vendeur est prévenu et va recontacter le client.',
+      };
     default:
       return {
         error: err.code,
