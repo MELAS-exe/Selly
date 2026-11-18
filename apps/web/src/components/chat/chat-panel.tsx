@@ -40,22 +40,16 @@ export function ChatPanel({
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const seen = useRef(new Set<string>());
 
+  // De-duplicate by id inside the state updater so React's Strict Mode double-invocation of
+  // effects never blocks messages: each invocation sees the actual committed state, not a ref
+  // that survived from a previous aborted render cycle.
   const addMessages = useCallback((incoming: ChatMessage[]) => {
     if (incoming.length === 0) return;
     setMessages((prev) => {
-      const next = [...prev];
-      for (const m of incoming) {
-        if (seen.current.has(m.id)) continue;
-        seen.current.add(m.id);
-        next.push(m);
-      }
-      console.log(
-        '[chat debug] addMessages',
-        JSON.stringify({ incoming: incoming.length, nextLength: next.length }),
-      );
-      return next;
+      const existing = new Set(prev.map((m) => m.id));
+      const toAdd = incoming.filter((m) => !existing.has(m.id));
+      return toAdd.length > 0 ? [...prev, ...toAdd] : prev;
     });
   }, []);
 
@@ -63,17 +57,12 @@ export function ChatPanel({
     let active = true;
     (async () => {
       try {
-        const { session: s, resumed } = await ensureSession(slug, { productId });
-        console.log(
-          '[chat debug] ensureSession resolved',
-          JSON.stringify({ resumed, messageCount: s.messages.length }),
-        );
+        const { session: s } = await ensureSession(slug, { productId });
         if (!active) return;
         setSession(s);
         addMessages(s.messages);
         setStatus('ready');
-      } catch (err) {
-        console.log('[chat debug] ensureSession failed', err);
+      } catch {
         if (active) setStatus('failed');
       }
     })();

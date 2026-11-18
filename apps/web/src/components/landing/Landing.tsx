@@ -521,7 +521,7 @@ export function Landing() {
               src="/landing/gallery/gallery.jpg"
             />
             <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
-            <div className="gal-card absolute bottom-6 left-6 bg-[#F6F4F0] p-5 pr-12 border border-[#1111111f] transition-transform duration-(--dur-ui) ease-(--ease-out-expo) group-hover:translate-x-2">
+            <div className="gal-card absolute bottom-6 left-6 bg-[#F6F4F0] bg-opacity-95 p-5 pr-12 border border-black/10 transition-transform duration-(--dur-ui) ease-(--ease-out-expo) group-hover:translate-x-2">
               <h3 className="pv-serif text-3xl mb-1 group-hover:text-[#8AAE4A] transition-colors duration-(--dur-ui)">
                 Your online shop
               </h3>
