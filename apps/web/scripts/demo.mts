@@ -14,6 +14,8 @@
 //      POST /order?pay_after=3   a customer (Fatou) orders the white sneakers and pays 3 s later
 //      POST /pay?hash=<payment_hash>   pay an invoice of this wallet
 //      POST /chat?text=...&text=...   a customer opens a chat on the shop and writes (one message per text)
+//      POST /draft   finishes the shop's latest photo draft as the agent would (stand-in while the demo LLM
+//                    cannot read photos), through core's internal API and the dev service token
 // Stop with Ctrl+C: the shop's wallet goes offline and the dashboard shows it.
 
 import { execFileSync, spawn } from 'node:child_process';
@@ -160,6 +162,46 @@ async function order(payAfterSec: number) {
   return created;
 }
 
+const SERVICE_TOKEN = process.env.SERVICE_TOKEN_AGENT ?? 'dev-agent-token';
+
+/** What the vision model would have extracted from the green sneakers photo of the demo. */
+async function completeDraft() {
+  const row = psql(
+    `select id, coalesce(input_text, ''), array_to_string(image_keys, ',') from core.product_drafts where vendor_id = '${vendorId}' and status in ('processing', 'needs_review') order by created_at desc limit 1`,
+  );
+  if (!row) throw new Error('No photo draft is processing. Add one from the Catalog first.');
+  const [draftId, inputText, keys] = row.split('|');
+  const res = await fetch(`${CORE}/internal/v1/vendors/${vendorId}/product-drafts`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${SERVICE_TOKEN}` },
+    body: JSON.stringify({
+      draft_id: draftId,
+      image_keys: (keys ?? '').split(',').filter(Boolean),
+      input_text: inputText,
+      extracted: {
+        title: { value: 'Baskets vertes', confidence: 0.84, from: 'image' },
+        description: {
+          value: 'Baskets basses en cuir vert, semelle blanche.',
+          confidence: 0.7,
+          from: 'image',
+        },
+        category: { value: 'chaussures', confidence: 0.9, from: 'image' },
+        price: { value: { amount: 22000, currency: 'XOF' }, confidence: 0.97, from: 'text' },
+        variants: ['40', '41', '42', '43'].map((size) => ({ options: { size }, stock: null })),
+      },
+      questions: [
+        {
+          id: 'stock_split',
+          text: '3 paires au total, ou 3 par pointure ?',
+          choices: ['3 au total', '3 par pointure'],
+        },
+      ],
+    }),
+  });
+  if (!res.ok) throw new Error(`draft upsert: ${res.status} ${await res.text()}`);
+  return res.json();
+}
+
 type ChatSession = { session_token: string; conversation_id: string };
 
 async function chat(texts: string[]) {
@@ -195,6 +237,8 @@ createServer(async (req, res) => {
     else if (req.method === 'POST' && url.pathname === '/pay') {
       await wallet.pay(url.searchParams.get('hash') ?? '');
       out = { paid: true };
+    } else if (req.method === 'POST' && url.pathname === '/draft') {
+      out = await completeDraft();
     } else if (req.method === 'POST' && url.pathname === '/chat') {
       out = await chat(url.searchParams.getAll('text'));
     } else if (url.pathname === '/key')
