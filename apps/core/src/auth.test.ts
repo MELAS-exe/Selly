@@ -353,6 +353,31 @@ describe('shop creation', () => {
     expect((await patch({ display_name: 'Nouveau nom', settings: { unknown: true } })).status).toBe(
       422,
     );
+
+    // The shop page's opening words: saved trimmed, an empty line means the default (null).
+    const hero = await patch({
+      settings: {
+        branding: {
+          hero: {
+            eyebrow: '  Bienvenue chez Voom ',
+            title: 'Du style, pour vous.',
+            text: '',
+            cta: 'Voir',
+          },
+        },
+      },
+    });
+    expect(hero.body.settings.branding.hero).toEqual({
+      eyebrow: 'Bienvenue chez Voom',
+      title: 'Du style, pour vous.',
+      text: null,
+      cta: 'Voir',
+    });
+    const STORE = '/api/v1/stores/{slug}';
+    const store = await call('GET', STORE, `/api/v1/stores/${shop.slug}`, { cookie: shop.cookie });
+    expect(store.body.store.branding.hero).toMatchObject({ eyebrow: 'Bienvenue chez Voom' });
+    const tooLong = { cta: 'x'.repeat(31) };
+    expect((await patch({ settings: { branding: { hero: tooLong } } })).status).toBe(422);
   });
 });
 

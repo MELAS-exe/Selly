@@ -11299,13 +11299,75 @@
                 "type": "null"
               }
             ]
+          },
+          "hero": {
+            "type": "object",
+            "description": "The opening words of the shop page. null (or an empty string when setting it) means the storefront default for that line.",
+            "properties": {
+              "eyebrow": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 60
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Small line above the title. Default: « Bienvenue chez {display_name} »."
+              },
+              "title": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 90
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The big title. The part after its first comma (or line break) shows in the accent colour, in italics. Default: « Des belles choses, tout près de vous. »"
+              },
+              "text": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 240
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The paragraph under the title. Default: « Choisissez, posez vos questions à Selly, et payez en bitcoin, directement à {display_name}. »"
+              },
+              "cta": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 30
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The main button, to the catalogue. Default: « Voir la sélection »."
+              }
+            },
+            "required": [
+              "eyebrow",
+              "title",
+              "text",
+              "cta"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
           "logo_url",
           "primary_color",
           "accent_color",
-          "banner"
+          "banner",
+          "hero"
         ],
         "additionalProperties": false
       },
@@ -12841,6 +12903,67 @@
                     "type": "null"
                   }
                 ]
+              },
+              "hero": {
+                "type": "object",
+                "description": "The opening words of the shop page. null (or an empty string when setting it) means the storefront default for that line.",
+                "properties": {
+                  "eyebrow": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 60
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Small line above the title. Default: « Bienvenue chez {display_name} »."
+                  },
+                  "title": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 90
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "The big title. The part after its first comma (or line break) shows in the accent colour, in italics. Default: « Des belles choses, tout près de vous. »"
+                  },
+                  "text": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 240
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "The paragraph under the title. Default: « Choisissez, posez vos questions à Selly, et payez en bitcoin, directement à {display_name}. »"
+                  },
+                  "cta": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 30
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "The main button, to the catalogue. Default: « Voir la sélection »."
+                  }
+                },
+                "required": [
+                  "eyebrow",
+                  "title",
+                  "text",
+                  "cta"
+                ],
+                "additionalProperties": false
               }
             },
             "required": [
@@ -12848,7 +12971,8 @@
               "logo_url",
               "primary_color",
               "accent_color",
-              "banner"
+              "banner",
+              "hero"
             ],
             "additionalProperties": false
           }

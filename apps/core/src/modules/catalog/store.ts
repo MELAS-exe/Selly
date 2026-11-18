@@ -54,6 +54,12 @@ export function vendorSettings(v: Vendor) {
       primary_color?: string | null;
       accent_color?: string | null;
       banner?: { text?: string; href?: string | null; image_key?: string | null } | null;
+      hero?: {
+        eyebrow?: string | null;
+        title?: string | null;
+        text?: string | null;
+        cta?: string | null;
+      };
     };
   };
   return {
@@ -86,6 +92,13 @@ export function vendorSettings(v: Vendor) {
             imageKey: s.branding.banner.image_key ?? null,
           }
         : null,
+      // The shop page's opening words. null: the storefront's default for that line.
+      hero: {
+        eyebrow: s.branding?.hero?.eyebrow ?? null,
+        title: s.branding?.hero?.title ?? null,
+        text: s.branding?.hero?.text ?? null,
+        cta: s.branding?.hero?.cta ?? null,
+      },
     },
   };
 }
@@ -340,6 +353,7 @@ export async function storeProfile(ctx: Context, v: Vendor) {
       primary_color: s.branding.primaryColor,
       accent_color: s.branding.accentColor,
       banner: bannerView(ctx, s.branding.banner),
+      hero: s.branding.hero,
     },
     categories: cats,
     chat: {

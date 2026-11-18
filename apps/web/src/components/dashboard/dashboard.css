@@ -1858,6 +1858,31 @@ select.form-control {
   font-size: 24px;
   line-height: 1.05;
 }
+.sp-title em {
+  color: var(--sf-accent-text);
+}
+.sp-text {
+  margin: 0 0 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(23, 59, 50, 0.72);
+}
+.hero-fields {
+  min-width: 0;
+  margin: 22px 0 0;
+  padding: 18px 0 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+.hero-fields legend {
+  float: left;
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 0;
+}
+.hero-fields legend + .form-hint {
+  clear: both;
+}
 .sp-button {
   display: inline-block;
   padding: 8px 14px;

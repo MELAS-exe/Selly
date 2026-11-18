@@ -82,6 +82,7 @@ export async function vendorView(ctx: Context, v: Vendor) {
         banner: s.branding.banner
           ? { ...bannerView(ctx, s.branding.banner), image_key: s.branding.banner.imageKey }
           : null,
+        hero: s.branding.hero,
       },
       alerts: alertSettings(v),
     },
@@ -164,6 +165,15 @@ export async function createVendor(ctx: Context, s: Session, body: z.infer<typeo
   return vendorView(ctx, vendor);
 }
 
+const heroLine = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .nullable()
+    .optional()
+    .transform((v) => v || null);
+
 const money = z.object({ amount: z.number().int().min(0), currency: z.enum(['XOF', 'SAT']) });
 const settingsPatch = z.strictObject({
   pricing_currency: z.enum(['XOF', 'SAT']).optional(),
@@ -231,6 +241,15 @@ const settingsPatch = z.strictObject({
           image_key: z.string().max(200).nullable().optional(),
         })
         .nullable()
+        .optional(),
+      // An empty line goes back to the storefront's default.
+      hero: z
+        .strictObject({
+          eyebrow: heroLine(60),
+          title: heroLine(90),
+          text: heroLine(240),
+          cta: heroLine(30),
+        })
         .optional(),
     })
     .optional(),

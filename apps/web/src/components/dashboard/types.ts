@@ -12,6 +12,8 @@ import type {
 
 export type { ChatMessage, Image, Money, Options, OrderStatus, Plan, PlanId, Wallet };
 
+import type { HeroTexts } from '@/lib/hero';
+
 export interface Branding {
   logo_key: string | null;
   logo_url: string | null;
@@ -23,6 +25,7 @@ export interface Branding {
     image_key?: string | null;
     image_url?: string | null;
   } | null;
+  hero?: HeroTexts;
 }
 
 export interface DeliveryZone {

@@ -14,6 +14,14 @@ import {
 import { storefrontStyle } from '@/lib/brand-colors';
 import { ApiError } from '@/lib/browser-api';
 import { toE164 } from '@/lib/format';
+import {
+  DEFAULT_CTA,
+  DEFAULT_TITLE,
+  defaultEyebrow,
+  defaultText,
+  type HeroTexts,
+  heroCopy,
+} from '@/lib/hero';
 import { uploadImages, useDashboard, useResource } from '../data';
 import { fmtXof } from '../format';
 import { ImagePlus, Plus, ShoppingBag, X } from '../icons';
@@ -453,10 +461,19 @@ function BrandingSection({ vendor, save }: { vendor: Vendor; save: Save }) {
   const [accent, setAccent] = useState(b?.accent_color ?? '#8aae4a');
   const [banner, setBanner] = useState(b?.banner?.text ?? '');
   const [href, setHref] = useState(b?.banner?.href ?? '');
+  // The shop page's opening words; an empty field keeps the storefront's default (shown as the placeholder).
+  const [hero, setHero] = useState<HeroTexts>({
+    eyebrow: b?.hero?.eyebrow ?? '',
+    title: b?.hero?.title ?? '',
+    text: b?.hero?.text ?? '',
+    cta: b?.hero?.cta ?? '',
+  });
+  const setLine = (k: keyof HeroTexts) => (v: string) => setHero((h) => ({ ...h, [k]: v }));
   const [logo, setLogo] = usePicture(b?.logo_key, b?.logo_url);
   const [cover, setCover] = usePicture(b?.banner?.image_key, b?.banner?.image_url);
   const [busy, setBusy] = useState(false);
   const nameOk = name.trim().length >= 2;
+  const shopName = name.trim() || vendor.display_name;
 
   async function submit() {
     if (!nameOk) return;
@@ -480,6 +497,7 @@ function BrandingSection({ vendor, save }: { vendor: Vendor; save: Save }) {
                 banner: hasBanner
                   ? { text: banner.trim(), href: href.trim() || null, image_key: coverKey }
                   : null,
+                hero,
               },
             },
           },
@@ -590,6 +608,52 @@ function BrandingSection({ vendor, save }: { vendor: Vendor; save: Save }) {
             onError={(m) => flash(m, 'error')}
             wide
           />
+          <fieldset className="hero-fields">
+            <legend className="form-label">Accueil de la boutique</legend>
+            <p className="form-hint">
+              Les premiers mots que voient vos clients. Laissez une ligne vide pour garder le texte
+              proposé.
+            </p>
+            {(
+              [
+                ['eyebrow', 'Petit titre', 60, defaultEyebrow(shopName)],
+                ['title', 'Titre', 90, DEFAULT_TITLE],
+                ['text', 'Texte', 240, defaultText(shopName)],
+                ['cta', 'Bouton', 30, DEFAULT_CTA],
+              ] as const
+            ).map(([k, label, max, placeholder]) => (
+              <div key={k}>
+                <label className="form-label" htmlFor={`h-${k}`}>
+                  {label}
+                </label>
+                {k === 'text' ? (
+                  <textarea
+                    id={`h-${k}`}
+                    className="form-control"
+                    rows={2}
+                    maxLength={max}
+                    value={hero[k] ?? ''}
+                    onChange={(e) => setLine(k)(e.target.value)}
+                    placeholder={placeholder}
+                  />
+                ) : (
+                  <input
+                    id={`h-${k}`}
+                    className="form-control"
+                    maxLength={max}
+                    value={hero[k] ?? ''}
+                    onChange={(e) => setLine(k)(e.target.value)}
+                    placeholder={placeholder}
+                  />
+                )}
+                {k === 'title' && (
+                  <p className="form-hint">
+                    Après la virgule, le titre s’écrit en italique, dans la couleur d’accent.
+                  </p>
+                )}
+              </div>
+            ))}
+          </fieldset>
           <div className="modal-actions">
             <button type="submit" className="button primary small" disabled={busy || !nameOk}>
               {busy ? 'Enregistrement…' : 'Enregistrer'}
@@ -597,7 +661,8 @@ function BrandingSection({ vendor, save }: { vendor: Vendor; save: Save }) {
           </div>
         </form>
         <ShopPreview
-          name={name.trim() || vendor.display_name}
+          name={shopName}
+          hero={hero}
           logo={logo.url}
           primary={primary}
           accent={accent}
@@ -613,6 +678,7 @@ function BrandingSection({ vendor, save }: { vendor: Vendor; save: Save }) {
 /** The top of the shop page in the colours being chosen (the same rules as the storefront: storefrontStyle). */
 function ShopPreview({
   name,
+  hero,
   logo,
   primary,
   accent,
@@ -621,6 +687,7 @@ function ShopPreview({
   url,
 }: {
   name: string;
+  hero: HeroTexts;
   logo: string | null;
   primary: string;
   accent: string;
@@ -634,6 +701,7 @@ function ShopPreview({
     accent_color: accent,
     banner: null,
   });
+  const copy = heroCopy(name, hero);
   return (
     <aside className="shop-preview" aria-label="Aperçu de la boutique">
       <div className="shop-preview-frame" style={vars as CSSProperties}>
@@ -650,9 +718,12 @@ function ShopPreview({
         </div>
         {cover && <img className="sp-cover" src={cover} alt="" />}
         <div className="sp-hero">
-          <p className="sp-eyebrow">Bienvenue chez {name}</p>
-          <p className="sp-title">Des belles choses, tout près de vous.</p>
-          <span className="sp-button">Voir la sélection</span>
+          <p className="sp-eyebrow">{copy.eyebrow}</p>
+          <p className="sp-title">
+            {copy.title[0]} {copy.title[1] && <em>{copy.title[1]}</em>}
+          </p>
+          <p className="sp-text">{copy.text}</p>
+          <span className="sp-button">{copy.cta}</span>
         </div>
       </div>
       <p className="form-hint">
