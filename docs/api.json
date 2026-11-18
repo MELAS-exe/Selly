@@ -10570,6 +10570,175 @@
           "Internal"
         ]
       }
+    },
+    "/api/v1/conversations/{id}/quotes": {
+      "post": {
+        "tags": [
+          "Inbox"
+        ],
+        "operationId": "quoteForConversation",
+        "summary": "The exact total of a cart, before the vendor makes the order in the chat",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Conversation id.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "0193a8f4-6f7a-7b8c-9d0e-1f2a3b4c5d6e"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CartQuoteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Core’s quote.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalCartQuote"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not this vendor’s conversation.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "OUT_OF_STOCK.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_FAILED.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/conversations/{id}/orders": {
+      "post": {
+        "tags": [
+          "Inbox"
+        ],
+        "operationId": "createOrderInConversation",
+        "summary": "The vendor makes the order and sends it to the customer as an order card",
+        "description": "Needs an Idempotency-Key (16 to 64 characters). The order is tied to the conversation; the customer pays from the card’s « Payer », on the checkout page. The chat stays with the vendor for 30 minutes.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Conversation id.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "0193a8f4-6f7a-7b8c-9d0e-1f2a3b4c5d6e"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 64
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VendorOrderRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The order and the message with its card.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VendorOrderCreated"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "STORE_PAUSED or ORDERS_NOT_OPEN.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not this vendor’s conversation.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "OUT_OF_STOCK or PRICE_CHANGED (quote again).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_FAILED.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -15218,13 +15387,23 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 1000
+          },
+          "product_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 3,
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Products to show the customer, sent as product cards (as the agent sends them)."
           }
         },
         "required": [
-          "client_message_id",
-          "text"
+          "client_message_id"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A vendor message: text, product_ids, or both."
       },
       "ConversationModeRequest": {
         "type": "object",
@@ -16503,6 +16682,63 @@
         ],
         "additionalProperties": false,
         "description": "A product photo, as the vendor sees it: with its storage key."
+      },
+      "VendorOrderRequest": {
+        "type": "object",
+        "description": "An order the vendor makes in the chat, for this conversation. Send the total of POST .../quotes as expected_total.",
+        "properties": {
+          "client_message_id": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 64
+          },
+          "customer": {
+            "$ref": "#/components/schemas/CustomerInput"
+          },
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 20,
+            "items": {
+              "$ref": "#/components/schemas/CartItemInput"
+            }
+          },
+          "delivery": {
+            "$ref": "#/components/schemas/DeliveryInput"
+          },
+          "expected_total": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "The message with the order card. Default: the order number, the total and « Payer »."
+          }
+        },
+        "required": [
+          "client_message_id",
+          "customer",
+          "items",
+          "delivery",
+          "expected_total"
+        ],
+        "additionalProperties": false
+      },
+      "VendorOrderCreated": {
+        "type": "object",
+        "properties": {
+          "order": {
+            "$ref": "#/components/schemas/InternalOrderCreated"
+          },
+          "message": {
+            "$ref": "#/components/schemas/ChatMessage"
+          }
+        },
+        "required": [
+          "order",
+          "message"
+        ],
+        "additionalProperties": false
       }
     }
   }

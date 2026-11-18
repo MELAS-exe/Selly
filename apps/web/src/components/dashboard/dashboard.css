@@ -2665,3 +2665,106 @@ a.popover-item:hover {
 .pending-drafts .panel-title {
   margin: 0 0 4px;
 }
+
+/* -------------------------------------------------------------------------- selling in a discussion */
+
+.sell-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 16px 0;
+}
+.thread-cards {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+.thread-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px;
+  font-size: 12px;
+  color: inherit;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid var(--line);
+}
+.bubble.me .thread-card {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--on-dark-line);
+}
+.thread-card img {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+}
+.thread-card span,
+.pick-row span,
+.order-line span {
+  display: grid;
+  min-width: 0;
+}
+.thread-card b,
+.pick-row b,
+.order-line b {
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pick-list {
+  display: grid;
+  gap: 6px;
+  max-height: 300px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.pick-row {
+  display: grid;
+  grid-template-columns: auto 44px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 6px 10px;
+  font-size: 13px;
+  border: 1px solid var(--line-soft);
+  cursor: pointer;
+}
+.pick-row.on {
+  border-color: var(--ink);
+}
+.pick-row img,
+.pick-row > svg {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+}
+.order-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 13px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.order-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  margin-top: 6px;
+}
+.form-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 700px) {
+  .order-add,
+  .form-pair {
+    grid-template-columns: 1fr;
+  }
+}

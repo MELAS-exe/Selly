@@ -7,9 +7,20 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { MakeOrder, ShowProducts, ThreadCards } from '../chat-selling';
 import { newKey, useDashboard, useResource } from '../data';
 import { fmtAgo, fmtTime, fmtWhen, initials, MODE_LABEL } from '../format';
-import { Bot, Headset, MessageCircle, Pause, Search, Send, Sparkles } from '../icons';
+import {
+  Bot,
+  Headset,
+  MessageCircle,
+  Package,
+  Pause,
+  Search,
+  Send,
+  ShoppingBag,
+  Sparkles,
+} from '../icons';
 import type { ChatMessage, ConversationMode, ConversationSummary, Page } from '../types';
 import { Empty, Failed, Loading, PageTitle } from '../ui';
 
@@ -135,6 +146,7 @@ function Thread({ chat }: { chat: ConversationSummary }) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [typing, setTyping] = useState(false);
+  const [selling, setSelling] = useState<'products' | 'order' | null>(null);
   const end = useRef<HTMLDivElement>(null);
   const count = messages.data?.data.length ?? 0;
   const reload = messages.reload;
@@ -239,13 +251,7 @@ function Thread({ chat }: { chat: ConversationSummary }) {
                         ? '📷 Photo'
                         : '')}
                 </div>
-                {m.cards.length > 0 && (
-                  <div className="bubble-time">
-                    {m.cards.length} fiche{m.cards.length > 1 ? 's' : ''} produit ou commande
-                    envoyée
-                    {m.cards.length > 1 ? 's' : ''}
-                  </div>
-                )}
+                <ThreadCards cards={m.cards} />
                 <div className="bubble-time">
                   {m.author === 'agent' && (
                     <Bot size={10} style={{ verticalAlign: '-1px', marginRight: 4 }} />
@@ -271,6 +277,16 @@ function Thread({ chat }: { chat: ConversationSummary }) {
           L’assistant répond ici. Écrire un message vous donne la main pendant 30 minutes.
         </div>
       )}
+      <div className="sell-actions">
+        <button type="button" className="button small" onClick={() => setSelling('products')}>
+          <Package size={13} /> Montrer des produits
+        </button>
+        <button type="button" className="button small" onClick={() => setSelling('order')}>
+          <ShoppingBag size={13} /> Créer une commande
+        </button>
+      </div>
+      {selling === 'products' && <ShowProducts chat={chat} onClose={() => setSelling(null)} />}
+      {selling === 'order' && <MakeOrder chat={chat} onClose={() => setSelling(null)} />}
       <form
         className="chat-compose"
         onSubmit={async (e) => {
