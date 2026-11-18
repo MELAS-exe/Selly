@@ -35,6 +35,8 @@ const MAX_CLIENTS = 500;
 /** Thrown when a vendor has no usable wallet. Orders turn it into PAYMENT_UNAVAILABLE. */
 export class WalletUnavailableError extends Error {}
 
+const BALANCE_TIMEOUT_MS = 3000;
+
 export class NwcGateway implements InvoiceGateway {
   private readonly clients = new Map<string, { conn: NwcConnection; lastUsed: number }>();
   private readonly breakers = new Map<string, { failures: number[]; openUntil: number }>();
@@ -90,6 +92,33 @@ export class NwcGateway implements InvoiceGateway {
         return this.lookupOn(row, req.paymentHash);
       },
     };
+  }
+
+  /**
+   * The balance shown on the dashboard (architecture.md 3.6, get_balance). Display only: a slow or failing answer
+   * gives null and never counts against the wallet, so it cannot open the breaker or mark the wallet degraded.
+   */
+  async balanceMsat(vendorId: string): Promise<number | null> {
+    const [row] = await this.deps.db
+      .select()
+      .from(wc)
+      .where(and(eq(wc.owner, 'vendor'), eq(wc.vendorId, vendorId), ne(wc.status, 'revoked')));
+    if (!row?.uriCiphertext || !row.methods.includes('get_balance')) return null;
+    const b = this.breakers.get(row.id);
+    if (b && b.openUntil > Date.now()) return null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        this.client(row).balanceMsat(),
+        new Promise<null>((r) => {
+          timer = setTimeout(() => r(null), BALANCE_TIMEOUT_MS);
+        }),
+      ]);
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   async makeInvoice(req: MakeInvoiceRequest): Promise<MadeInvoice> {

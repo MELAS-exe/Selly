@@ -196,21 +196,35 @@ describe('linking a wallet', () => {
 
   it('says what to do when the wallet cannot receive yet (no channel, no inbound liquidity)', async () => {
     const s = await createShop(ctx.db, 'nwc-link-cannot-receive');
-    // What Alby Hub answered on a real wallet without a channel (18 November 2026).
+    // A real Alby Hub without a channel (18 November 2026): no invoice under about 2,500 sats. It still takes a
+    // normal order, so it links; one that cannot reach an order's size is refused with what to do.
+    const fresh = await newWallet();
+    fresh.minInvoiceMsat = 2_500_000;
+    await expect(link(s.vendorId, fresh.uri)).resolves.toMatchObject({ status: 'active' });
+    const s2 = await createShop(ctx.db, 'nwc-link-cannot-receive-2');
     const empty = await newWallet();
-    empty.refuseNext = {
-      code: 'INTERNAL',
-      message: 'NodeError: LiquidityRequestFailed: Failed to request inbound liquidity.',
-    };
-    await expect(link(s.vendorId, empty.uri)).rejects.toMatchObject({
+    empty.minInvoiceMsat = 100_000_000;
+    await expect(link(s2.vendorId, empty.uri)).rejects.toMatchObject({
       code: 'NWC_WALLET_ERROR',
       message: CANNOT_RECEIVE_TEXT,
     });
     const other = await newWallet();
     other.refuseNext = { code: 'OTHER', message: 'Wallet locked' };
-    await expect(link(s.vendorId, other.uri)).rejects.toMatchObject({
+    await expect(link(s2.vendorId, other.uri)).rejects.toMatchObject({
       message: expect.stringContaining('Wallet locked'),
     });
+  }, 20_000);
+
+  it('reads the balance for the dashboard, and an offline wallet costs nothing', async () => {
+    const s = await createShop(ctx.db, 'nwc-link-balance');
+    const w = await newWallet();
+    await link(s.vendorId, w.uri);
+    expect(await gateway.balanceMsat(s.vendorId)).toBe(184_200_000);
+    w.goOffline();
+    expect(await gateway.balanceMsat(s.vendorId)).toBeNull();
+    // Display only: no failure counted, the wallet stays active for payments.
+    const row = await liveWallet(ctx.db, { owner: 'vendor', vendorId: s.vendorId });
+    expect(row?.status).toBe('active');
   }, 20_000);
 
   it('needs an encryption key', async () => {
