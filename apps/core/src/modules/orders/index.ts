@@ -8,7 +8,14 @@ import { iso, money } from '../../util';
 import { requireVendor } from '../auth/http';
 import { actorOf } from '../catalog';
 import { findVendorById, findVendorBySlug } from '../catalog/store';
-import { findOrder, fulfillOrder, listOrders, metrics, statusView } from './internal';
+import {
+  dashboardMetrics,
+  findOrder,
+  fulfillOrder,
+  listOrders,
+  metrics,
+  statusView,
+} from './internal';
 import {
   checkoutStatus,
   checkoutView,
@@ -327,8 +334,8 @@ export const ordersModule: FastifyPluginAsync = async (app) => {
   app.get('/api/v1/vendors/dashboard/metrics', async (req) => {
     const s = await requireVendor(ctx(), req);
     const { period } = z
-      .object({ period: z.enum(['today', '7d', '30d']).default('today') })
+      .object({ period: z.enum(['today', '7d', '30d', 'year']).default('today') })
       .parse(req.query);
-    return metrics(ctx(), await findVendorById(ctx(), s.vendorId), period);
+    return dashboardMetrics(ctx(), await findVendorById(ctx(), s.vendorId), period);
   });
 };

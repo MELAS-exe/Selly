@@ -1,278 +1,349 @@
 'use client';
 
-// The dashboard frame: access guard (GET /vendors/me), header, navigation (bottom tabs on phones, a sidebar on
-// large screens), live-blocker banners, and the providers every page uses (data, live stream, the vendor).
+// The dashboard frame: the side bar (desktop), the top bar, the bottom bar (phone), the shop's status banner and
+// the bell. Pages render inside. The routes are the ones core's alerts open (apps/web/AGENTS.md).
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
-import { ApiError } from '@/lib/browser-api';
-import { ResourceProvider, useResource } from '@/lib/dashboard/resource';
-import type { Metrics, VendorMe } from '@/lib/dashboard/types';
-import { dash } from '@/lib/i18n/dashboard';
-import type { LiveBlocker } from '@/lib/vendor-types';
-import { LiveProvider, useLive } from './live';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { type ReactNode, useEffect, useState } from 'react';
+import { DashboardProvider, useDashboard, useResource } from './data';
+import { fmtAgo, initials } from './format';
+import {
+  Bell,
+  Bot,
+  CircleHelp,
+  type IconComponent,
+  ImagePlus,
+  KeyRound,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  MessageCircle,
+  Package,
+  Settings2,
+  ShoppingBag,
+  TriangleAlert,
+  Wallet,
+  X,
+  Zap,
+} from './icons';
 import { PushOffer, registerServiceWorker } from './push';
-import { btn, ErrorState, Skeleton } from './ui';
+import type { ConversationSummary, Draft, Page, VendorOrder } from './types';
+import '../landing/landing.css';
+import './dashboard.css';
 
-const VendorContext = createContext<{ vendor: VendorMe; refresh: () => Promise<void> } | null>(
-  null,
-);
-
-/** The signed-in vendor. Only used under the shell, which waits for it. */
-export function useVendor() {
-  const v = useContext(VendorContext);
-  if (!v) throw new Error('useVendor outside the dashboard shell');
-  return v;
+interface NavItem {
+  href: string;
+  label: string;
+  icon: IconComponent;
+  count?: number;
 }
 
-type IconName = 'home' | 'orders' | 'chats' | 'catalog' | 'more';
+const DEMO_KEY = 'selly-dashboard-demo';
 
-function Icon({ name }: { name: IconName }) {
-  const p = {
-    home: 'M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z',
-    orders: 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6M9 16h4',
-    chats: 'M4 5h16v11H9l-5 4zM8 9h8M8 12h5',
-    catalog: 'M3 12l9-9h8v8l-9 9zM15.5 8.5h.01',
-    more: 'M5 12h.01M12 12h.01M19 12h.01',
-  }[name];
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className="size-6"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={name === 'more' ? 3.5 : 1.7}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d={p} />
-    </svg>
-  );
-}
-
-const NAV: { href: string; label: string; icon: IconName }[] = [
-  { href: '/app', label: dash.nav.home, icon: 'home' },
-  { href: '/app/commandes', label: dash.nav.orders, icon: 'orders' },
-  { href: '/app/discussions', label: dash.nav.chats, icon: 'chats' },
-  { href: '/app/catalogue', label: dash.nav.catalog, icon: 'catalog' },
-  { href: '/app/plus', label: dash.nav.more, icon: 'more' },
-];
-
-/** Sub-pages of "More" that have their own top-level paths (core's alerts link to them). */
-const MORE_PATHS = ['/app/plus', '/app/portefeuille', '/app/abonnement'];
-
-function isActive(pathname: string, href: string) {
-  if (href === '/app') return pathname === '/app';
-  if (href === '/app/plus') return MORE_PATHS.some((p) => pathname.startsWith(p));
-  return pathname.startsWith(href);
-}
-
-const BLOCKER_LINK: Record<LiveBlocker, string> = {
-  wallet_missing: '/app/portefeuille',
-  wallet_degraded: '/app/portefeuille',
-  subscription_required: '/app/abonnement',
-  subscription_suspended: '/app/abonnement',
-};
-
-function Banners({ blockers }: { blockers: LiveBlocker[] }) {
-  if (!blockers.length) return null;
-  return (
-    <div className="space-y-px">
-      {blockers.map((b) => (
-        <div
-          key={b}
-          role="alert"
-          className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 bg-d-alert-soft px-4 py-2 text-d-alert lg:px-8"
-        >
-          <p>{dash.blockers[b].text}</p>
-          <Link
-            href={BLOCKER_LINK[b]}
-            className="min-h-11 content-center font-medium underline underline-offset-4"
-          >
-            {dash.blockers[b].action}
-          </Link>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function LivePill({ live }: { live: boolean }) {
-  return (
-    <span
-      className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium ${
-        live ? 'bg-d-paid-soft text-d-paid' : 'bg-d-cancelled-soft text-d-cancelled'
-      }`}
-      title={live ? dash.shell.onlineHint : dash.shell.offlineHint}
-    >
-      <span
-        aria-hidden="true"
-        className={`size-2 rounded-full ${live ? 'bg-d-paid' : 'bg-d-cancelled'}`}
-      />
-      {live ? dash.shell.online : dash.shell.offline}
-    </span>
-  );
-}
-
-/** "You are offline" and "live updates paused", in one quiet line. */
-function ConnectionNotice() {
-  const { status } = useLive();
-  const [online, setOnline] = useState(true);
+/** Demo mode: ?demo on any dashboard URL (kept for the tab), or NEXT_PUBLIC_DASHBOARD_DEMO=1. */
+function useDemo(): boolean | null {
+  const params = useSearchParams();
+  const [demo, setDemo] = useState<boolean | null>(null);
   useEffect(() => {
-    const sync = () => setOnline(navigator.onLine);
-    sync();
-    window.addEventListener('online', sync);
-    window.addEventListener('offline', sync);
-    return () => {
-      window.removeEventListener('online', sync);
-      window.removeEventListener('offline', sync);
-    };
-  }, []);
-  if (!online)
-    return (
-      <p role="status" className="bg-d-paper-deep px-4 py-2 lg:px-8">
-        <strong className="font-medium">{dash.offline.title}</strong> {dash.offline.text}
-      </p>
-    );
-  if (status === 'down')
-    return (
-      <p role="status" className="bg-d-paper-deep px-4 py-2 text-d-ink-soft lg:px-8">
-        {dash.shell.reconnecting}
-      </p>
-    );
-  return null;
+    let on = process.env.NEXT_PUBLIC_DASHBOARD_DEMO === '1';
+    try {
+      if (params.has('demo'))
+        sessionStorage.setItem(DEMO_KEY, params.get('demo') === '0' ? '0' : '1');
+      on = on || sessionStorage.getItem(DEMO_KEY) === '1';
+    } catch {}
+    setDemo(on);
+  }, [params]);
+  return demo;
 }
 
-function Frame({ vendor, children }: { vendor: VendorMe; children: ReactNode }) {
-  const pathname = usePathname();
-  // Chats waiting for the vendor, as a count on the Chats entry.
-  const { data: metrics } = useResource<Metrics>(
-    'metrics?nav',
-    '/vendors/dashboard/metrics?period=today',
+export function DashboardShell({ children }: { children: ReactNode }) {
+  const demo = useDemo();
+  if (demo === null) return <div className="selly-shell theme-paper-vermilion" />;
+  return (
+    <DashboardProvider demo={demo}>
+      <Frame>{children}</Frame>
+    </DashboardProvider>
   );
-  const waiting = metrics?.chats_waiting ?? 0;
+}
+
+function Frame({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { vendor, demo, request, notes, clearNotes } = useDashboard();
+  const toShip = useResource<Page<VendorOrder>>('/orders?status=paid');
+  const chats = useResource<Page<ConversationSummary>>('/conversations');
+  const drafts = useResource<Page<Draft>>('/inventory/drafts?status=needs_review');
+  const [bellOpen, setBellOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [seen, setSeen] = useState(0);
+
+  const waiting = (chats.data?.data ?? []).filter((c) => c.mode === 'human' || c.unread_count > 0);
+  const nav: NavItem[] = [
+    { href: '/app', label: 'Accueil', icon: LayoutDashboard },
+    {
+      href: '/app/commandes',
+      label: 'Commandes',
+      icon: ShoppingBag,
+      count: toShip.data?.data.length,
+    },
+    { href: '/app/discussions', label: 'Discussions', icon: MessageCircle, count: waiting.length },
+    { href: '/app/catalogue', label: 'Catalogue', icon: Package },
+    {
+      href: '/app/brouillons',
+      label: 'Brouillons',
+      icon: ImagePlus,
+      count: drafts.data?.data.length,
+    },
+    { href: '/app/portefeuille', label: 'Portefeuille', icon: Wallet },
+    { href: '/app/abonnement', label: 'Abonnement', icon: Zap },
+    { href: '/app/assistant', label: 'Assistant', icon: Bot },
+  ];
+  const settings: NavItem = { href: '/app/reglages', label: 'Réglages', icon: Settings2 };
+  const security: NavItem = { href: '/app/securite', label: 'Sécurité', icon: KeyRound };
+  const isActive = (href: string) =>
+    href === '/app' ? pathname === '/app' : pathname === href || pathname.startsWith(`${href}/`);
+  const current = [...nav, settings, security].find((n) => isActive(n.href))?.label ?? 'Accueil';
+  const unseen = notes.length - seen;
 
   useEffect(() => registerServiceWorker(), []);
+  const paidLive = notes.some((n) => n.type === 'order.paid');
 
-  const link = (n: (typeof NAV)[number], mobile: boolean) => {
-    const on = isActive(pathname, n.href);
+  // Close the menus on navigation.
+  useEffect(() => {
+    setMenuOpen(false);
+    setBellOpen(false);
+  }, [pathname]);
+
+  async function signOut() {
+    try {
+      await request('/auth/logout', { method: 'POST' });
+    } catch {}
+    try {
+      sessionStorage.removeItem(DEMO_KEY);
+    } catch {}
+    router.replace('/app/login');
+  }
+
+  const name = vendor?.display_name ?? '…';
+  const link = (item: NavItem, kind: 'side' | 'mobile' | 'sheet') => {
+    const Icon = item.icon;
+    const active = isActive(item.href);
     return (
       <Link
-        key={n.href}
-        href={n.href}
-        aria-current={on ? 'page' : undefined}
-        className={
-          mobile
-            ? `relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[0.8125rem] font-medium ${on ? 'text-d-ink' : 'text-d-ink-soft'}`
-            : `relative flex min-h-11 items-center gap-3 rounded-[6px] px-3 font-medium ${on ? 'bg-d-paper-deep text-d-ink' : 'text-d-ink-soft hover:text-d-ink'}`
-        }
+        key={item.href}
+        href={item.href}
+        className={`${kind === 'mobile' ? 'mobile-nav-item' : 'nav-item'} ${active ? 'active' : ''}`}
+        aria-current={active ? 'page' : undefined}
       >
-        {mobile && on && (
-          <span
-            aria-hidden="true"
-            className="absolute top-0 h-0.5 w-8 rounded-full bg-d-lime-deep"
-          />
-        )}
-        <Icon name={n.icon} />
-        <span>{n.label}</span>
-        {n.icon === 'chats' && waiting > 0 && (
-          <span
-            className={`tnum grid min-w-5 place-items-center rounded-full bg-d-ink px-1 text-xs text-d-paper ${mobile ? 'absolute top-1.5 left-1/2 ml-2' : 'ml-auto'}`}
-          >
-            {waiting}
-            <span className="sr-only"> waiting</span>
-          </span>
-        )}
+        <Icon size={kind === 'mobile' ? 18 : 16} />
+        <span>{item.label}</span>
+        {kind !== 'mobile' && item.count ? <span className="nav-count">{item.count}</span> : null}
+        {kind === 'mobile' && item.count ? (
+          <i className="dot" aria-label={`${item.count} en attente`} />
+        ) : null}
       </Link>
     );
   };
 
   return (
-    <div className="min-h-dvh lg:grid lg:grid-cols-[15rem_1fr]">
-      <aside className="sticky top-0 hidden h-dvh flex-col border-r border-d-hairline px-4 py-6 lg:flex">
-        <Link href="/app" className="mb-8 block px-3">
-          <img src="/brand/selly-wordmark.png" alt="Selly" className="h-7 w-auto" />
+    <div className="selly-shell theme-paper-vermilion">
+      <aside className="side">
+        <Link href="/app" className="brand" aria-label="Selly, accueil du tableau de bord">
+          <img src="/brand/selly-wordmark-light.png" alt="Selly" />
         </Link>
-        <nav aria-label={dash.nav.main} className="flex flex-col gap-1">
-          {NAV.map((n) => link(n, false))}
+        <div className="side-caption">Votre boutique</div>
+        <nav className="nav-list" aria-label="Navigation principale">
+          {nav.map((item) => link(item, 'side'))}
         </nav>
-        <div className="mt-auto space-y-3 px-3">
-          <p className="font-display text-xl leading-tight">{vendor.display_name}</p>
-          <LivePill live={vendor.live} />
-          <a href={vendor.store_url} target="_blank" rel="noopener" className={btn.quiet}>
-            {dash.shell.viewShop}
-          </a>
+        <div className="side-spacer" />
+        <div className="store-card">
+          <small>Mini-boutique</small>
+          <div className="store-name">{name}</div>
+          {vendor && (
+            <a className="store-url" href={vendor.store_url} target="_blank" rel="noreferrer">
+              {vendor.store_url.replace(/^https?:\/\//, '')}
+            </a>
+          )}
+        </div>
+        <Link
+          href={settings.href}
+          className={`nav-item settings ${isActive(settings.href) ? 'active' : ''}`}
+        >
+          <Settings2 size={16} /> Réglages
+        </Link>
+        <Link
+          href={security.href}
+          className={`nav-item settings ${isActive(security.href) ? 'active' : ''}`}
+          style={{ borderTop: 0 }}
+        >
+          <KeyRound size={16} /> Sécurité
+        </Link>
+        <div className="profile">
+          <div className="avatar">{initials(name)}</div>
+          <div style={{ minWidth: 0 }}>
+            <strong>{name}</strong>
+            <span>
+              {demo ? 'Boutique de démonstration' : vendor?.live ? 'En ligne' : 'Hors ligne'}
+            </span>
+          </div>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Se déconnecter"
+            title="Se déconnecter"
+            style={{ marginLeft: 'auto', color: 'inherit', borderColor: 'transparent' }}
+            onClick={signOut}
+          >
+            <LogOut size={16} />
+          </button>
         </div>
       </aside>
 
-      <div className="flex min-h-dvh min-w-0 flex-col">
-        <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-d-hairline bg-d-paper/90 px-4 py-2 backdrop-blur lg:hidden">
-          <p className="truncate font-display text-xl">{vendor.display_name}</p>
-          <LivePill live={vendor.live} />
+      <main className="main">
+        <header className="topbar">
+          <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+            <img className="topbar-mark" src="/brand/selly-s.png" alt="Selly" />
+            <div className="crumb">
+              <b>{name}</b>
+              <i>/</i>
+              {current}
+            </div>
+          </div>
+          <div className="top-actions">
+            {demo && <span className="demo-chip">Mode démo</span>}
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label={unseen > 0 ? `Notifications, ${unseen} nouvelles` : 'Notifications'}
+                aria-expanded={bellOpen}
+                onClick={() => {
+                  setBellOpen((o) => !o);
+                  setSeen(notes.length);
+                }}
+              >
+                <Bell size={17} />
+                {unseen > 0 && <i className="notification-dot" />}
+              </button>
+              {bellOpen && (
+                <div className="popover" role="dialog" aria-label="Notifications">
+                  <div className="popover-head">
+                    <span>Notifications</span>
+                    {notes.length > 0 && (
+                      <button type="button" className="text-link" onClick={clearNotes}>
+                        Effacer
+                      </button>
+                    )}
+                  </div>
+                  {notes.length === 0 ? (
+                    <p className="popover-empty">
+                      Rien de neuf depuis l’ouverture du tableau de bord. Les commandes payées et
+                      les discussions qui vous attendent s’afficheront ici.
+                    </p>
+                  ) : (
+                    notes.map((n) =>
+                      n.href ? (
+                        <Link key={n.id} href={n.href} className="popover-item">
+                          {n.text}
+                          <small>{fmtAgo(n.at)}</small>
+                        </Link>
+                      ) : (
+                        <div key={n.id} className="popover-item">
+                          {n.text}
+                          <small>{fmtAgo(n.at)}</small>
+                        </div>
+                      ),
+                    )
+                  )}
+                </div>
+              )}
+            </div>
+            <a
+              className="icon-button"
+              aria-label="Aide : payer et recevoir en bitcoin"
+              title="Aide"
+              href="/aide/payer-en-bitcoin"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <CircleHelp size={17} />
+            </a>
+          </div>
         </header>
-        <Banners blockers={vendor.live_blockers} />
-        <ConnectionNotice />
-        <PushOffer />
-        <main className="flex-1 px-4 pt-5 pb-28 lg:px-8 lg:pt-8 lg:pb-10">{children}</main>
-        <nav
-          aria-label={dash.nav.main}
-          className="fixed inset-x-0 bottom-0 z-20 flex border-t border-d-hairline bg-d-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
+        <div className="content">
+          <LiveBanner />
+          <PushOffer trigger={paidLive && !demo} />
+          {children}
+        </div>
+      </main>
+
+      <nav className="mobile-nav" aria-label="Navigation rapide">
+        {nav.slice(0, 4).map((item) => link(item, 'mobile'))}
+        <button
+          type="button"
+          className={`mobile-nav-item ${menuOpen ? 'active' : ''}`}
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((o) => !o)}
         >
-          {NAV.map((n) => link(n, true))}
-        </nav>
-      </div>
+          {menuOpen ? <X size={18} /> : <Menu size={18} />}
+          <span>Plus</span>
+          {drafts.data?.data.length ? <i className="dot" /> : null}
+        </button>
+      </nav>
+      {menuOpen && (
+        <div className="sheet" role="dialog" aria-label="Plus">
+          {[nav[4], nav[5], nav[6], nav[7], settings, security].map(
+            (item) => item && link(item, 'sheet'),
+          )}
+          <button type="button" className="nav-item" onClick={signOut}>
+            <LogOut size={16} /> Se déconnecter
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
-function Guard({ children }: { children: ReactNode }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const { data: vendor, error, refresh } = useResource<VendorMe>('vendor', '/vendors/me');
-  const status = error instanceof ApiError ? error.problem.status : null;
-
-  useEffect(() => {
-    if (status === 401) router.replace(`/app/login?next=${encodeURIComponent(pathname)}`);
-    else if (status === 404) router.replace('/app/onboarding');
-  }, [status, router, pathname]);
-
-  if (vendor)
-    return (
-      <VendorContext.Provider value={{ vendor, refresh }}>
-        <LiveProvider>
-          <Frame vendor={vendor}>{children}</Frame>
-        </LiveProvider>
-      </VendorContext.Provider>
-    );
-
-  if (error && status !== 401 && status !== 404)
-    return (
-      <div className="mx-auto max-w-md px-4 py-16">
-        <ErrorState error={error} onRetry={refresh} />
-      </div>
-    );
-
+/** Why the shop is not taking orders, with the way to fix it (Vendor.live_blockers). */
+function LiveBanner() {
+  const { vendor } = useDashboard();
+  if (!vendor || vendor.live) return null;
+  const b = vendor.live_blockers;
+  const [text, href, cta] = b.includes('wallet_missing')
+    ? [
+        'Votre boutique est hors ligne : liez un portefeuille pour recevoir les paiements.',
+        '/app/portefeuille',
+        'Lier un portefeuille',
+      ]
+    : b.includes('wallet_degraded')
+      ? [
+          'Votre portefeuille ne répond plus : les clients ne peuvent pas payer.',
+          '/app/portefeuille',
+          'Vérifier',
+        ]
+      : b.includes('subscription_suspended')
+        ? [
+            'Abonnement suspendu : la boutique est fermée aux nouvelles commandes.',
+            '/app/abonnement',
+            'Renouveler',
+          ]
+        : b.includes('subscription_required')
+          ? [
+              'Choisissez une formule pour mettre la boutique en ligne.',
+              '/app/abonnement',
+              'Voir les formules',
+            ]
+          : ['Votre boutique est momentanément hors ligne.', '/app/reglages', 'Réglages'];
   return (
-    <div role="status" className="lg:grid lg:grid-cols-[15rem_1fr]">
-      <span className="sr-only">{dash.shell.loading}</span>
-      <div className="hidden h-dvh border-r border-d-hairline lg:block" />
-      <div className="space-y-6 px-4 py-8 lg:px-8">
-        <Skeleton className="h-9 w-40" />
-        <Skeleton className="h-24 w-full max-w-md" />
-        <Skeleton className="h-40 w-full" />
-      </div>
-    </div>
-  );
-}
-
-export function DashboardShell({ children }: { children: ReactNode }) {
-  return (
-    <div lang={dash.lang} className="dash min-h-dvh">
-      <ResourceProvider>
-        <Guard>{children}</Guard>
-      </ResourceProvider>
+    <div className="banner alert" role="status">
+      <span style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <TriangleAlert size={16} />
+        {text}
+      </span>
+      <Link className="button small" href={href}>
+        {cta}
+      </Link>
     </div>
   );
 }
