@@ -157,3 +157,21 @@ describe('speech to text', () => {
     expect(seen[0]).toEqual({ url: 'https://asr.example/transcribe', type: 'audio/ogg' });
   });
 });
+
+describe('grading a refused tool', () => {
+  it('does not count a create_order that core or the agent refused as an order', () => {
+    const c = CASES.find((x) => x.id === 'order-08');
+    if (!c) throw new Error('missing case');
+    const base = { reply: 'Total 18 000 FCFA, on valide ?', mode: 'bot' as const, latencyMs: 1 };
+    const refused = grade(c, {
+      ...base,
+      toolCalls: [{ name: 'create_order', arguments: {}, ok: false }],
+    });
+    expect(refused.problems).toContain('create_order did not succeed');
+    const done = grade(c, {
+      ...base,
+      toolCalls: [{ name: 'create_order', arguments: {}, ok: true }],
+    });
+    expect(done.tools).toBe(true);
+  });
+});

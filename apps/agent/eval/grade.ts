@@ -75,6 +75,11 @@ export function grade(c: EvalCase, o: TurnObservation): Grade {
       tools = false;
       problems.push(`forbidden tool ${t}`);
     }
+  for (const t of c.succeeded ?? [])
+    if (!o.toolCalls.some((x) => x.name === t && x.ok)) {
+      tools = false;
+      problems.push(`${t} did not succeed`);
+    }
   if (c.noTools && called.length > 0) {
     tools = false;
     problems.push(`no tool expected, got ${called.join(', ')}`);
