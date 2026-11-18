@@ -1,7 +1,8 @@
-'use client';
+import type { Metadata } from 'next';
+import { Subscription } from '@/components/dashboard/pages/subscription';
 
-import { SubscriptionPage } from '@/components/dashboard/more';
+export const metadata: Metadata = { title: 'Abonnement' };
 
 export default function Page() {
-  return <SubscriptionPage />;
+  return <Subscription />;
 }

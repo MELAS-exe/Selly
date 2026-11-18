@@ -1,7 +1,8 @@
-'use client';
+import type { Metadata } from 'next';
+import { Orders } from '@/components/dashboard/pages/orders';
 
-import { Orders } from '@/components/dashboard/orders';
+export const metadata: Metadata = { title: 'Commandes' };
 
-export default function OrdersPage() {
+export default function Page() {
   return <Orders />;
 }

@@ -174,6 +174,8 @@ describe('trial', () => {
       covers: { from: at(trialEnd) },
     });
     expect(inv.body.lightning_uri).toBe(`lightning:${inv.body.bolt11}`);
+    // A QR code to scan from the dashboard while it can be paid; gone once settled.
+    expect(inv.body.qr_svg).toMatch(/^<svg/);
     expect(new Date(inv.body.expires_at).getTime() - t.clock.now().getTime()).toBe(3_600_000);
     // The same Idempotency-Key returns the same invoice.
     expect((await buy(s.cookie, 'starter', 3, key)).body.id).toBe(inv.body.id);
@@ -182,6 +184,7 @@ describe('trial', () => {
     const paid = await call('GET', `${INVOICES}/{id}`, `${INVOICES}/${inv.body.id}`, s.cookie);
     expect(paid.body.status).toBe('settled');
     expect(paid.body.preimage).toMatch(/^[0-9a-f]{64}$/);
+    expect(paid.body.qr_svg).toBeUndefined();
 
     // Still Pro until the trial ends, then Starter.
     let v = (await view(s.cookie)).body;

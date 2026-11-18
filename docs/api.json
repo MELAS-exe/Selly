@@ -4288,11 +4288,13 @@
               "enum": [
                 "today",
                 "7d",
-                "30d"
+                "30d",
+                "year"
               ],
               "default": "today"
             },
-            "example": "7d"
+            "example": "7d",
+            "description": "`year` is the calendar year so far, month by month."
           }
         ],
         "responses": {
@@ -4301,7 +4303,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Metrics"
+                  "$ref": "#/components/schemas/DashboardMetrics"
                 },
                 "example": {
                   "period": "7d",
@@ -4328,7 +4330,48 @@
                     }
                   ],
                   "chats_waiting": 1,
-                  "agent_turns": 288
+                  "agent_turns": 288,
+                  "revenue_previous": {
+                    "xof": 198500,
+                    "sat": 336200
+                  },
+                  "series": [
+                    {
+                      "date": "2026-11-12",
+                      "orders": 1,
+                      "revenue_xof": 15000
+                    },
+                    {
+                      "date": "2026-11-13",
+                      "orders": 2,
+                      "revenue_xof": 33000
+                    },
+                    {
+                      "date": "2026-11-14",
+                      "orders": 2,
+                      "revenue_xof": 30500
+                    },
+                    {
+                      "date": "2026-11-15",
+                      "orders": 3,
+                      "revenue_xof": 42000
+                    },
+                    {
+                      "date": "2026-11-16",
+                      "orders": 2,
+                      "revenue_xof": 36000
+                    },
+                    {
+                      "date": "2026-11-17",
+                      "orders": 2,
+                      "revenue_xof": 38500
+                    },
+                    {
+                      "date": "2026-11-18",
+                      "orders": 2,
+                      "revenue_xof": 36000
+                    }
+                  ]
                 }
               }
             }
@@ -13321,6 +13364,10 @@
                 "type": "null"
               }
             ]
+          },
+          "qr_svg": {
+            "type": "string",
+            "description": "The invoice as a QR code (SVG), while it is pending. Only on the invoice just created and on GET .../invoices/{id}, not in the list."
           }
         },
         "required": [
@@ -16046,6 +16093,152 @@
           "links"
         ],
         "additionalProperties": false
+      },
+      "DashboardMetrics": {
+        "type": "object",
+        "properties": {
+          "period": {
+            "type": "string",
+            "enum": [
+              "today",
+              "7d",
+              "30d",
+              "year"
+            ]
+          },
+          "orders": {
+            "type": "object",
+            "properties": {
+              "created": {
+                "type": "integer"
+              },
+              "paid": {
+                "type": "integer"
+              },
+              "fulfilled": {
+                "type": "integer"
+              },
+              "pending": {
+                "type": "integer"
+              },
+              "expired": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "created",
+              "paid",
+              "fulfilled",
+              "pending",
+              "expired"
+            ],
+            "additionalProperties": false
+          },
+          "revenue": {
+            "type": "object",
+            "properties": {
+              "xof": {
+                "type": "integer"
+              },
+              "sat": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "xof",
+              "sat"
+            ],
+            "additionalProperties": false
+          },
+          "low_stock": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "variant_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "options": {
+                  "$ref": "#/components/schemas/Options"
+                },
+                "available": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "variant_id",
+                "title",
+                "options",
+                "available"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "chats_waiting": {
+            "type": "integer"
+          },
+          "agent_turns": {
+            "type": "integer"
+          },
+          "revenue_previous": {
+            "type": "object",
+            "properties": {
+              "xof": {
+                "type": "integer"
+              },
+              "sat": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "xof",
+              "sat"
+            ],
+            "additionalProperties": false
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string",
+                  "format": "date",
+                  "description": "First day of the bucket (UTC)."
+                },
+                "orders": {
+                  "type": "integer",
+                  "description": "Orders paid in the bucket."
+                },
+                "revenue_xof": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "date",
+                "orders",
+                "revenue_xof"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "period",
+          "orders",
+          "revenue",
+          "low_stock",
+          "chats_waiting",
+          "agent_turns",
+          "revenue_previous",
+          "series"
+        ],
+        "additionalProperties": false,
+        "description": "The dashboard numbers: the same as Metrics, plus the sales chart (paid orders and their revenue by payment date: one point a day, or a month for `year`) and the revenue of the same length of time just before (for `year`, the same dates last year). The agent gets Metrics only."
       }
     }
   }
