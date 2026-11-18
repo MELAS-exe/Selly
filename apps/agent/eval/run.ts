@@ -301,7 +301,9 @@ function markdown(s: ReturnType<typeof summarise>, results: CaseResult[]): strin
     '| --- | --- | --- |',
     ...Object.entries(s.byLang).map(([l, v]) => `| ${l} | ${v.cases} | ${v.pass ?? '-'} % |`),
     '',
-    'Wolof and mixed cases were written by a non-native speaker: check them before trusting those scores.',
+    results.some((r) => r.wolofToCheck)
+      ? `${results.filter((r) => r.wolofToCheck).length} Wolof or mixed cases are not checked by a native speaker yet: their scores do not count.`
+      : 'Wolof and mixed cases checked by a native speaker.',
     '',
     '## Failures',
     '',

@@ -4,8 +4,8 @@
 //   Delivery: Dakar Plateau 1 000, Banlieue 2 000, Thiès 3 500; pickup Marché Sandaga, boutique 12
 //   Hours lun-sam 09:00-20:00 · discount up to 10 % · returns within 3 days · languages fr, en
 //
-// Each case lists what a good turn does. `wolofToCheck` marks Wolof written by a non-native speaker:
-// a native speaker must check those messages before the scores for Wolof are trusted (section 8.5).
+// Each case lists what a good turn does. The Wolof and mixed messages were checked by a native speaker
+// on 18 November 2026 (section 8.5); the variants without accents follow how most customers write.
 
 export type Lang = 'fr' | 'wo' | 'mixed' | 'en';
 
@@ -67,7 +67,6 @@ const wo = (
   lang: 'wo',
   turns: Array.isArray(turns) ? turns : [turns],
   replyLang: 'fr',
-  wolofToCheck: true,
   ...c,
 });
 const mix = (
@@ -79,7 +78,6 @@ const mix = (
   lang: 'mixed',
   turns: Array.isArray(turns) ? turns : [turns],
   replyLang: 'fr',
-  wolofToCheck: true,
   ...c,
 });
 
@@ -484,7 +482,7 @@ export const CASES: EvalCase[] = [
     handoff: true,
   }),
 
-  // ------------------------------------------------------------ Wolof (to check with a native speaker)
+  // ------------------------------------------------------------ Wolof (checked by a native speaker)
   wo('wo-01', 'Robe bu ñuul bi, am nga ko ci 42 ?', {
     intent: 'availability',
     tools: SEARCH,
@@ -520,6 +518,26 @@ export const CASES: EvalCase[] = [
     mustInclude: ['20 000'],
   }),
 
+  // Same messages without accents, as most customers write them (ñ → ny or gn, ë → eu or e, à → a).
+  wo('wo-11', 'Robe bu nyuul bi, am nga ko ci 42 ?', {
+    intent: 'availability',
+    tools: SEARCH,
+    mustInclude: ['15 000'],
+  }),
+  wo('wo-12', 'Niata la boubou bi ?', { intent: 'price', tools: SEARCH, mustInclude: ['35 000'] }),
+  wo('wo-13', 'Ndax dangay yonnee ba Thies ?', {
+    intent: 'delivery',
+    tools: [],
+    mustInclude: ['3 500'],
+  }),
+  wo('wo-14', 'Dama beug wax ak borom bitik bi', { intent: 'handoff', tools: [], handoff: true }),
+  wo('wo-15', 'Wagnil ma tuuti ci boubou bi', {
+    intent: 'negotiation',
+    tools: ['quote_cart'],
+    forbiddenTools: NO_ORDER,
+  }),
+  wo('wo-16', 'Jerejef, ba beneen yoon', { intent: 'goodbye', tools: [], noTools: true }),
+
   // ------------------------------------------------------------ French and Wolof mixed
   mix('mix-01', 'Salam, robe bi dafa rafet, am nga ko en 40 ?', {
     intent: 'availability',
@@ -547,6 +565,18 @@ export const CASES: EvalCase[] = [
     tools: [],
     handoff: true,
   }),
+  // Without accents.
+  mix('mix-07', 'Livraison ba Pikine niata la ?', {
+    intent: 'delivery',
+    tools: [],
+    mustInclude: ['2 000'],
+  }),
+  mix('mix-08', 'Dernier prix bi, wagnil ma ci sac bi', {
+    intent: 'negotiation',
+    tools: ['quote_cart'],
+    forbiddenTools: NO_ORDER,
+  }),
+  mix('mix-09', 'Dama beug parler ak vendeur bi', { intent: 'handoff', tools: [], handoff: true }),
 
   // ------------------------------------------------------------ voice note transcripts (as ASR would give them)
   fr(

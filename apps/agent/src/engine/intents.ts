@@ -3,11 +3,13 @@
 // customer's price, announcing orders they never created, and quoting totals without quote_cart.
 
 const HUMAN_REQUEST = [
-  /(?:\bparler|\bdiscuter|(?:^|\s)[ée]changer)\s+(?:avec\s+|à\s+|a\s+|au\s+|aux\s+)(?:le\s+|la\s+|un\s+|une\s+|votre\s+)?(?:vendeu[rs]e?|propri[ée]taire|g[ée]rant|patron|humain|personne|quelqu'un)/i,
+  /(?:\bparler|\bdiscuter|(?:^|\s)[ée]changer)\s+(?:avec\s+|ak\s+|à\s+|a\s+|au\s+|aux\s+)(?:le\s+|la\s+|un\s+|une\s+|votre\s+)?(?:vendeu[rs]e?|propri[ée]taire|g[ée]rant|patron|humain|personne|quelqu'un)/i,
   /\bpasse[zr]?[- ]moi\s+(?!le\s+prix)\w+/i,
   /\b(?:un|une)\s+(?:humain|vraie?\s+personne)\b/i,
   /\b(?:talk|speak)\s+to\s+(?:the\s+)?(?:owner|seller|vendor|a\s+human|someone|a\s+person)/i,
-  /\bwax\s+ak\s+boroom\b/i, // Wolof: « parler avec le propriétaire » (to check with a native speaker)
+  // Wolof « wax ak boroom » (parler avec le propriétaire), checked by a native speaker; most people
+  // write without accents and often with one « o » (« borom »).
+  /\bwax\s+ak\s+boro{1,2}m\b/i,
 ];
 
 /** « Je veux parler au vendeur », « Passez-moi Awa », « un humain », « talk to the owner ». */
@@ -24,7 +26,8 @@ const NEGOTIATION = [
   // (\b only knows ASCII letters in JavaScript: no \b before « à ».)
   /\b(?:fai(?:s|tes)|laisse[sz]?)[- ](?:moi|nous|la|le|les)\b[^.?!\d]{0,40}?(?:\s[àa]|\spour)\s*\d/i,
   /\b(?:last|best)\s+price\b|\bdiscount\b/i,
-  /\bw[àa][ñn]{1,2}i/i, // Wolof « wàññi » (baisser), to check with a native speaker
+  // Wolof « wàññi » (baisser), checked by a native speaker; without accents « ñ » is written gn, ny or n.
+  /\bw[àa](?:ñ{1,2}|gn|ny|n{1,2})i/i,
 ];
 
 /** « Dernier prix ? », « une remise ? », « faites-moi la robe à 10 000 », « wàññil ma ». */

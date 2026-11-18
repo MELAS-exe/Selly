@@ -102,3 +102,16 @@ describe('the engine', () => {
     expect(JSON.stringify(llm.requests[3]?.messages.at(-1))).toContain('20000');
   });
 });
+
+describe('Wolof written without accents, as most customers do', () => {
+  it('still recognises a request for the owner and bargaining', () => {
+    for (const t of ['Dama beug wax ak borom bitik bi', 'Dama beug parler ak vendeur bi'])
+      expect(asksForHuman(t), t).toBe(true);
+    for (const t of [
+      'Wagnil ma tuuti ci boubou bi',
+      'Wanyil ma tuuti',
+      'Dernier prix bi, wagnil ma ci sac bi',
+    ])
+      expect(negotiates(t), t).toBe(true);
+  });
+});

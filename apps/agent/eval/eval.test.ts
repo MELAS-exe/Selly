@@ -71,7 +71,8 @@ describe('grading', () => {
   });
 
   it('normalises text and guesses the language', () => {
-    expect(normalise('Élégant  15 000')).toBe('elegant 15 000');
+    expect(normalise('Élégant  15 000')).toBe('elegant 15000');
+    expect(normalise('2000 XOF')).toBe(normalise('2 000 xof'));
     expect(guessLanguage('Oui, il en reste deux pour vous.')).toBe('fr');
     expect(guessLanguage('Yes, we have it for you.')).toBe('en');
   });
