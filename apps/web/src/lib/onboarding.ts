@@ -41,12 +41,15 @@ export function safeNext(next: string | null | undefined): string | null {
 
 export type OnboardingStep = 'shop' | 'wallet' | 'plan' | 'done';
 
-/** The first thing still missing for a shop to go live. */
+/**
+ * The first thing still missing for a shop to go live. Core starts the free trial with the shop, so only a key that
+ * already had a trial lands on the plan step. The wallet is optional here: without one the shop is live but takes
+ * no orders, and the wizard offers it once, right after the shop is created.
+ */
 export function stepFor(vendor: Pick<Vendor, 'live' | 'live_blockers'>): OnboardingStep {
   if (vendor.live) return 'done';
   const has = (b: LiveBlocker) => vendor.live_blockers.includes(b);
-  if (has('wallet_missing') || has('wallet_degraded')) return 'wallet';
-  if (has('subscription_required') || has('subscription_suspended')) return 'plan';
+  if (has('subscription_required')) return 'plan';
   return 'done';
 }
 

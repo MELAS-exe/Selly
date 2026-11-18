@@ -56,12 +56,14 @@ describe('safeNext', () => {
 describe('stepFor', () => {
   it('shows the first thing still missing', () => {
     expect(stepFor({ live: true, live_blockers: [] })).toBe('done');
+    // On the trial without a wallet: live, nothing left to do here.
+    expect(stepFor({ live: true, live_blockers: ['wallet_missing'] })).toBe('done');
     expect(
       stepFor({ live: false, live_blockers: ['wallet_missing', 'subscription_required'] }),
-    ).toBe('wallet');
-    expect(stepFor({ live: false, live_blockers: ['wallet_degraded'] })).toBe('wallet');
+    ).toBe('plan');
     expect(stepFor({ live: false, live_blockers: ['subscription_required'] })).toBe('plan');
-    expect(stepFor({ live: false, live_blockers: ['subscription_suspended'] })).toBe('plan');
+    // Trial over: the dashboard, not the wizard, handles it.
+    expect(stepFor({ live: false, live_blockers: ['subscription_suspended'] })).toBe('done');
   });
 });
 

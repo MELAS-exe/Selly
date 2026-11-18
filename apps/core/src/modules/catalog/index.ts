@@ -106,6 +106,9 @@ export const catalogModule: FastifyPluginAsync = async (app) => {
     async (req, reply) => {
       const vendor = await findVendorBySlug(ctx(), req.params.slug);
       const { variant_id } = z.object({ variant_id: z.uuid().optional() }).parse(req.query);
+      // A closed shop (trial over, plan suspended) shows no products, not even by direct link.
+      if ((await storeStatus(ctx(), vendor)) !== 'active')
+        throw new AppError('STORE_PAUSED', 'This shop is temporarily closed.');
       reply.header('Cache-Control', PUBLIC_CACHE);
       return productDetail(ctx(), vendor, req.params.product_id, variant_id);
     },

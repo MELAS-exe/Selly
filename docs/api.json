@@ -168,6 +168,10 @@
                       "enabled": true,
                       "reason": null
                     },
+                    "ordering": {
+                      "enabled": true,
+                      "reason": null
+                    },
                     "payment_options": [
                       "lightning"
                     ],
@@ -2801,6 +2805,7 @@
                     }
                   },
                   "live": false,
+                  "accepting_orders": false,
                   "live_blockers": [
                     "wallet_missing",
                     "subscription_required"
@@ -2926,6 +2931,7 @@
                     }
                   },
                   "live": true,
+                  "accepting_orders": true,
                   "live_blockers": [],
                   "created_at": "2026-11-03T16:21:00Z"
                 }
@@ -3104,6 +3110,7 @@
                     }
                   },
                   "live": true,
+                  "accepting_orders": true,
                   "live_blockers": [],
                   "created_at": "2026-11-03T16:21:00Z"
                 }
@@ -11166,6 +11173,34 @@
             ],
             "additionalProperties": false
           },
+          "ordering": {
+            "type": "object",
+            "description": "Can customers order now? An open shop without a linked wallet shows its catalog and its chat, but takes no orders (ORDERS_NOT_OPEN).",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "reason": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "store_paused",
+                      "wallet_missing"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "enabled",
+              "reason"
+            ],
+            "additionalProperties": false
+          },
           "payment_options": {
             "type": "array",
             "items": {
@@ -11192,6 +11227,7 @@
           "branding",
           "categories",
           "chat",
+          "ordering",
           "payment_options",
           "powered_by_badge"
         ],
@@ -12831,7 +12867,11 @@
           },
           "live": {
             "type": "boolean",
-            "description": "True when the shop has a working wallet and a plan that is not suspended."
+            "description": "True when the shop is online: a plan that is not suspended (the free trial counts). A wallet is not needed to be live."
+          },
+          "accepting_orders": {
+            "type": "boolean",
+            "description": "True when the shop is live and a wallet is linked: customers can order and pay."
           },
           "live_blockers": {
             "type": "array",
@@ -12860,6 +12900,7 @@
           "store_url",
           "settings",
           "live",
+          "accepting_orders",
           "live_blockers",
           "created_at"
         ],

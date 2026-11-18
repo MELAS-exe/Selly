@@ -305,34 +305,35 @@ function Frame({ children }: { children: ReactNode }) {
   );
 }
 
-/** Why the shop is not taking orders, with the way to fix it (Vendor.live_blockers). */
+/** Why the shop is offline or not taking orders, with the way to fix it (Vendor.live_blockers). */
 function LiveBanner() {
   const { vendor } = useDashboard();
-  if (!vendor || vendor.live) return null;
+  if (!vendor || (vendor.live && vendor.live_blockers.length === 0)) return null;
   const b = vendor.live_blockers;
-  const [text, href, cta] = b.includes('wallet_missing')
+  // The plan comes first: a closed shop is closed, with or without a wallet.
+  const [text, href, cta] = b.includes('subscription_suspended')
     ? [
-        'Votre boutique est hors ligne : liez un portefeuille pour recevoir les paiements.',
-        '/app/portefeuille',
-        'Lier un portefeuille',
+        'Votre essai ou votre formule est terminé : la boutique est fermée et son lien ne s’ouvre plus. Tout reste ici, choisissez une formule pour la rouvrir.',
+        '/app/abonnement',
+        'Choisir une formule',
       ]
-    : b.includes('wallet_degraded')
+    : b.includes('subscription_required')
       ? [
-          'Votre portefeuille ne répond plus : les clients ne peuvent pas payer.',
-          '/app/portefeuille',
-          'Vérifier',
+          'Choisissez une formule pour mettre la boutique en ligne.',
+          '/app/abonnement',
+          'Voir les formules',
         ]
-      : b.includes('subscription_suspended')
+      : b.includes('wallet_missing')
         ? [
-            'Abonnement suspendu : la boutique est fermée aux nouvelles commandes.',
-            '/app/abonnement',
-            'Renouveler',
+            'Votre boutique est en ligne, mais les clients ne peuvent pas encore commander : liez un portefeuille pour recevoir les paiements.',
+            '/app/portefeuille',
+            'Lier un portefeuille',
           ]
-        : b.includes('subscription_required')
+        : b.includes('wallet_degraded')
           ? [
-              'Choisissez une formule pour mettre la boutique en ligne.',
-              '/app/abonnement',
-              'Voir les formules',
+              'Votre portefeuille ne répond plus : les clients ne peuvent pas payer.',
+              '/app/portefeuille',
+              'Vérifier',
             ]
           : ['Votre boutique est momentanément hors ligne.', '/app/reglages', 'Réglages'];
   return (

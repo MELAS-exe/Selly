@@ -227,9 +227,22 @@ describe('shop creation', () => {
     expect(v.body).toMatchObject({
       slug: 'awa-mode',
       store_url: 'http://localhost:3000/s/awa-mode',
-      live: false,
-      live_blockers: ['wallet_missing', 'subscription_required'],
+      // The free trial starts with the shop: live without a wallet, but no orders until one is linked.
+      live: true,
+      accepting_orders: false,
+      live_blockers: ['wallet_missing'],
       settings: { agent: { enabled: false } },
+    });
+    const sub = await call(
+      'GET',
+      '/api/v1/vendors/me/subscription',
+      '/api/v1/vendors/me/subscription',
+      { cookie: s.cookie },
+    );
+    expect(sub.body.subscription).toMatchObject({
+      plan_id: 'pro',
+      status: 'trialing',
+      trial: true,
     });
     const me = await call('GET', '/api/v1/vendors/me', '/api/v1/vendors/me', { cookie: s.cookie });
     expect(me.body.id).toBe(v.body.id);
@@ -318,13 +331,14 @@ describe('shop creation', () => {
         })
       ).status,
     ).toBe(422);
+    // Nostr direct messages are a Pro feature, and the shop is on the Pro trial.
     expect(
       (
         await patch({
           settings: { alerts: { nostr_dm: { enabled: true, pubkey: getPublicKey(shop.sk) } } },
         })
-      ).body,
-    ).toMatchObject({ code: 'FEATURE_NOT_IN_PLAN' });
+      ).status,
+    ).toBe(200);
     expect((await patch({ display_name: 'Nouveau nom', settings: { unknown: true } })).status).toBe(
       422,
     );
@@ -558,7 +572,7 @@ describe('wallet over HTTP', () => {
     expect(
       (await call('GET', '/api/v1/vendors/me', '/api/v1/vendors/me', { cookie: shop.cookie })).body
         .live_blockers,
-    ).toEqual(['subscription_required']);
+    ).toEqual([]);
 
     expect((await put(w2.uri)).body).toMatchObject({ code: 'STEP_UP_REQUIRED' });
     await stepUp(shop.cookie, shop.sk);

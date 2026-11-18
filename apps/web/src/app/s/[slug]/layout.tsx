@@ -23,6 +23,8 @@ export default async function ShopLayout({
 }) {
   const { slug } = await params;
   const { store } = await getStore(slug);
+  // Trial over or plan suspended: the link opens on this notice only, nothing of the shop behind it.
+  if (store.status !== 'active') return <ClosedShop name={store.display_name} />;
   const banner = store.branding?.banner;
   const delivery = deliveryLabel(store);
   const announce =
@@ -90,7 +92,7 @@ export default async function ShopLayout({
             >
               <ArrowUpRight size={15} /> Partager
             </ShareButton>
-            <CartDrawer slug={slug} />
+            <CartDrawer slug={slug} ordersOpen={store.ordering?.enabled !== false} />
             <ShopMenu />
           </div>
         </div>
@@ -125,6 +127,23 @@ export default async function ShopLayout({
       {store.chat.enabled && (
         <AskSelly slug={slug} storeName={store.display_name} whatsappLink={store.whatsapp_link} />
       )}
+    </div>
+  );
+}
+
+function ClosedShop({ name }: { name: string }) {
+  return (
+    <div className={`sf ${storefrontSerif.variable} min-h-dvh text-[var(--sf-ink)]`}>
+      <main className="mx-auto max-w-xl px-5 pt-24 pb-20">
+        <h1 className="text-[1.75rem] leading-tight font-bold">Boutique momentanément fermée</h1>
+        <p className="mt-3 text-d-ink-soft">
+          {name} ne reçoit pas de visites pour le moment. Revenez un peu plus tard.
+        </p>
+        <a href="/" className="mt-8 inline-flex min-h-11 items-center gap-2 text-[0.9375rem]">
+          Une boutique portée par{' '}
+          <img src="/brand/selly-wordmark.png" alt="Selly" className="h-5 w-auto" />
+        </a>
+      </main>
     </div>
   );
 }

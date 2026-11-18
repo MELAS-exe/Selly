@@ -6,7 +6,7 @@ import QRCode from 'qrcode';
 import type { Context } from '../../context';
 import { AppError } from '../../errors';
 import { iso, money, orderNumber, publicToken } from '../../util';
-import { storeStatus, type Vendor, vendorSettings } from '../catalog/store';
+import { requireOrdering, storeStatus, type Vendor, vendorSettings } from '../catalog/store';
 import { audit, publishEvent } from '../events/outbox';
 import * as inventory from '../inventory/service';
 import { orderEventData } from '../payments/service';
@@ -188,6 +188,7 @@ export async function createOrder(ctx: Context, input: CreateOrderInput) {
   const { vendor } = input;
   const now = ctx.now();
   const quote = await quoteCart(ctx, vendor, input, { discountPct: input.discountPct ?? 0 });
+  await requireOrdering(ctx, vendor);
 
   if (
     input.expectedTotal.amount !== quote.total ||
@@ -493,6 +494,7 @@ export async function renewInvoice(ctx: Context, token: string) {
   const v = vendor as Vendor;
   if ((await storeStatus(ctx, v)) !== 'active')
     throw new AppError('STORE_PAUSED', 'This shop is temporarily closed.');
+  await requireOrdering(ctx, v);
 
   const { totalSat, quote: rate } = await satsFor(ctx, order.pricingCurrency, order.totalXof);
   const amountMsat = Number(satToMsat(BigInt(totalSat)));
