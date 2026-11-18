@@ -4,6 +4,7 @@
 // demo data and behaviour. The next commits apply the design system and connect it to core.
 
 import { type FormEvent, type ReactNode, useMemo, useState } from 'react';
+import '../landing/landing.css';
 import './dashboard.css';
 import {
   ArrowDownLeft,
@@ -438,13 +439,10 @@ export function DraftDashboard() {
   };
 
   return (
-    <div className="selly-shell">
+    <div className="selly-shell theme-paper-vermilion">
       <aside className="side">
         <div className="brand">
-          <div className="brand-mark">
-            <ShoppingBag size={18} />
-          </div>
-          <span className="brand-name">selly</span>
+          <img src="/brand/selly-wordmark-light.png" alt="Selly" />
         </div>
         <div className="side-caption">Votre boutique</div>
         <nav className="nav-list" aria-label="Navigation principale">
@@ -458,7 +456,7 @@ export function DraftDashboard() {
         </div>
         <button
           type="button"
-          className="nav-item"
+          className="nav-item settings"
           onClick={() => flash('Les réglages du compte seront bientôt disponibles.')}
         >
           <Settings2 size={17} /> Réglages
@@ -473,12 +471,7 @@ export function DraftDashboard() {
             type="button"
             aria-label="Options du profil"
             className="icon-button"
-            style={{
-              marginLeft: 'auto',
-              background: 'transparent',
-              borderColor: 'transparent',
-              color: '#c6d2c8',
-            }}
+            style={{ marginLeft: 'auto', color: 'inherit', borderColor: 'transparent' }}
             onClick={() => flash('Profil de démonstration')}
           >
             <Ellipsis size={18} />
@@ -487,10 +480,13 @@ export function DraftDashboard() {
       </aside>
       <main className="main">
         <header className="topbar">
-          <div className="crumb">
-            <span style={{ color: '#173b32', fontWeight: 700 }}>Atelier Niani</span>
-            <span style={{ padding: '0 8px' }}>›</span>
-            {page}
+          <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+            <img className="topbar-mark" src="/brand/selly-s.png" alt="Selly" />
+            <div className="crumb">
+              <b>Atelier Niani</b>
+              <i>/</i>
+              {page}
+            </div>
           </div>
           <div className="top-actions">
             <span className="demo-chip">Mode démo</span>
@@ -625,7 +621,9 @@ function Overview({
       <div className="welcome">
         <div>
           <div className="eyebrow">Mardi 18 novembre · Dakar</div>
-          <h1>Bonjour, Aïssatou.</h1>
+          <h1>
+            Bonjour, <em>Aïssatou</em>.
+          </h1>
           <p>Votre boutique tourne bien. Voici ce qui mérite votre attention.</p>
         </div>
         <button type="button" className="button primary" onClick={() => go('Brouillons')}>
@@ -666,6 +664,7 @@ function Overview({
           icon={Package}
         />
       </div>
+      <SalesAndWallet flash={() => openWallet()} />
       <div className="overview-grid">
         <section className="panel">
           <div className="panel-head">
@@ -703,7 +702,8 @@ function Overview({
                   </StatusBadge>
                 </div>
                 <div className="money">
-                  {fmt(o.amount)} <span style={{ fontSize: 9, color: '#89938d' }}>FCFA</span>
+                  {fmt(o.amount)}
+                  <span className="unit">FCFA</span>
                   {o.status === 'À confirmer' && (
                     <button
                       type="button"
@@ -773,7 +773,7 @@ function Overview({
           </div>
         </section>
       </div>
-      <div className="lower-grid">
+      <div className="lower-grid" style={{ gridTemplateColumns: '1fr' }}>
         <section className="panel">
           <div className="panel-head">
             <div>
@@ -799,32 +799,147 @@ function Overview({
             ))}
           </div>
         </section>
-        <section className="panel">
-          <div className="panel-head">
-            <div>
-              <div className="panel-title">Votre portefeuille</div>
-              <div className="panel-sub">Wallet Lightning · réception uniquement</div>
-            </div>
-            <button type="button" className="text-link" onClick={openWallet}>
-              Ouvrir
-            </button>
-          </div>
-          <div className="wallet-box">
-            <div className="wallet-tag">
-              <Bitcoin size={15} /> Solde démo
-            </div>
-            <div className="wallet-amount">
-              128 450 <span style={{ fontSize: 14 }}>sats</span>
-            </div>
-            <div className="wallet-sats">≈ 52 300 FCFA · estimation indicative</div>
-            <div className="wallet-footer">
-              <span>wallet.nwc</span>
-              <span>Mis à jour il y a 4 min</span>
-            </div>
-          </div>
-        </section>
       </div>
     </>
+  );
+}
+
+/** The sales chart and wallet block ported from the other draft, as given (static figures). */
+function SalesAndWallet({ flash }: { flash: () => void }) {
+  return (
+    <section className="content-grid">
+      <div className="panel">
+        <div className="panel-head">
+          <div>
+            <div className="panel-title">Activité des ventes</div>
+            <div className="panel-sub">Évolution de vos ventes confirmées</div>
+          </div>
+          <select className="period" id="period" aria-label="Période">
+            <option>7 derniers jours</option>
+            <option>30 derniers jours</option>
+            <option>Cette année</option>
+          </select>
+        </div>
+        <div className="chart-wrap">
+          <div className="chart-legend">
+            <span>
+              <i className="legend-dot" />
+              Ventes (FCFA)
+            </span>
+            <span>
+              <i className="legend-dot sats" />
+              Commandes
+            </span>
+          </div>
+          <svg
+            className="chart chart-static"
+            viewBox="0 0 640 190"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <defs>
+              <linearGradient id="sales-area" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0" stopColor="#8AAE4A" stopOpacity=".22" />
+                <stop offset="1" stopColor="#8AAE4A" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            <line className="gridline" x1="38" y1="20" x2="630" y2="20" />
+            <line className="gridline" x1="38" y1="65" x2="630" y2="65" />
+            <line className="gridline" x1="38" y1="110" x2="630" y2="110" />
+            <line className="gridline" x1="38" y1="155" x2="630" y2="155" />
+            <text x="0" y="23">
+              80k
+            </text>
+            <text x="0" y="68">
+              60k
+            </text>
+            <text x="0" y="113">
+              40k
+            </text>
+            <text x="0" y="158">
+              20k
+            </text>
+            <path
+              className="area"
+              d="M38 137 C70 128 80 111 122 118 S178 85 207 98 S263 112 292 76 S350 88 380 68 S435 81 463 53 S520 74 550 43 S600 56 630 25 L630 160 L38 160Z"
+            />
+            <path
+              className="line"
+              d="M38 137 C70 128 80 111 122 118 S178 85 207 98 S263 112 292 76 S350 88 380 68 S435 81 463 53 S520 74 550 43 S600 56 630 25"
+            />
+            <g>
+              <rect className="bars" x="65" y="145" width="13" height="15" />
+              <rect className="bars" x="150" y="137" width="13" height="23" />
+              <rect className="bars" x="235" y="132" width="13" height="28" />
+              <rect className="bars" x="320" y="125" width="13" height="35" />
+              <rect className="bars" x="405" y="129" width="13" height="31" />
+              <rect className="bars" x="490" y="117" width="13" height="43" />
+              <rect className="bars" x="575" y="108" width="13" height="52" />
+            </g>
+            <text x="38" y="181">
+              12 nov.
+            </text>
+            <text x="132" y="181">
+              13 nov.
+            </text>
+            <text x="226" y="181">
+              14 nov.
+            </text>
+            <text x="320" y="181">
+              15 nov.
+            </text>
+            <text x="414" y="181">
+              16 nov.
+            </text>
+            <text x="508" y="181">
+              17 nov.
+            </text>
+            <text x="590" y="181">
+              18 nov.
+            </text>
+          </svg>
+        </div>
+      </div>
+      <div className="panel wallet-panel">
+        <div className="panel-head">
+          <div>
+            <div className="panel-title">Mon portefeuille</div>
+            <div className="panel-sub">Votre wallet Lightning connecté</div>
+          </div>
+          <button
+            type="button"
+            className="row-action"
+            aria-label="Détails du portefeuille"
+            onClick={flash}
+          >
+            <ArrowUpRight size={16} />
+          </button>
+        </div>
+        <div className="wallet-inner">
+          <div className="wallet-label">Solde disponible</div>
+          <div className="wallet-balance">
+            186 240 <small>sats</small>
+          </div>
+          <div className="wallet-xof">≈ 12 450 FCFA · estimation</div>
+          <div className="wallet-status">
+            <i className="status-dot" />
+            Connecté · Réception activée
+          </div>
+          <div className="wallet-detail">
+            <span>Ventes encaissées</span>
+            <b>+ 284 500 FCFA</b>
+          </div>
+          <div className="wallet-detail">
+            <span>Mode de réception</span>
+            <b>Lightning</b>
+          </div>
+        </div>
+        <div className="wallet-note">
+          Les paiements clients arrivent directement dans votre portefeuille. Selly ne détient pas
+          vos fonds.
+        </div>
+      </div>
+    </section>
   );
 }
 
