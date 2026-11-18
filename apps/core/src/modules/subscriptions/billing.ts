@@ -7,6 +7,7 @@
 import { core } from '@selly/db';
 import { and, desc, eq, gt, inArray, isNotNull, lt, or } from '@selly/db/orm';
 import { satToXofIndicative } from '@selly/money';
+import QRCode from 'qrcode';
 import type { Context, Database } from '../../context';
 import { AppError } from '../../errors';
 import { decodeCursor, encodeCursor, iso, sha256Hex } from '../../util';
@@ -196,6 +197,20 @@ export function invoiceView(inv: InvoiceRow) {
   };
 }
 
+/**
+ * The QR code the dashboard shows while the invoice can be paid (architecture.md 3.7, step 2), as for an order's
+ * checkout. The list leaves it out: only the invoice being paid needs one.
+ */
+async function withQr<T extends ReturnType<typeof invoiceView>>(
+  v: T,
+): Promise<T & { qr_svg?: string }> {
+  if (v.status !== 'pending') return v;
+  return {
+    ...v,
+    qr_svg: await QRCode.toString(v.bolt11.toUpperCase(), { type: 'svg', margin: 1 }),
+  };
+}
+
 export async function findInvoice(ctx: Context, vendorId: string, id: string) {
   if (!isUuid(id)) throw new AppError('NOT_FOUND', 'No such invoice.');
   const [inv] = await ctx.db
@@ -203,7 +218,7 @@ export async function findInvoice(ctx: Context, vendorId: string, id: string) {
     .from(si)
     .where(and(eq(si.id, id), eq(si.vendorId, vendorId)));
   if (!inv) throw new AppError('NOT_FOUND', 'No such invoice.');
-  return invoiceView(inv);
+  return withQr(invoiceView(inv));
 }
 
 export async function listInvoices(
@@ -476,7 +491,7 @@ export async function createSubscriptionInvoice(
       createdAt: ctx.now(),
     })
     .returning();
-  return invoiceView(inv as InvoiceRow);
+  return withQr(invoiceView(inv as InvoiceRow));
 }
 
 // ---------------------------------------------------------------------------------------------- settlement

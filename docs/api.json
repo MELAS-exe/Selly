@@ -13364,6 +13364,10 @@
                 "type": "null"
               }
             ]
+          },
+          "qr_svg": {
+            "type": "string",
+            "description": "The invoice as a QR code (SVG), while it is pending. Only on the invoice just created and on GET .../invoices/{id}, not in the list."
           }
         },
         "required": [
