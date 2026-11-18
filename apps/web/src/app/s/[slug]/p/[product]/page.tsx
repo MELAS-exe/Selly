@@ -4,7 +4,7 @@ import { ViewTransition } from 'react';
 import { AddToCart } from '@/components/add-to-cart';
 import { Availability } from '@/components/availability';
 import { AskSelly } from '@/components/chat/ask-selly';
-import { ProductVisual } from '@/components/product-visual';
+import { Visual } from '@/components/storefront/visual';
 import { getProduct, getStore } from '@/lib/core';
 import { formatMoney } from '@/lib/format';
 
@@ -33,66 +33,109 @@ export default async function ProductPage({ params }: Params) {
   const { slug, product: p } = await params;
   const [{ store }, product] = await Promise.all([getStore(slug), getProduct(slug, p)]);
   const [first, ...rest] = product.images;
+  const category = store.categories?.find((c) => c.id === product.category_id);
 
   return (
-    <main className="mx-auto max-w-3xl px-4 pt-4 sm:grid sm:grid-cols-2 sm:gap-8">
-      <nav aria-label="Fil d'Ariane" className="mb-3 sm:col-span-2">
+    <main className="mx-auto max-w-[1260px] border-x border-d-hairline px-5 pt-6 pb-20 sm:px-8 lg:pt-10">
+      <nav
+        aria-label="Fil d’Ariane"
+        className="mb-6 flex flex-wrap items-center gap-2 text-[0.9375rem] text-d-ink-soft"
+      >
         <Link
-          href={`/s/${slug}`}
-          className="inline-flex min-h-11 items-center font-medium text-indigo"
+          href={`/s/${slug}#catalogue`}
+          className="inline-flex min-h-11 items-center gap-2 font-medium text-[var(--sf-ink)] hover:underline"
         >
-          ← Tous les articles
+          ← La sélection
         </Link>
+        {category && (
+          <>
+            <span aria-hidden="true">/</span>
+            <Link
+              href={`/s/${slug}?category=${category.slug}#catalogue`}
+              className="min-h-11 content-center hover:underline"
+            >
+              {category.name}
+            </Link>
+          </>
+        )}
       </nav>
 
-      <div>
-        <div data-hero-visual className="overflow-hidden rounded-[var(--radius-tile)]">
-          <ViewTransition name={`product-${product.slug}`} share="morph" default="none">
-            <ProductVisual
-              image={first ?? null}
-              title={product.title}
-              seed={product.slug}
-              sizes="(min-width: 640px) 360px, 100vw"
-              priority
+      <div className="grid gap-10 lg:grid-cols-[1.05fr_.95fr] lg:gap-16">
+        <div>
+          <div className="relative">
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 translate-x-3 translate-y-3 border border-d-hairline"
             />
-          </ViewTransition>
+            <div
+              data-hero-visual
+              className="relative overflow-clip border border-d-hairline bg-d-paper-deep"
+            >
+              <ViewTransition name={`product-${product.slug}`} share="morph" default="none">
+                <Visual
+                  image={first ?? null}
+                  title={product.title}
+                  sizes="(min-width: 1024px) 620px, 100vw"
+                  priority
+                />
+              </ViewTransition>
+            </div>
+          </div>
+          {rest.length > 0 && (
+            <ul className="mt-6 grid grid-cols-4 gap-3">
+              {rest.map((img) => (
+                <li key={img.url} className="overflow-clip border border-d-hairline">
+                  <Visual image={img} title={product.title} sizes="140px" ratio="aspect-square" />
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-        {rest.length > 0 && (
-          <ul className="mt-2 grid grid-cols-4 gap-2">
-            {rest.map((img) => (
-              <li key={img.url} className="overflow-hidden rounded-[var(--radius-control)]">
-                <ProductVisual image={img} title={product.title} seed={product.slug} sizes="90px" />
-              </li>
-            ))}
+
+        <div className="pd-in lg:pt-4">
+          <p className="sf-eyebrow mb-5">{category?.name ?? store.display_name}</p>
+          <h1 className="sf-serif text-[2.75rem] leading-[1] tracking-[-0.01em] sm:text-[3.5rem]">
+            {product.title}
+          </h1>
+          <p className="sf-figure mt-4 text-[2rem] leading-none">{formatMoney(product.price)}</p>
+          <p className="mt-3">
+            <Availability value={product.availability} />
+          </p>
+          {product.description && (
+            <p className="mt-6 max-w-prose text-[1.0625rem] leading-relaxed text-d-ink-soft">
+              {product.description}
+            </p>
+          )}
+
+          <div className="mt-8 border-t border-d-hairline pt-8">
+            <AddToCart slug={slug} product={product} />
+          </div>
+
+          {store.chat.enabled && (
+            <div className="mt-6 border-t border-d-hairline pt-6">
+              <p className="mb-3 text-d-ink-soft">
+                Une question sur la matière, la taille ou la livraison ?
+              </p>
+              <AskSelly
+                slug={slug}
+                storeName={store.display_name}
+                whatsappLink={store.whatsapp_link}
+                productId={product.id}
+                productTitle={product.title}
+                variant="inline"
+              />
+            </div>
+          )}
+
+          <ul className="mt-8 grid gap-3 border-t border-d-hairline pt-6 text-[0.9375rem] text-d-ink-soft">
+            <li>Paiement en bitcoin, directement à {store.display_name}.</li>
+            {store.delivery.pickup.available && (
+              <li>Retrait gratuit : {store.delivery.pickup.address_text ?? 'à la boutique'}.</li>
+            )}
+            {store.delivery.zones.length > 0 && (
+              <li>Livraison : {store.delivery.zones.map((z) => z.label).join(', ')}.</li>
+            )}
           </ul>
-        )}
-      </div>
-
-      <div className="pd-in mt-5 sm:mt-0">
-        <h1 className="text-[1.75rem] leading-tight font-bold tracking-[-0.01em]">
-          {product.title}
-        </h1>
-        <p className="tnum mt-1 text-2xl font-bold">{formatMoney(product.price)}</p>
-        <p className="mt-1">
-          <Availability value={product.availability} />
-        </p>
-        {product.description && (
-          <p className="mt-4 max-w-prose text-muted">{product.description}</p>
-        )}
-
-        <div className="mt-6">
-          <AddToCart slug={slug} product={product} />
-        </div>
-
-        <div className="mt-4">
-          <AskSelly
-            slug={slug}
-            storeName={store.display_name}
-            whatsappLink={store.whatsapp_link}
-            productId={product.id}
-            productTitle={product.title}
-            variant="inline"
-          />
         </div>
       </div>
     </main>

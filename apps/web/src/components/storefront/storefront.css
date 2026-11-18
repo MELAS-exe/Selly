@@ -1,0 +1,459 @@
+/*
+ * The shop in Selly's design system (the landing page and the dashboard): paper with grain, green ink, lime accents,
+ * hairlines instead of shadows, sharp corners, a serif for titles and prices, small uppercase labels with wide
+ * tracking. Scoped to .sf. Colours come from the d-* tokens of globals.css; a vendor's own colours (branding)
+ * override --sf-ink and --sf-accent on the root.
+ */
+
+/* In the components layer, so Tailwind utilities (hidden, md:flex, sizes) still win over these defaults. */
+@layer components {
+  .sf {
+    --sf-ink: var(--color-d-ink);
+    --sf-ink-soft: var(--color-d-ink-soft);
+    --sf-accent: var(--color-d-lime);
+    --sf-accent-text: var(--color-d-lime-deep);
+    --sf-paper: var(--color-d-paper);
+    --sf-paper-deep: var(--color-d-paper-deep);
+    --sf-line: var(--color-d-hairline);
+    --sf-serif: var(--font-sf-serif), "Cormorant Garamond", Georgia, "Times New Roman", serif;
+    /* The older storefront components (add to cart, chat, availability) read these: map them onto the design system
+     so they follow it without a rewrite. Sharp corners, paper, the shop's ink. */
+    --radius-tile: 0px;
+    --radius-control: 0px;
+    --color-ink: var(--sf-ink);
+    --color-paper: var(--color-d-paper);
+    --color-line: var(--color-d-hairline);
+    --color-muted: var(--color-d-ink-soft);
+    --color-mist: var(--color-d-paper-deep);
+    background-color: var(--sf-paper);
+    color: var(--sf-ink);
+    font-size: 16px;
+    line-height: 1.55;
+  }
+
+  /* The landing page's paper grain, fixed behind everything. */
+  .sf::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.8;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  }
+  .sf > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .sf :focus-visible {
+    outline: 2px solid var(--sf-ink);
+    outline-offset: 3px;
+  }
+
+  .sf-serif {
+    font-family: var(--sf-serif);
+  }
+  .sf-figure {
+    font-family: var(--sf-serif);
+    font-variant-numeric: tabular-nums lining-nums;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  /* A small spaced label with the landing page's hairline in front. */
+  .sf-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--sf-accent-text);
+  }
+  .sf-eyebrow::before {
+    content: "";
+    width: 2rem;
+    height: 1px;
+    background: currentColor;
+  }
+
+  /* Buttons: sharp, at least 44 px. The primary one fills from below on hover, like the landing page's. */
+  .sf-btn {
+    position: relative;
+    isolation: isolate;
+    overflow: clip;
+    display: inline-flex;
+    min-height: 3rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    padding: 0 1.5rem;
+    border: 1px solid var(--sf-ink);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    transition: color var(--dur-ui) var(--ease-out-expo);
+  }
+  .sf-btn-primary {
+    background: var(--sf-ink);
+    color: var(--sf-paper);
+  }
+  .sf-btn-ghost {
+    background: transparent;
+    color: var(--sf-ink);
+  }
+  .sf-btn::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    transform: translateY(100%);
+    transition: transform var(--dur-ui) var(--ease-out-expo);
+  }
+  .sf-btn-primary::after {
+    background: var(--sf-paper);
+  }
+  .sf-btn-ghost::after {
+    background: var(--sf-ink);
+  }
+  @media (hover: hover) {
+    .sf-btn:hover::after {
+      transform: translateY(0);
+    }
+    .sf-btn-primary:hover {
+      color: var(--sf-ink);
+    }
+    .sf-btn-ghost:hover {
+      color: var(--sf-paper);
+    }
+  }
+  .sf-btn:disabled {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  /* A square icon button with a hairline. */
+  .sf-icon-btn {
+    display: grid;
+    width: 2.75rem;
+    height: 2.75rem;
+    place-items: center;
+    border: 1px solid var(--sf-line);
+    background: var(--sf-paper);
+    color: var(--sf-ink);
+    transition:
+      border-color var(--dur-tap) linear,
+      background-color var(--dur-tap) linear;
+  }
+  @media (hover: hover) {
+    .sf-icon-btn:hover {
+      border-color: var(--sf-ink);
+    }
+  }
+
+  /* Chips (categories, filters). */
+  .sf-chip {
+    display: inline-flex;
+    min-height: 2.75rem;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0 1rem;
+    border: 1px solid var(--sf-line);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition:
+      border-color var(--dur-tap) linear,
+      background-color var(--dur-tap) linear,
+      color var(--dur-tap) linear;
+  }
+  .sf-chip[aria-pressed="true"],
+  .sf-chip[aria-current] {
+    border-color: var(--sf-ink);
+    background: var(--sf-ink);
+    color: var(--sf-paper);
+  }
+  @media (hover: hover) {
+    .sf-chip:hover {
+      border-color: var(--sf-ink);
+    }
+  }
+
+  /* Product cards: the "ask" action appears on hover (always visible on touch). */
+  .sf .product-card .ask-action {
+    opacity: 0;
+    translate: 0 6px;
+    transition:
+      opacity var(--dur-ui) linear,
+      translate var(--dur-ui) var(--ease-out-expo);
+  }
+  .sf .product-card:hover .ask-action,
+  .sf .product-card:focus-within .ask-action {
+    opacity: 1;
+    translate: 0;
+  }
+  @media (hover: none) {
+    .sf .product-card .ask-action {
+      opacity: 1;
+      translate: 0;
+    }
+  }
+  .sf .product-card .card-media img,
+  .sf .product-card .card-media .product-art {
+    transition: scale var(--dur-hero) var(--ease-out-expo);
+  }
+  @media (hover: hover) {
+    .sf .product-card:hover .card-media img,
+    .sf .product-card:hover .card-media .product-art {
+      scale: 1.04;
+    }
+  }
+
+  /* A product without a photo yet: the draft's dot pattern on deeper paper. */
+  .sf-placeholder {
+    background-image: radial-gradient(
+      color-mix(in srgb, var(--sf-ink) 14%, transparent) 1px,
+      transparent 1px
+    );
+    background-size: 15px 15px;
+  }
+
+  /* Entrances (time-based, once). */
+  .sf-rise {
+    animation: sf-rise var(--dur-hero) var(--ease-out-expo) var(--d, 0ms) both;
+  }
+  @keyframes sf-rise {
+    from {
+      opacity: 0;
+      translate: 0 16px;
+    }
+  }
+
+  /* Lines of the hero title unmask one after the other, like the landing page's. */
+  .sf-line {
+    display: block;
+    animation: sf-line var(--dur-hero) var(--ease-out-expo) calc(var(--i) * var(--dur-tap) * 0.7)
+      both;
+  }
+  @keyframes sf-line {
+    from {
+      clip-path: inset(0 -0.2em 100% -0.2em);
+      translate: 0 0.3em;
+    }
+    to {
+      clip-path: inset(-0.2em -0.2em -0.2em -0.2em);
+      translate: 0;
+    }
+  }
+
+  /* Drawers and dialogs. */
+  .sf-backdrop {
+    animation: settle var(--dur-ui) linear both;
+  }
+  .sf-drawer {
+    animation: sf-drawer var(--dur-hero) var(--ease-out-expo) both;
+  }
+  @keyframes sf-drawer {
+    from {
+      translate: 100% 0;
+    }
+  }
+  .sf-sheet {
+    animation: sf-sheet var(--dur-hero) var(--ease-out-expo) both;
+  }
+  @keyframes sf-sheet {
+    from {
+      translate: 0 40px;
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sf-rise,
+    .sf-line,
+    .sf-drawer,
+    .sf-sheet {
+      animation: settle var(--dur-ui) linear both;
+    }
+    .sf .product-card .card-media img,
+    .sf .product-card .card-media .product-art {
+      transition: none;
+    }
+  }
+
+  /* ------------------------------------------------------------------------------------------ */
+  /* Motion. Time-based for the first screen, scroll-driven for the rest (with the final state   */
+  /* as the fallback). Compositor properties only; each has its calm version below.             */
+  /* ------------------------------------------------------------------------------------------ */
+
+  /* Reading progress, in the shop's accent. */
+  .sf-progress {
+    position: fixed;
+    inset: 0 0 auto 0;
+    height: 3px;
+    z-index: 60;
+    background: var(--sf-accent);
+    transform-origin: left;
+    transform: scaleX(0);
+    pointer-events: none;
+  }
+
+  /* Hero photo: a curtain lifts while the picture settles from a slow zoom. */
+  .sf-unveil {
+    animation: sf-unveil calc(var(--dur-hero) * 1.6) var(--ease-out-expo) var(--d, 120ms) both;
+  }
+  .sf-unveil img,
+  .sf-unveil .sf-placeholder {
+    animation: sf-settle calc(var(--dur-hero) * 3) var(--ease-out-expo) var(--d, 120ms) both;
+  }
+  @keyframes sf-unveil {
+    from {
+      clip-path: inset(100% 0 0 0);
+    }
+    to {
+      clip-path: inset(0);
+    }
+  }
+  @keyframes sf-settle {
+    from {
+      scale: 1.12;
+    }
+  }
+
+  /* The second product card: slides in at an angle, after the photo. */
+  .sf-float-card {
+    rotate: -4deg;
+    animation: sf-float-card var(--dur-hero) var(--ease-snap) 700ms both;
+  }
+  @keyframes sf-float-card {
+    from {
+      opacity: 0;
+      translate: -24px 40px;
+      rotate: -10deg;
+    }
+  }
+
+  /* The ticker of shop facts. */
+  .sf-ticker {
+    animation: sf-ticker 42s linear infinite;
+  }
+  @keyframes sf-ticker {
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  /* The boutique section's rings turn very slowly. */
+  .sf-ring {
+    animation: pv-spin 60s linear infinite;
+  }
+
+  @supports (animation-timeline: scroll()) {
+    .sf-progress {
+      animation: sf-progress linear both;
+      animation-timeline: scroll(root);
+    }
+    /* Depth in the hero: the photo drifts slower than the page, the card faster. */
+    .sf-hero-photo {
+      animation: sf-drift-slow linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 90vh;
+    }
+    .sf-float-card-wrap {
+      animation: sf-drift-fast linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 90vh;
+    }
+    /* Section titles: a curtain lifts as they come up. */
+    .sf-curtain {
+      animation: sf-curtain linear both;
+      animation-timeline: view();
+      animation-range: entry 10% cover 30%;
+    }
+    /* Info cells rise in turn. */
+    .sf-cell {
+      animation: sf-cell linear both;
+      animation-timeline: view();
+      animation-range: entry calc(var(--n, 0) * 8%) entry calc(60% + var(--n, 0) * 8%);
+    }
+    /* Cards: the photo unveils from the bottom and zooms out as it enters; the text follows. */
+    .sf-card .card-media {
+      animation: sf-unveil linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 90%;
+    }
+    .sf-card .card-media img,
+    .sf-card .card-media .sf-placeholder {
+      animation: sf-settle linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 50%;
+    }
+    .sf-card .card-text {
+      animation: sf-cell linear both;
+      animation-timeline: view();
+      animation-range: entry 20% entry 100%;
+    }
+  }
+  @keyframes sf-progress {
+    to {
+      transform: scaleX(1);
+    }
+  }
+  @keyframes sf-drift-slow {
+    to {
+      translate: 0 60px;
+    }
+  }
+  @keyframes sf-drift-fast {
+    to {
+      translate: 0 -80px;
+    }
+  }
+  @keyframes sf-curtain {
+    from {
+      clip-path: inset(0 -0.2em 100% -0.2em);
+      translate: 0 0.25em;
+    }
+    to {
+      clip-path: inset(-0.2em -0.2em -0.2em -0.2em);
+      translate: 0;
+    }
+  }
+  @keyframes sf-cell {
+    from {
+      opacity: 0;
+      translate: 0 18px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sf-progress {
+      display: none;
+    }
+    .sf-unveil,
+    .sf-float-card,
+    .sf-cell,
+    .sf-card .card-text {
+      animation: settle var(--dur-ui) linear both;
+    }
+    .sf-unveil img,
+    .sf-unveil .sf-placeholder,
+    .sf-hero-photo,
+    .sf-float-card-wrap,
+    .sf-curtain,
+    .sf-card .card-media,
+    .sf-card .card-media img,
+    .sf-card .card-media .sf-placeholder,
+    .sf-ticker,
+    .sf-ring {
+      animation: none;
+    }
+    .sf-float-card {
+      rotate: -4deg;
+    }
+  }
+}

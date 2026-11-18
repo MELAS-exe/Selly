@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { AskDetail } from '../storefront/ask-button';
 import { ChatPanel } from './chat-panel';
 
 /**
@@ -24,35 +25,51 @@ export function AskSelly({
   variant?: 'floating' | 'inline';
 }) {
   const [open, setOpen] = useState(false);
+  // Any "Demander à Selly" of the page (storefront/ask-button.tsx) opens this chat, about a product or not.
+  const [about, setAbout] = useState<AskDetail>({ productId, productTitle });
+  useEffect(() => {
+    if (variant !== 'floating') return;
+    const onAsk = (e: Event) => {
+      setAbout((e as CustomEvent<AskDetail>).detail ?? {});
+      setOpen(true);
+    };
+    window.addEventListener('selly:ask', onAsk);
+    return () => window.removeEventListener('selly:ask', onAsk);
+  }, [variant]);
 
   return (
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          // The floating button opens a general chat; the inline one keeps its product.
+          if (variant === 'floating') setAbout({});
+          setOpen(true);
+        }}
         data-ask-selly-trigger
-        aria-label={variant === 'floating' ? 'Demander à Selly' : undefined}
+        hidden={variant === 'floating' && open}
+        aria-label={
+          variant === 'floating' ? 'Parler à Selly, votre conseillère de boutique' : undefined
+        }
         className={
           variant === 'floating'
-            ? 'ask-float press fixed right-4 bottom-4 z-20 flex min-h-12 items-center gap-2 rounded-full bg-indigo px-5 font-semibold text-paper shadow-[0_8px_24px_rgb(22_26_51_/_0.28)]'
-            : 'press inline-flex min-h-11 items-center gap-2 rounded-[var(--radius-control)] border border-line px-4 font-semibold text-ink'
+            ? 'ask-float press fixed right-4 bottom-4 z-40 flex min-h-14 items-center gap-3 bg-[var(--sf-ink,#173b32)] px-4 text-d-paper sm:right-8 sm:bottom-7 sm:px-5'
+            : 'sf-btn sf-btn-ghost'
         }
       >
-        <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="none">
-          <path
-            d="M12 3c-4.97 0-9 3.5-9 7.8 0 2.2 1.1 4.17 2.87 5.6L5 21l4.1-1.42c.93.24 1.9.37 2.9.37 4.97 0 9-3.5 9-7.8S16.97 3 12 3Z"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinejoin="round"
-          />
-          <circle cx="8.5" cy="11" r="1" fill="currentColor" />
-          <circle cx="12" cy="11" r="1" fill="currentColor" />
-          <circle cx="15.5" cy="11" r="1" fill="currentColor" />
-        </svg>
         {variant === 'floating' ? (
-          <span className="hidden sm:inline">Demander à Selly</span>
+          <>
+            <img src="/brand/selly-s-light.png" alt="" className="w-6" />
+            <span className="hidden text-left sm:block">
+              <span className="block font-semibold">Parler à Selly</span>
+              <span className="block text-sm text-d-paper/75">Votre conseillère de boutique</span>
+            </span>
+          </>
         ) : (
-          'Poser une question à Selly'
+          <>
+            <img src="/brand/selly-s.png" alt="" className="w-4" />
+            Poser une question à Selly
+          </>
         )}
       </button>
 
@@ -61,8 +78,8 @@ export function AskSelly({
           slug={slug}
           storeName={storeName}
           whatsappLink={whatsappLink}
-          productId={productId}
-          productTitle={productTitle}
+          productId={about.productId}
+          productTitle={about.productTitle}
           onClose={() => setOpen(false)}
         />
       )}

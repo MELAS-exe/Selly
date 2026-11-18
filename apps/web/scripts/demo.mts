@@ -14,6 +14,7 @@
 //      POST /order?pay_after=3   a customer (Fatou) orders the white sneakers and pays 3 s later
 //      POST /pay?hash=<payment_hash>   pay an invoice of this wallet
 //      POST /chat?text=...&text=...   a customer opens a chat on the shop and writes (one message per text)
+//      POST /photos  dresses the demo shop: photos on its products, two more products (as the vendor, via the API)
 //      POST /draft   finishes the shop's latest photo draft as the agent would (stand-in while the demo LLM
 //                    cannot read photos), through core's internal API and the dev service token
 // Stop with Ctrl+C: the shop's wallet goes offline and the dashboard shows it.
@@ -26,7 +27,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FakeNwcWallet } from '@selly/nwc/testkit';
 import { nip19 } from 'nostr-tools';
-import { generateSecretKey, getPublicKey } from 'nostr-tools/pure';
+import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '../../..');
@@ -202,6 +203,121 @@ async function completeDraft() {
   return res.json();
 }
 
+/** Signs in as the demo vendor (the dev key) and returns the session cookie. */
+async function vendorCookie(): Promise<string> {
+  const origin = process.env.APP_BASE_URL ?? 'http://localhost:3000';
+  const c = await fetch(`${CORE}/api/v1/auth/nostr/challenges`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin },
+    body: JSON.stringify({ purpose: 'sign_in' }),
+  }).then((r) => r.json());
+  const sk = Uint8Array.from(Buffer.from(state.secret_hex, 'hex'));
+  const res = await fetch(`${CORE}/api/v1/auth/nostr/sessions`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin },
+    body: JSON.stringify({
+      challenge_id: c.challenge_id,
+      event: finalizeEvent(c.event_template, sk),
+      device_label: 'demo script',
+    }),
+  });
+  const cookie = res.headers.get('set-cookie')?.split(';')[0];
+  if (!res.ok || !cookie) throw new Error(`sign-in failed: ${res.status}`);
+  return cookie;
+}
+
+/** Uploads a local image the way the dashboard does (presigned PUT) and returns its storage key. */
+async function upload(cookie: string, file: string): Promise<string> {
+  const origin = process.env.APP_BASE_URL ?? 'http://localhost:3000';
+  const bytes = readFileSync(file);
+  const type = file.endsWith('.webp')
+    ? 'image/webp'
+    : file.endsWith('.png')
+      ? 'image/png'
+      : 'image/jpeg';
+  const up = await fetch(`${CORE}/api/v1/media/uploads`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', cookie, origin },
+    body: JSON.stringify({ content_type: type, size_bytes: bytes.length }),
+  }).then((r) => r.json());
+  const put = await fetch(up.upload_url, { method: 'PUT', headers: up.headers, body: bytes });
+  if (!put.ok) throw new Error(`upload of ${file}: ${put.status}`);
+  return up.storage_key as string;
+}
+
+/** Photos for the demo shop, from the site's own pictures (public/), and two more products. */
+async function dressUp() {
+  const origin = process.env.APP_BASE_URL ?? 'http://localhost:3000';
+  const cookie = await vendorCookie();
+  const pub = (f: string) => join(here, '../public', f);
+  const call = (method: string, path: string, body?: unknown, extra: Record<string, string> = {}) =>
+    fetch(`${CORE}${path}`, {
+      method,
+      headers: { 'content-type': 'application/json', cookie, origin, ...extra },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    }).then(async (r) => {
+      const json = await r.json().catch(() => null);
+      if (!r.ok) throw new Error(`${method} ${path}: ${r.status} ${JSON.stringify(json)}`);
+      return json;
+    });
+  type P = { id: string; title: string; images: unknown[] };
+  const products = ((await call('GET', '/api/v1/inventory')) as { data: P[] }).data;
+  const done: string[] = [];
+  // Art-directed shots (public/storefront/demo): each product on warm paper, one light, one contact shadow.
+  const photo: Record<string, string> = {
+    'Sac en cuir': 'storefront/demo/sac-en-cuir.webp',
+    'Baskets blanches': 'storefront/demo/baskets-blanches.webp',
+    'Eau de parfum Oud': 'storefront/demo/parfum-oud.webp',
+    'Robe wax noire': 'storefront/demo/robe-wax-noire.webp',
+  };
+  for (const p of products) {
+    if (photo[p.title]) {
+      await call('PATCH', `/api/v1/inventory/${p.id}`, {
+        image_keys: [await upload(cookie, pub(photo[p.title] as string))],
+      });
+      done.push(`photo: ${p.title}`);
+    }
+    // The product made while testing photo drafts used the same sneaker photo: keep the catalog tidy.
+    if (p.title === 'Baskets vertes') {
+      await call('PATCH', `/api/v1/inventory/${p.id}`, { status: 'hidden' });
+      done.push('hidden: Baskets vertes');
+    }
+  }
+  const extra = [
+    {
+      title: 'Cabas Noppal',
+      description: 'Raphia tressé et bande de wax, fait main à Dakar.',
+      price: 12500,
+      file: 'storefront/promo-bag.webp',
+      on_hand: 4,
+    },
+    {
+      title: 'Eau de parfum Oud',
+      description: 'Oud, ambre et fleur d’oranger. Flacon de 50 ml.',
+      price: 18000,
+      file: 'landing/products/perfume.webp',
+      on_hand: 2,
+    },
+  ];
+  for (const x of extra) {
+    if (products.some((p) => p.title === x.title)) continue;
+    await call(
+      'POST',
+      '/api/v1/inventory',
+      {
+        title: x.title,
+        description: x.description,
+        price: { amount: x.price, currency: 'XOF' },
+        image_keys: [await upload(cookie, pub(x.file))],
+        variants: [{ options: {}, on_hand: x.on_hand }],
+      },
+      { 'idempotency-key': randomUUID() },
+    );
+    done.push(`created: ${x.title}`);
+  }
+  return { done };
+}
+
 type ChatSession = { session_token: string; conversation_id: string };
 
 async function chat(texts: string[]) {
@@ -237,6 +353,8 @@ createServer(async (req, res) => {
     else if (req.method === 'POST' && url.pathname === '/pay') {
       await wallet.pay(url.searchParams.get('hash') ?? '');
       out = { paid: true };
+    } else if (req.method === 'POST' && url.pathname === '/photos') {
+      out = await dressUp();
     } else if (req.method === 'POST' && url.pathname === '/draft') {
       out = await completeDraft();
     } else if (req.method === 'POST' && url.pathname === '/chat') {
