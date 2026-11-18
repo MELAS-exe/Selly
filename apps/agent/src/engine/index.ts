@@ -14,7 +14,8 @@ import {
   toolDefinitions,
 } from '../tools';
 import type { ProductExtractor } from '../vision';
-import { extractQuickReplies, filterReply, unbackedAmounts } from './filter';
+import { extractQuickReplies, filterReply, unbackedAmounts, unbackedOrderNumbers } from './filter';
+import { asksForHuman, claimsOrder, negotiates, totalsIn } from './intents';
 import type { LlmBlock, LlmMessage, LlmProvider } from './llm';
 import { textOf } from './llm';
 import { SUMMARY_PROMPT, systemPrompt } from './prompt';
@@ -98,10 +99,49 @@ export class AgentEngine {
     const messages = toLlmMessages(history, req.transcripts ?? {});
     // Amounts already in the visible conversation may be repeated back: the person's own words, and
     // replies that passed this check in an earlier turn.
-    for (const m of history)
+    const lastText = req.inbound.map((m) => req.transcripts?.[m.id] ?? m.text ?? '').join(' ');
+    // A customer who bargains names a price: that price must not count as backed, or « d'accord pour
+    // 10 000 » would pass the amounts check (seen on ollama:qwen2.5:7b).
+    const negotiating = role === 'customer' && negotiates(lastText);
+    const thisTurn = new Set(req.inbound.map((m) => m.id));
+    for (const m of history) {
+      if (negotiating && thisTurn.has(m.id)) continue;
       for (const n of numbersIn(req.transcripts?.[m.id] ?? m.text ?? '')) ctx.out.amounts.add(n);
+    }
+    // Order numbers the reply may name: orders of this chat, the ones tools return this turn (added
+    // below), and the ones the person wrote. Any other is an order the model made up.
+    const knownOrders = new Set<string>(Object.keys(conv.state.orders ?? {}));
+    for (const m of history)
+      if (m.direction === 'in')
+        for (const w of (m.text ?? '').match(/\b[A-Z0-9]{4,8}\b/g) ?? []) knownOrders.add(w);
 
-    const system = systemPrompt(role, profile, conv, this.now());
+    // Delivery fees of the shop profile are server facts in the prompt: a reply may quote them.
+    for (const z of profile.delivery.zones) ctx.out.amounts.add(z.fee.amount);
+    // Small models answer in French whatever the rule says: name the language when it is English.
+    const replyLanguage =
+      role === 'customer' && profile.languages.includes('en') && looksEnglish(lastText)
+        ? ('en' as const)
+        : undefined;
+    const system = systemPrompt(role, profile, conv, this.now(), replyLanguage, negotiating);
+    // Totals the reply may state: the last quote's, and those tools return this turn (added below).
+    const knownTotals = new Set<number>(
+      conv.state.lastQuoteTotal ? [conv.state.lastQuoteTotal.amount] : [],
+    );
+
+    // A customer who asks for a person gets the vendor, decided by code: small models said « je passe la
+    // main » without calling handoff_to_vendor, or kept selling.
+    if (role === 'customer' && asksForHuman(lastText)) {
+      clearTimeout(timer);
+      return this.handoffResult(
+        ctx,
+        [],
+        0,
+        0,
+        started,
+        'customer_request',
+        `Le client demande à parler au vendeur : « ${lastText.slice(0, 300)} »`,
+      );
+    }
     const tools = toolDefinitions(role);
     const toolCalls: Omit<ToolOutcome, 'result'>[] = [];
     let inputTokens = 0;
@@ -160,7 +200,20 @@ export class AgentEngine {
 
         if (uses.length === 0) {
           const text = textOf(res.content);
-          const bad = unbackedAmounts(text, ctx.out.amounts);
+          const badAmounts = unbackedAmounts(text, ctx.out.amounts);
+          const badOrders = unbackedOrderNumbers(text, knownOrders);
+          // An order claimed without a number, or a total no quote gave, is made up as well.
+          const created = toolCalls.some((t) => t.name === 'create_order' && t.ok);
+          if (
+            !created &&
+            badOrders.length === 0 &&
+            claimsOrder(text) &&
+            ![...knownOrders].some((n) => text.includes(n))
+          )
+            badOrders.push('(sans numéro)');
+          for (const n of totalsIn(text))
+            if (!knownTotals.has(n) && !badAmounts.includes(n)) badAmounts.push(n);
+          const bad = [...badAmounts.map(String), ...badOrders];
           if (bad.length > 0 && !corrected) {
             // Facts come from tools (section 8.4, P5): one chance to fix the reply.
             corrected = true;
@@ -169,7 +222,9 @@ export class AgentEngine {
               content: [
                 {
                   type: 'text',
-                  text: `[Contrôle automatique] Ta réponse cite des montants qu'aucun outil n'a renvoyés : ${bad.join(', ')}. Vérifie avec un outil ou réécris la réponse sans ces montants.`,
+                  text: badOrders.length
+                    ? `[Contrôle automatique] Ta réponse annonce des commandes qui n'existent pas : ${badOrders.join(', ')}. Une commande n'existe qu'après un create_order réussi. Appelle l'outil ou réécris la réponse sans ce numéro.`
+                    : `[Contrôle automatique] Ta réponse cite des montants qu'aucun outil n'a renvoyés : ${badAmounts.join(', ')}. Vérifie avec un outil ou réécris la réponse sans ces montants.`,
                 },
               ],
             });
@@ -183,9 +238,22 @@ export class AgentEngine {
               outputTokens,
               started,
               'unsure',
-              `Montants non vérifiés dans la réponse : ${bad.join(', ')}`,
+              badOrders.length
+                ? `Commande annoncée sans avoir été créée : ${badOrders.join(', ')}`
+                : `Montants non vérifiés dans la réponse : ${badAmounts.join(', ')}`,
             );
           }
+          // A reply that says the vendor takes over must really hand over: otherwise the customer waits
+          // for a vendor nobody alerted (seen on ollama:qwen2.5:7b).
+          if (role === 'customer' && !ctx.out.handoff && announcesHandoff(text))
+            ctx.out.handoff = {
+              reason: 'customer_request',
+              summary:
+                `L'assistant a annoncé un passage au vendeur. Dernier message : ${lastText}`.slice(
+                  0,
+                  500,
+                ),
+            };
           finalText = text;
           break;
         }
@@ -204,8 +272,13 @@ export class AgentEngine {
 
         // Run this round's tool calls in parallel and return all results in one user message.
         const outcomes = await Promise.all(uses.map((u) => runTool(role, u.name, u.input, ctx)));
-        for (const o of outcomes)
+        for (const o of outcomes) {
           toolCalls.push({ name: o.name, arguments: o.arguments, ok: o.ok });
+          for (const m of o.result.matchAll(/"number":"([A-Z0-9]{3,12})"/g))
+            knownOrders.add(m[1] as string);
+          for (const m of o.result.matchAll(/"total":\{"amount":(\d+)/g))
+            knownTotals.add(Number(m[1]));
+        }
         const results: LlmBlock[] = outcomes.map((o, i) => ({
           type: 'tool_result',
           toolUseId: (uses[i] as { id: string }).id,
@@ -359,4 +432,28 @@ export function maskPhones<T>(value: T): T {
     return `${m.startsWith('+') ? `+${d.slice(0, 3)} ` : ''}*** ** ${d.slice(-2)}`;
   });
   return JSON.parse(json) as T;
+}
+
+const HANDOFF_PHRASES = [
+  /\bje\s+(?:vous\s+)?(?:passe|transmets|transf[eè]re)\s+(?:la\s+main|votre\s+(?:message|demande|question))/i,
+  /\bje\s+pr[ée]viens\s+(?:le|la)\s+(?:vendeu[rs]e?|boutique)/i,
+  /\b(?:le|la)\s+vendeu[rs]e?\s+(?:va\s+vous|vous)\s+(?:r[ée]pond|recontact|contact)/i,
+  /\b(?:i\s+will|i'll)\s+(?:hand\s+you\s+over|connect\s+you|pass\s+your\s+(?:message|request))/i,
+];
+
+/** « je passe la main au vendeur », « je transmets votre demande », « I'll connect you with the owner »… */
+export function announcesHandoff(text: string): boolean {
+  return HANDOFF_PHRASES.some((re) => re.test(text));
+}
+
+const EN_WORDS =
+  /\b(?:the|you|do|does|have|is|are|can|i|my|what|how|much|your|want|to|in|size|deliver|please|hello|hi)\b/g;
+const FR_WORDS = /\b(?:le|la|les|vous|est|avez|je|un|une|des|du|de|pour|combien|bonjour|svp|en)\b/g;
+
+/** Enough common English words, and more than French ones, to call a message English. */
+export function looksEnglish(text: string): boolean {
+  const t = text.toLowerCase();
+  const en = (t.match(EN_WORDS) ?? []).length;
+  const fr = (t.match(FR_WORDS) ?? []).length;
+  return en >= 2 && en > fr;
 }

@@ -126,6 +126,44 @@ describe('a customer turn', () => {
     expect((await history(token)).filter((m) => m.author === 'agent')).toHaveLength(2);
   });
 
+  it('hands over when the reply says so, even without the handoff tool', async () => {
+    const { openChat, send, llm, core, store } = setup();
+    llm.push(() => [say("D'accord, je passe la main au vendeur. Il vous répond très vite.")]);
+    const { token, conversationId } = await openChat();
+    await send(token, 'Je veux parler au vendeur');
+    expect((await store.getConversation(conversationId))?.mode).toBe('human');
+    expect(core.notifications.at(-1)).toMatchObject({ type: 'conversation.handoff' });
+  });
+
+  it('asks an English-speaking customer back in English', async () => {
+    const { openChat, send, llm } = setup();
+    llm.push(
+      () => [say('Hello!')],
+      () => [say('Bonjour !')],
+    );
+    const { token } = await openChat();
+    await send(token, 'Do you have the black dress in size 42?');
+    expect(llm.requests[0]?.system.dynamic).toContain('réponds-lui en anglais');
+    await send(token, 'Vous avez la robe en 40 ?');
+    expect(llm.requests[1]?.system.dynamic).not.toContain('anglais');
+  });
+
+  it('never lets the model announce an order it did not create', async () => {
+    const { openChat, send, history, llm, core } = setup();
+    llm.push(
+      () => [say('Votre commande a été enregistrée. Numéro de commande : A7K2.')],
+      () => [say('Votre commande A7K2 est bien enregistrée.')],
+    );
+    const { token } = await openChat();
+    await send(token, 'Oui je valide, Moussa +221770001122');
+    expect(core.orders).toHaveLength(0);
+    expect(JSON.stringify(llm.requests[1]?.messages.at(-1))).toContain('create_order');
+    expect((await history(token)).at(-1)?.text).toBe(
+      'Je transmets votre message au vendeur, il vous répond très vite.',
+    );
+    expect(core.notifications.at(-1)?.body).toContain('A7K2');
+  });
+
   it('asks the model to fix a reply with an amount no tool returned, then hands off', async () => {
     const { openChat, send, history, llm, core } = setup();
     llm.push(
@@ -299,19 +337,31 @@ describe('a customer turn', () => {
 });
 
 describe('handoff and the vendor inbox', () => {
+  it('hands over by code when the customer asks for a person, without a model call', async () => {
+    const { openChat, send, history, llm, core, store } = setup();
+    const { token, conversationId } = await openChat();
+    await send(token, 'Je veux parler au vendeur');
+    expect(llm.requests).toHaveLength(0);
+    expect((await store.getConversation(conversationId))?.mode).toBe('human');
+    expect(core.notifications.at(-1)).toMatchObject({ type: 'conversation.handoff' });
+    expect((await history(token)).at(-1)?.text).toBe(
+      'Je transmets votre message au vendeur, il vous répond très vite.',
+    );
+  });
+
   it('hands off, stays silent in human mode, and lets the vendor answer', async () => {
     const { app, openChat, send, history, llm, core, vendorHeaders } = setup();
     llm.push(
       () => [
         toolCall('handoff_to_vendor', {
-          reason: 'customer_request',
-          summary: 'Veut parler au vendeur',
+          reason: 'complaint',
+          summary: 'Commande abîmée',
         }),
       ],
       () => [say('Je préviens le vendeur, il vous répond ici.')],
     );
     const { token, conversationId } = await openChat();
-    await send(token, 'Je veux parler au vendeur');
+    await send(token, 'Ma commande est arrivée abîmée');
     expect(core.notifications.at(-1)).toMatchObject({ type: 'conversation.handoff' });
 
     await send(token, 'Vous êtes là ?');

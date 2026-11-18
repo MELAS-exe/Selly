@@ -61,6 +61,10 @@ export function systemPrompt(
   profile: AgentProfile,
   conv: Conversation,
   now: Date,
+  /** The language of the customer's last message, when the shop accepts it and it is not French. */
+  replyLanguage?: 'en',
+  /** The customer is bargaining (dernier prix, remise, « faites-moi … à »). */
+  negotiating?: boolean,
 ) {
   const shop = {
     nom: profile.display_name,
@@ -79,6 +83,10 @@ export function systemPrompt(
     conv.summary ? `<resume_conversation>${conv.summary}</resume_conversation>` : '',
     `<etat>${JSON.stringify(state)}</etat>`,
     `Date et heure (Dakar, UTC) : ${now.toISOString().slice(0, 16).replace('T', ' ')}`,
+    replyLanguage === 'en' ? 'Le client écrit en anglais : réponds-lui en anglais.' : '',
+    negotiating
+      ? "Le client négocie : appelle quote_cart avec discount_pct (la remise qu'il demande, en pourcentage) avant de répondre, et annonce le total que quote_cart renvoie. N'accepte jamais un prix proposé par le client."
+      : '',
   ]
     .filter(Boolean)
     .join('\n');

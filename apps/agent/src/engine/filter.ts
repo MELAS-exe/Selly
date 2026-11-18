@@ -109,6 +109,24 @@ export function slugify(label: string): string {
  * Amounts written in the reply (« 15 000 FCFA », « 27 103 sats ») that no tool returned this turn.
  * Used for property P5 of section 13 and as a runtime guard.
  */
+/**
+ * Order numbers the reply presents (« commande A7K2 », « numéro de commande : A7K2 », « #A7K2 ») that are
+ * not known this turn: a model can claim an order was created without calling create_order.
+ */
+export function unbackedOrderNumbers(text: string, known: Set<string>): string[] {
+  // Case-insensitive around the number, but the number itself must be written in capitals and digits,
+  // as core makes them (A7K2): « commande pour vous » is not an order number.
+  const re =
+    /(?:commande|order)\s*(?:n°|no\.?|num[ée]ro|number)?\s*:?\s*#?\s*([A-Za-z0-9]{4,8})\b|#([A-Za-z0-9]{4,8})\b/gi;
+  const bad: string[] = [];
+  for (const m of text.matchAll(re)) {
+    const n = m[1] ?? m[2] ?? '';
+    if (!/^[A-Z0-9]+$/.test(n) || (!/[A-Z]/.test(n) && !/\d/.test(n))) continue;
+    if (!known.has(n) && !bad.includes(n)) bad.push(n);
+  }
+  return bad;
+}
+
 export function unbackedAmounts(text: string, allowed: Set<number>): number[] {
   const re = /(\d{1,3}(?:[   .]\d{3})+|\d+)\s*(?:fcfa|f cfa|xof|francs?|sats?)\b/gi;
   const bad: number[] = [];

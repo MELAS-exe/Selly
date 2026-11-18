@@ -112,6 +112,8 @@ export async function runCase(
   c: EvalCase,
   makeProvider: () => LlmProvider,
   pacer?: Pacer,
+  /** Turn deadline: longer for paced (rate-limited) and local models, whose latency is measured anyway. */
+  turnDeadlineMs = pacer ? 180_000 : 12_000,
 ): Promise<CaseResult> {
   const provider = new RecordingProvider(makeProvider(), pacer);
   const store = new MemoryStore();
@@ -125,7 +127,7 @@ export async function runCase(
       coreUrl: '',
       mergeWindowMs: 0,
       // Pacing waits happen inside a turn: the deadline must allow them. Latency is measured on the calls.
-      turnDeadlineMs: pacer ? 180_000 : 12_000,
+      turnDeadlineMs,
       testEndpoint: true,
       serviceToken: 'eval-service-token',
     },
@@ -299,7 +301,9 @@ function markdown(s: ReturnType<typeof summarise>, results: CaseResult[]): strin
     '| --- | --- | --- |',
     ...Object.entries(s.byLang).map(([l, v]) => `| ${l} | ${v.cases} | ${v.pass ?? '-'} % |`),
     '',
-    'Wolof and mixed cases were written by a non-native speaker: check them before trusting those scores.',
+    results.some((r) => r.wolofToCheck)
+      ? `${results.filter((r) => r.wolofToCheck).length} Wolof or mixed cases are not checked by a native speaker yet: their scores do not count.`
+      : 'Wolof and mixed cases checked by a native speaker.',
     '',
     '## Failures',
     '',
@@ -343,7 +347,12 @@ async function main() {
   console.log(`Evaluating ${cases.length} cases on ${model} (concurrency ${concurrency})`);
   if (pacer) console.log(`Pacing at ${tpm} tokens per minute.`);
   const results = await pool(cases, concurrency, (c) =>
-    runCase(c, () => providerFor(model), pacer),
+    runCase(
+      c,
+      () => providerFor(model),
+      pacer,
+      pacer || model.startsWith('ollama:') ? 180_000 : 12_000,
+    ),
   );
   const summary = summarise(results, model, eurPerUsd);
 

@@ -153,3 +153,47 @@ describe('ids and history', () => {
     expect(msgs[0]?.content).toHaveLength(2);
   });
 });
+
+describe('order numbers the model made up', () => {
+  it('flags an order number no tool returned, in the usual phrasings', async () => {
+    const { unbackedOrderNumbers } = await import('./filter');
+    const known = new Set(['HBA2']);
+    // The real reply of ollama:qwen2.5:7b on order-08, without any create_order call.
+    expect(
+      unbackedOrderNumbers('Votre commande a été enregistrée.  Numéro de commande: A7K2', known),
+    ).toEqual(['A7K2']);
+    expect(unbackedOrderNumbers('Commande #ZZ99 confirmée', known)).toEqual(['ZZ99']);
+    expect(unbackedOrderNumbers('Commande HBA2 confirmée ! Total : 18 000 FCFA', known)).toEqual(
+      [],
+    );
+    expect(
+      unbackedOrderNumbers('Je prépare la commande pour vous, voulez-vous la livraison ?', known),
+    ).toEqual([]);
+  });
+});
+
+describe('handoffs announced in text, and English customers', () => {
+  it('recognises a reply that says the vendor takes over', async () => {
+    const { announcesHandoff } = await import('.');
+    // Real replies of ollama:qwen2.5:7b (handoff-01, handoff-02), sent without the handoff tool.
+    expect(
+      announcesHandoff("D'accord, je passe la main au vendeur. Il sera heureux d'aider davantage."),
+    ).toBe(true);
+    expect(announcesHandoff('Je transmets votre demande, la vendeuse va vous répondre.')).toBe(
+      true,
+    );
+    expect(announcesHandoff("Sure, I'll connect you with the owner.")).toBe(true);
+    expect(
+      announcesHandoff('Le vendeur peut me remplacer à tout moment. Que cherchez-vous ?'),
+    ).toBe(false);
+    expect(announcesHandoff('Oui, la robe est à 15 000 FCFA.')).toBe(false);
+  });
+
+  it('tells English from French', async () => {
+    const { looksEnglish } = await import('.');
+    expect(looksEnglish('Do you have the black dress in size 42?')).toBe(true);
+    expect(looksEnglish('How much is delivery to Thiès?')).toBe(true);
+    expect(looksEnglish('Vous avez la robe noire en 42 ?')).toBe(false);
+    expect(looksEnglish('Robe bu ñuul bi, am nga ko ci 42 ?')).toBe(false);
+  });
+});

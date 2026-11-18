@@ -19,14 +19,14 @@ export interface Grade {
   problems: string[];
 }
 
-/** Lower case, no accents, every kind of space (narrow no-break included) as one space, no thousands dots. */
+/** Lower case, no accents, every kind of space (narrow no-break included) as one space, no thousands separators (« 2 000 » = « 2000 »). */
 export function normalise(text: string): string {
   return text
     .toLowerCase()
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .replace(/[’`]/g, "'")
-    .replace(/(\d)[.,   ](?=\d{3}\b)/g, '$1 ')
+    .replace(/(\d)[.,   ](?=\d{3}\b)/g, '$1')
     .replace(/[\s  ]+/g, ' ')
     .trim();
 }
