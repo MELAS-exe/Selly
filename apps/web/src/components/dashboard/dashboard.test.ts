@@ -78,3 +78,26 @@ describe('demo shop', () => {
     expect(m.series.at(-1)?.date).toBe(new Date().toISOString().slice(0, 10));
   });
 });
+
+describe('error messages', () => {
+  it('shows core’s own explanation for wallet errors', async () => {
+    const { errorText } = await import('./data');
+    const detail = 'Votre portefeuille ne peut pas encore recevoir de paiement.';
+    expect(
+      errorText(
+        new ApiError({
+          type: 'about:blank',
+          title: 'x',
+          status: 422,
+          code: 'NWC_WALLET_ERROR',
+          detail,
+        }),
+      ),
+    ).toBe(detail);
+    expect(
+      errorText(
+        new ApiError({ type: 'about:blank', title: 'x', status: 429, code: 'RATE_LIMITED' }),
+      ),
+    ).toBe('Trop de requêtes, réessayez dans un instant.');
+  });
+});
