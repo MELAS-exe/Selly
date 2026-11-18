@@ -11,6 +11,10 @@ const config: NextConfig = {
   transpilePackages: ['@selly/ui'],
   // The floating dev badge covers the dashboard's bottom bar and sidebar in screenshots.
   devIndicators: false,
+  // Next's gzip buffers the server-sent events it proxies through the rewrites below (vendor stream, checkout,
+  // chat): the browser saw nothing until the buffer filled. In production the load balancer routes /api/v1 to core
+  // and the agent directly and compresses the rest (architecture.md 11.1).
+  compress: false,
   // Mirrors production routing (docs/architecture.md section 11.1): chat, inbox and assistant go to the agent,
   // every other /api/v1 path goes to core. Internal endpoints are never proxied.
   async rewrites() {
