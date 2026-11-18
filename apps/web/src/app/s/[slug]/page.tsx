@@ -54,14 +54,14 @@ export default async function StorePage({ params, searchParams }: Params) {
   return (
     <main>
       <section className="loom">
-        {[0, 1, 2, 3, 4, 5].map((r) => (
-          <span
-            key={r}
-            aria-hidden="true"
-            className="wax loom-strip"
-            style={{ '--r': r } as CSSProperties}
-          />
-        ))}
+        {/* Clipped wrapper: the print drifts with the scroll without spilling over the catalog. */}
+        <div aria-hidden="true" className="absolute inset-0 overflow-clip">
+          <div className="loom-drift absolute inset-0">
+            {[0, 1, 2, 3, 4, 5].map((r) => (
+              <span key={r} className="wax loom-strip" style={{ '--r': r } as CSSProperties} />
+            ))}
+          </div>
+        </div>
         <div className="relative mx-auto max-w-3xl px-4 pt-16 pb-5">
           <div className="card-rise rounded-[var(--radius-tile)] bg-paper p-5">
             <h1 className="text-[1.75rem] leading-tight font-bold tracking-[-0.01em]">
@@ -108,11 +108,11 @@ export default async function StorePage({ params, searchParams }: Params) {
             {products.map((p, i) => (
               <li
                 key={p.id}
-                className={i < 6 ? 'tile-in' : undefined}
+                className={i < 6 ? 'tile-in' : 'tile-view'}
                 style={i < 6 ? ({ '--i': i } as CSSProperties) : undefined}
               >
                 <Link href={`/s/${slug}/p/${p.slug}`} className="tile-press group block">
-                  <div className="overflow-hidden rounded-[var(--radius-tile)]">
+                  <div className="tile-photo overflow-hidden rounded-[var(--radius-tile)]">
                     <ViewTransition name={`product-${p.slug}`} share="morph" default="none">
                       <ProductVisual
                         image={p.image}

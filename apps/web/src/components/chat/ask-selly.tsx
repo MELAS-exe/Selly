@@ -34,7 +34,7 @@ export function AskSelly({
         aria-label={variant === 'floating' ? 'Demander à Selly' : undefined}
         className={
           variant === 'floating'
-            ? 'press fixed right-4 bottom-4 z-20 flex min-h-12 items-center gap-2 rounded-full bg-indigo px-5 font-semibold text-paper shadow-[0_8px_24px_rgb(22_26_51_/_0.28)]'
+            ? 'ask-float press fixed right-4 bottom-4 z-20 flex min-h-12 items-center gap-2 rounded-full bg-indigo px-5 font-semibold text-paper shadow-[0_8px_24px_rgb(22_26_51_/_0.28)]'
             : 'press inline-flex min-h-11 items-center gap-2 rounded-[var(--radius-control)] border border-line px-4 font-semibold text-ink'
         }
       >

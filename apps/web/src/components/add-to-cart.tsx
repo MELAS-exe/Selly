@@ -243,7 +243,7 @@ export function AddToCart({ slug, product }: { slug: string; product: ProductDet
         type="button"
         onClick={add}
         disabled={!variant || soldOut}
-        className={`press tnum inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-control)] px-5 text-lg font-semibold text-paper disabled:bg-mist disabled:text-muted ${
+        className={`press tnum relative inline-flex min-h-12 w-full overflow-clip ${variant && !soldOut && !flash ? 'ready' : ''} items-center justify-center gap-2 rounded-[var(--radius-control)] px-5 text-lg font-semibold text-paper disabled:bg-mist disabled:text-muted ${
           flash ? 'bg-leaf' : 'bg-indigo'
         }`}
       >

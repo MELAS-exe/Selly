@@ -20,7 +20,7 @@ export function CategoryNav({
       key={href}
       href={href}
       aria-current={isActive ? 'true' : undefined}
-      className={`min-h-9 shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium whitespace-nowrap ${
+      className={`chip min-h-9 shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium whitespace-nowrap ${
         isActive ? 'border-indigo bg-indigo text-paper' : 'border-line text-ink'
       }`}
     >
