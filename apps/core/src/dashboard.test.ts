@@ -386,7 +386,35 @@ describe('orders in the dashboard', () => {
     expect(m.body).toMatchObject({
       orders: { created: 3, paid: 2, fulfilled: 1, pending: 0 },
       revenue: { xof: 16000 },
+      revenue_previous: { xof: 0, sat: 0 },
     });
+
+    // The sales chart: one point a day for 7 days (today last), one a month for the year. Like the revenue,
+    // it counts paid orders that stay paid: c was cancelled after payment.
+    const week = await call(
+      'GET',
+      '/api/v1/vendors/dashboard/metrics',
+      '/api/v1/vendors/dashboard/metrics?period=7d',
+      { cookie: shop.cookie },
+    );
+    const days = week.body.series as { date: string; orders: number; revenue_xof: number }[];
+    expect(days).toHaveLength(7);
+    expect(days.at(-1)).toEqual({
+      date: t.ctx.now().toISOString().slice(0, 10),
+      orders: 1,
+      revenue_xof: 16000,
+    });
+    expect(days.slice(0, -1).every((d) => d.orders === 0 && d.revenue_xof === 0)).toBe(true);
+    const year = await call(
+      'GET',
+      '/api/v1/vendors/dashboard/metrics',
+      '/api/v1/vendors/dashboard/metrics?period=year',
+      { cookie: shop.cookie },
+    );
+    const months = year.body.series as { date: string; orders: number }[];
+    expect(months).toHaveLength(t.ctx.now().getUTCMonth() + 1);
+    expect(months[0]?.date.endsWith('-01-01')).toBe(true);
+    expect(months.reduce((n, mo) => n + mo.orders, 0)).toBe(1);
   });
 });
 
