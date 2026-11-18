@@ -56,6 +56,7 @@ setMessages((prev) => {
 This works correctly under Strict Mode because each updater call sees the actual committed state, not a ref that survived an aborted render cycle.
 
 **Status**: fix is in this commit, but could not be visually verified before credits ran out. Needs a quick manual or automated check:
+
 1. `pnpm --filter @selly/web dev` and `pnpm --filter @selly/core dev` and `pnpm --filter @selly/agent dev` all running.
 2. Open `http://localhost:3000/s/awa-style/p/robe-wax-noire`.
 3. Click "Poser une question à Selly".
@@ -97,6 +98,7 @@ pnpm --filter @selly/web dev     # port 3000
 ```
 
 The `.env` file at the repo root is NOT committed (it holds secrets). It was created this session from `.env.example` with:
+
 - `DATABASE_URL` / `DATABASE_DIRECT_URL` pointing at the local compose postgres (port 5432 after `infra:up`, not the old ad-hoc container on 55434).
 - `SECRETS_KEK_V1` set to a generated 32-byte base64 key.
 - Everything else at the `.env.example` defaults (`LLM_PRIMARY=demo`, `INVOICE_PROVIDER=fake`, etc.).
@@ -105,26 +107,26 @@ The `.env` file at the repo root is NOT committed (it holds secrets). It was cre
 
 ## Key files changed this session
 
-| Path | What |
-|---|---|
-| `packages/db/src/core/schema.ts` | Added `categories` table; `products.categoryId` FK replaces `products.category` text |
-| `packages/db/migrations/0010_*.sql`, `0011_*.sql` | Additive migration + drop of old column |
-| `apps/core/src/modules/catalog/categories.ts` | CRUD service for categories (new file) |
-| `apps/core/src/modules/catalog/store.ts` | `storeProfile` now returns `branding` + `categories`; `listProducts` filters by category slug |
-| `apps/core/src/modules/vendors/service.ts` | `settingsPatch` and `vendorView` include `branding`; logo upload processed via `processUpload` |
-| `apps/core/src/dev/seed.ts` | Demo shop now has 3 categories, colors, and a banner |
-| `docs/api.json` | Full contract update (branding, categories, category endpoints) |
-| `apps/web/src/lib/brand-colors.ts` | Maps vendor colors to CSS variables (new file) |
-| `apps/web/src/lib/chat-types.ts` | Chat wire types (new file) |
-| `apps/web/src/lib/chat.ts` | Chat client — session, messages, SSE subscribe (new file) |
-| `apps/web/src/lib/chat.test.ts` | 5 unit tests for session logic (new file) |
-| `apps/web/src/lib/types.ts` | `StorePublic` extended with `branding`/`categories`; `ProductSummary`/`ProductDetail` use `category_id` |
-| `apps/web/src/components/brand/site-header.tsx` | Shared header component (new file) |
-| `apps/web/src/components/category-nav.tsx` | Category chip nav (new file) |
-| `apps/web/src/components/chat/ask-selly.tsx` | Chat trigger button, floating + inline variants (new file) |
-| `apps/web/src/components/chat/chat-panel.tsx` | Full chat panel UI (new file) |
-| `apps/web/src/app/s/[slug]/layout.tsx` | Brand colors, logo, banner, AskSelly trigger |
-| `apps/web/src/app/s/[slug]/page.tsx` | Category nav, `?category=` filter |
-| `apps/web/src/app/s/[slug]/p/[product]/page.tsx` | Inline AskSelly CTA |
-| `apps/web/src/app/api/v1/chat/events/route.ts` | Streaming SSE pass-through (bypasses rewrite buffering) |
-| `apps/web/next.config.ts` | Comment noting why the events route handler exists |
+| Path                                              | What                                                                                                    |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `packages/db/src/core/schema.ts`                  | Added `categories` table; `products.categoryId` FK replaces `products.category` text                    |
+| `packages/db/migrations/0010_*.sql`, `0011_*.sql` | Additive migration + drop of old column                                                                 |
+| `apps/core/src/modules/catalog/categories.ts`     | CRUD service for categories (new file)                                                                  |
+| `apps/core/src/modules/catalog/store.ts`          | `storeProfile` now returns `branding` + `categories`; `listProducts` filters by category slug           |
+| `apps/core/src/modules/vendors/service.ts`        | `settingsPatch` and `vendorView` include `branding`; logo upload processed via `processUpload`          |
+| `apps/core/src/dev/seed.ts`                       | Demo shop now has 3 categories, colors, and a banner                                                    |
+| `docs/api.json`                                   | Full contract update (branding, categories, category endpoints)                                         |
+| `apps/web/src/lib/brand-colors.ts`                | Maps vendor colors to CSS variables (new file)                                                          |
+| `apps/web/src/lib/chat-types.ts`                  | Chat wire types (new file)                                                                              |
+| `apps/web/src/lib/chat.ts`                        | Chat client — session, messages, SSE subscribe (new file)                                               |
+| `apps/web/src/lib/chat.test.ts`                   | 5 unit tests for session logic (new file)                                                               |
+| `apps/web/src/lib/types.ts`                       | `StorePublic` extended with `branding`/`categories`; `ProductSummary`/`ProductDetail` use `category_id` |
+| `apps/web/src/components/brand/site-header.tsx`   | Shared header component (new file)                                                                      |
+| `apps/web/src/components/category-nav.tsx`        | Category chip nav (new file)                                                                            |
+| `apps/web/src/components/chat/ask-selly.tsx`      | Chat trigger button, floating + inline variants (new file)                                              |
+| `apps/web/src/components/chat/chat-panel.tsx`     | Full chat panel UI (new file)                                                                           |
+| `apps/web/src/app/s/[slug]/layout.tsx`            | Brand colors, logo, banner, AskSelly trigger                                                            |
+| `apps/web/src/app/s/[slug]/page.tsx`              | Category nav, `?category=` filter                                                                       |
+| `apps/web/src/app/s/[slug]/p/[product]/page.tsx`  | Inline AskSelly CTA                                                                                     |
+| `apps/web/src/app/api/v1/chat/events/route.ts`    | Streaming SSE pass-through (bypasses rewrite buffering)                                                 |
+| `apps/web/next.config.ts`                         | Comment noting why the events route handler exists                                                      |

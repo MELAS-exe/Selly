@@ -15,10 +15,12 @@ export default async function ShopLayout({
 }) {
   const { slug } = await params;
   const { store } = await getStore(slug);
-  const { banner } = store.branding;
+  // A store response cached before branding existed has none: fall back to the default look.
+  const branding = store.branding ?? { logo_url: null, primary_color: '', accent_color: '', banner: null };
+  const { banner } = branding;
 
   return (
-    <div className="min-h-dvh bg-paper" style={brandStyle(store.branding) as CSSProperties}>
+    <div className="min-h-dvh bg-paper" style={brandStyle(branding) as CSSProperties}>
       <div aria-hidden="true" className="wax h-1.5" />
       {banner?.text && (
         <div className="bg-ochre px-4 py-2 text-center text-sm font-semibold text-paper">
@@ -40,10 +42,10 @@ export default async function ShopLayout({
             href={`/s/${slug}`}
             className="flex min-h-11 min-w-0 items-center gap-2 truncate text-lg font-bold"
           >
-            {store.branding.logo_url && (
+            {branding.logo_url && (
               // The shop's own logo: no width/height from the API (one size), so this stays a plain img.
               <img
-                src={store.branding.logo_url}
+                src={branding.logo_url}
                 alt=""
                 className="size-8 shrink-0 rounded-full object-cover"
               />

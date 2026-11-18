@@ -95,7 +95,7 @@ export default async function StorePage({ params, searchParams }: Params) {
           Articles
         </h2>
         <div className="mb-4">
-          <CategoryNav slug={slug} categories={store.categories} active={category} />
+          <CategoryNav slug={slug} categories={store.categories ?? []} active={category} />
         </div>
         {products.length === 0 ? (
           <p className="rounded-[var(--radius-tile)] bg-mist p-6 text-muted">
