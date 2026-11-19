@@ -110,10 +110,14 @@ other link.)
 THE SALES ASSISTANT
 -------------------
 The chat in every shop ("Demander à Selly") runs without any AI key, with simple scripted answers.
-For real answers, set in .env, then restart terminal 1:
+For real answers from Selly, add these lines to .env, then restart terminal 1:
 
-    LLM_PRIMARY=claude-opus-5-5
-    ANTHROPIC_API_KEY=<your key>
+    LLM_PRIMARY=groq:openai/gpt-oss-120b
+    GROQ_API_KEY=<the Groq key sent to you with this file>
+    AGENT_TURN_DEADLINE_MS=150000
+
+(Groq's free tier is slow at times: an answer can take up to a minute. With a Claude key instead:
+LLM_PRIMARY=claude-opus-5-5 and ANTHROPIC_API_KEY=<the key>.)
 
 
 IF SOMETHING GOES WRONG
