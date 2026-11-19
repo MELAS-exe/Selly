@@ -12,9 +12,12 @@ const DROPLET_LIFE = 3000;
 const DROPLET_FADE = 600;
 
 /**
- * The landing page's cursor, for mouse and trackpad only: a dot on the pointer and a ring that trails it. The ring
- * grows on links, turns light green on the hero titles, and over the gallery becomes the lens that shows the
- * grayscale photos in colour where it passes, leaving a liquid trail that fades after a second (each photo's .gal-paint).
+ * The landing page's cursor, wherever there is a mouse or a trackpad: a dot on the pointer and a ring that trails it.
+ * The ring grows on links, turns light green on the hero titles, and over the gallery becomes the lens that shows the
+ * grayscale photos in colour where it passes, leaving a liquid trail that tapers away (each photo's .gal-paint).
+ *
+ * « Any » pointer, not the primary one: a laptop with a touch screen can report touch as primary while its user
+ * works with the trackpad. Touches themselves move nothing.
  */
 export function LandingCursor() {
   const dotRef = useRef<HTMLDivElement>(null);
@@ -23,7 +26,7 @@ export function LandingCursor() {
   useEffect(() => {
     const dot = dotRef.current;
     const ring = ringRef.current;
-    if (!dot || !ring || !matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+    if (!dot || !ring || !matchMedia('(any-hover: hover) and (any-pointer: fine)').matches) return;
     const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const html = document.documentElement;
     html.classList.add('has-cursor');
@@ -45,6 +48,7 @@ export function LandingCursor() {
     };
 
     const move = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') return;
       dx(e.clientX);
       dy(e.clientY);
       rx(e.clientX);
