@@ -6,7 +6,6 @@ import {
   ArrowDownRight,
   ArrowRight,
   ArrowUpRight,
-  BadgeCheck,
   Clock3,
   MapPin,
   MessageCircle,
@@ -20,7 +19,6 @@ import {
 import { deliveryLabel, hoursLabel, mapsUrl, pickupAddress } from '@/components/storefront/facts';
 import { QuickAdd } from '@/components/storefront/quick-add';
 import { ShareButton } from '@/components/storefront/share-button';
-import { Stamp } from '@/components/storefront/stamp';
 import { Visual } from '@/components/storefront/visual';
 import { getStore, searchProducts } from '@/lib/core';
 import { availabilityLabel, formatMoney } from '@/lib/format';
@@ -134,18 +132,11 @@ function Hero({
               </AskButton>
             )}
           </div>
-          <div className="sf-rise mt-10 flex flex-wrap items-center gap-x-5 gap-y-2 text-[0.9375rem] text-d-ink-soft [--d:500ms]">
-            <span className="flex items-center gap-2">
-              <BadgeCheck size={16} className="text-[var(--sf-accent-text)]" /> Paiement direct au
-              vendeur
-            </span>
-            {address && (
-              <>
-                <span aria-hidden="true" className="size-1 bg-d-ink/30" />
-                <span>Retrait gratuit</span>
-              </>
-            )}
-          </div>
+          {address && (
+            <p className="sf-rise mt-10 text-[0.9375rem] text-d-ink-soft [--d:500ms]">
+              Retrait gratuit
+            </p>
+          )}
         </div>
 
         {featured && (
@@ -221,9 +212,6 @@ function Hero({
                 </Link>
               </div>
             )}
-            <div className="absolute -right-6 -bottom-10 hidden bg-d-paper sm:block">
-              <Stamp text={`Une touche de chez nous • ${store.display_name} • `} />
-            </div>
           </div>
         )}
       </div>
