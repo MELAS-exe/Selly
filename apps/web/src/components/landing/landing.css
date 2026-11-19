@@ -578,3 +578,83 @@
   line-height: 1;
   pointer-events: none;
 }
+
+/* ---------------------------------------------------------------------------------------------- */
+/* The public header's menu on phones (site-header.tsx): three lines that turn into an X, and a     */
+/* panel over the whole screen whose links rise in one after the other.                             */
+/* ---------------------------------------------------------------------------------------------- */
+
+.site-burger-line {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 22px;
+  height: 1.5px;
+  background: currentColor;
+  translate: -50% -50%;
+  transition:
+    transform 420ms var(--ease-out-expo),
+    opacity 200ms linear;
+}
+.site-burger-line:nth-child(1) {
+  transform: translateY(-7px);
+}
+.site-burger-line:nth-child(3) {
+  transform: translateY(7px);
+}
+.site-burger[data-open="true"] .site-burger-line:nth-child(1) {
+  transform: rotate(45deg);
+}
+.site-burger[data-open="true"] .site-burger-line:nth-child(2) {
+  opacity: 0;
+  transform: scaleX(0.2);
+}
+.site-burger[data-open="true"] .site-burger-line:nth-child(3) {
+  transform: rotate(-45deg);
+}
+
+/* The panel sits in the body, outside the page's .theme-paper-vermilion: it brings the fonts itself. */
+.site-menu {
+  --font-serif: "Cormorant Garamond", serif;
+  --font-sans: "DM Sans", sans-serif;
+  font-family: var(--font-sans);
+  clip-path: inset(0 0 100% 0);
+  visibility: hidden;
+  transition:
+    clip-path 520ms var(--ease-out-expo),
+    visibility 0s linear 520ms;
+}
+.site-menu[data-open="true"] {
+  clip-path: inset(0 0 0 0);
+  visibility: visible;
+  transition: clip-path 520ms var(--ease-out-expo);
+}
+.site-menu-item {
+  opacity: 0;
+  translate: 0 18px;
+}
+.site-menu[data-open="true"] .site-menu-item {
+  animation: site-menu-in 600ms var(--ease-out-expo) calc(140ms + var(--i, 0) * 60ms) both;
+}
+@keyframes site-menu-in {
+  from {
+    opacity: 0;
+    translate: 0 18px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-burger-line,
+  .site-menu,
+  .site-menu[data-open="true"] {
+    transition: none;
+  }
+  .site-menu[data-open="true"] .site-menu-item {
+    animation: none;
+    opacity: 1;
+    translate: 0 0;
+  }
+}
