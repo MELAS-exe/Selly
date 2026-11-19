@@ -2981,3 +2981,38 @@ a.popover-item:hover {
     grid-column: 1 / -1;
   }
 }
+
+/* ------------------------------------------------------------------------------ phone fixes, part 3 */
+
+/* Info rows: the label keeps its words on one line where it can, a long value (an address) breaks anywhere. */
+.info-row > span {
+  flex-shrink: 0;
+  max-width: 48%;
+}
+.info-row b {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A zone's « en double » tag goes under its name rather than squeezing it to a letter. */
+.zone-row > span {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+@media (max-width: 700px) {
+  /* Hours: the days across, opening and closing under them. */
+  .hours-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .hours-grid > :first-child {
+    grid-column: 1 / -1;
+  }
+  /* A new zone: its name across, then the fee and the add button. */
+  .zone-add {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .zone-add > div:first-child {
+    grid-column: 1 / -1;
+  }
+}
