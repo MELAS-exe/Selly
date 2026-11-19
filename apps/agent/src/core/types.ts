@@ -152,7 +152,8 @@ export interface DeliveryInput {
 }
 export interface CartQuoteRequest {
   items: CartItemInput[];
-  delivery: DeliveryInput;
+  /** Optional while bargaining: items and discount only, no delivery fee (delivery_included false). */
+  delivery?: DeliveryInput;
   discount_pct?: number;
 }
 export interface CartQuote {
@@ -170,6 +171,8 @@ export interface CartQuote {
   total: Money;
   max_discount_pct: number;
   applied_discount_pct: number;
+  /** False when the quote left the delivery out: the total has no delivery fee yet. */
+  delivery_included: boolean;
 }
 
 export interface OrderCreateRequest {

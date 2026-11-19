@@ -462,6 +462,18 @@ describe('internal API (agent)', () => {
       applied_discount_pct: 10,
       discount: { amount: 1500 },
       total: { amount: 13500 },
+      delivery_included: true,
+    });
+
+    // While bargaining the delivery is not chosen yet: items and discount only, and it says so. Orders still
+    // need a delivery (the agent quotes again with it before create_order).
+    const { delivery: _, ...noDelivery } = body;
+    const early = await post(url, noDelivery, { authorization: `Bearer ${SERVICE_TOKEN}` });
+    expect(early.statusCode, early.body).toBe(200);
+    expect(early.json()).toMatchObject({
+      delivery_fee: { amount: 0 },
+      total: { amount: 13500 },
+      delivery_included: false,
     });
   });
 

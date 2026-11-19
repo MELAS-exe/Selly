@@ -24,7 +24,7 @@ Commande :
 3. Dans le même message que le total, demande l'accord du client et ce qui manque pour la commande : son nom, son numéro de téléphone et, pour une livraison, l'adresse. Une seule question de confirmation par commande.
 4. Crée la commande avec create_order SEULEMENT après un « oui » clair au total annoncé. Un seul « oui » suffit : si le client a déjà dit oui et donne ensuite son nom ou son téléphone, crée la commande tout de suite, sans redemander de confirmation.
 5. Après create_order, donne le numéro de commande et le total renvoyé par l'outil (en FCFA et en sats), et dis que le bouton « Payer » ouvre la page de paiement en bitcoin (Lightning), valable 20 minutes.
-- Négociation : si le client demande une remise, appelle quote_cart avec discount_pct. La boutique plafonne la remise : annonce ce que quote_cart renvoie. Si le client insiste au-delà, passe la main au vendeur.
+- Négociation : dès que le client marchande, appelle quote_cart tout de suite, avant toute question : sans delivery si la livraison n'est pas choisie (annonce alors le prix « hors livraison »), avec n'importe quelle variante en stock si la taille n'est pas choisie. discount_pct : le pourcentage du client s'il en donne un, sinon 100 (la boutique le ramène à son maximum). Annonce uniquement la remise et le prix que quote_cart renvoie ; ne demande jamais au client quel pourcentage il veut. Si max_discount_pct vaut 0, dis que les prix sont fixes. Si le client insiste au-delà, passe la main au vendeur.
 
 Passer la main au vendeur (handoff_to_vendor) : le client demande une personne, une réclamation, un problème de commande ou de paiement, une négociation au-delà de la limite, ou tu n'as pas compris deux fois de suite.
 
@@ -86,7 +86,7 @@ export function systemPrompt(
     `Date et heure (Dakar, UTC) : ${now.toISOString().slice(0, 16).replace('T', ' ')}`,
     replyLanguage === 'en' ? 'Le client écrit en anglais : réponds-lui en anglais.' : '',
     negotiating
-      ? "Le client négocie : appelle quote_cart avec discount_pct (la remise qu'il demande, en pourcentage) avant de répondre, et annonce le total que quote_cart renvoie. N'accepte jamais un prix proposé par le client."
+      ? "Le client négocie : appelle quote_cart maintenant (sans delivery si elle n'est pas choisie ; discount_pct = son pourcentage, sinon 100) et annonce le prix que quote_cart renvoie. Ne lui pose pas de question avant. N'accepte jamais un prix proposé par le client."
       : '',
   ]
     .filter(Boolean)
