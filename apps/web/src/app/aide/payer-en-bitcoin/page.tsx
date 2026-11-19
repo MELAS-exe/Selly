@@ -4,23 +4,23 @@ import type { ReactNode } from 'react';
 import { Eyebrow, PageShell } from '@/components/brand/page-shell';
 
 export const metadata: Metadata = {
-  title: 'Payer en bitcoin : le guide',
+  title: 'Paying with bitcoin: the guide',
   description:
-    'Ce qu’est le bitcoin, pourquoi payer avec sur Selly, et comment en obtenir au Sénégal avec Orange Money ou Wave. Le guide pas à pas.',
+    'What bitcoin is, why pay with it on Selly, and how to get some in Senegal with Orange Money or Wave. A step-by-step guide.',
 };
 
 // The help page the payment page links to (« Pas de bitcoin ? »), and the footer's « Get bitcoin » (architecture.md
-// 3.9, step 1: no integration yet, the customer gets bitcoin elsewhere and comes back to pay). Written in French, for
-// the customers who land here from a shop; the frame around it (PageShell) is the site's English one.
+// 3.9, step 1: no integration yet, the customer gets bitcoin elsewhere and comes back to pay). In English, like the
+// rest of the public site (PageShell).
 
 const SECTIONS = [
-  ['quoi', 'Le bitcoin, c’est quoi ?'],
-  ['pourquoi', 'Pourquoi payer en bitcoin'],
-  ['obtenir', 'Obtenir du bitcoin'],
-  ['payer', 'Payer une commande'],
-  ['vendeurs', 'Pour les vendeurs'],
-  ['prudence', 'Les bons réflexes'],
-  ['questions', 'Questions fréquentes'],
+  ['what', 'What is bitcoin?'],
+  ['why', 'Why pay with bitcoin'],
+  ['get', 'Getting bitcoin'],
+  ['pay', 'Paying for an order'],
+  ['vendors', 'For vendors'],
+  ['safety', 'Staying safe'],
+  ['faq', 'Common questions'],
 ] as const;
 
 /** A link out of Selly: new tab, no referrer. */
@@ -121,24 +121,24 @@ function Faq({ q, children }: { q: string; children: ReactNode }) {
 export default function Page() {
   return (
     <PageShell>
-      <article lang="fr" className="max-w-7xl mx-auto w-full border-x border-[#1111111f]">
+      <article className="max-w-7xl mx-auto w-full border-x border-[#1111111f]">
         <header className="px-6 md:px-12 pt-16 md:pt-24 pb-14 border-b border-[#1111111f]">
-          <Eyebrow>Guide · 7 minutes de lecture</Eyebrow>
+          <Eyebrow>Guide · 7 minute read</Eyebrow>
           <h1 className="pv-serif text-5xl md:text-7xl lg:text-8xl font-light leading-[0.95] tracking-[-0.02em] max-w-4xl">
-            Payer en bitcoin, <span className="italic text-[#8AAE4A]">sans détour.</span>
+            Paying with bitcoin, <span className="italic text-[#8AAE4A]">made simple.</span>
           </h1>
           <p className="pv-sans mt-8 max-w-2xl text-base md:text-lg leading-relaxed text-black/70">
-            Sur Selly, vous payez les boutiques en bitcoin, directement dans le portefeuille du
-            vendeur. Pas encore de bitcoin ? Voici ce que c’est, pourquoi c’est pratique, et comment
-            en obtenir avec Orange Money ou Wave en quelques minutes.
+            On Selly, you pay shops in bitcoin, straight into the vendor’s wallet. No bitcoin yet?
+            Here is what it is, why it is handy, and how to get some with Orange Money or Wave in a
+            few minutes.
           </p>
         </header>
 
         <div className="grid lg:grid-cols-[16rem_1fr] gap-12 px-6 md:px-12 py-14 md:py-20">
-          <nav aria-label="Sommaire" className="hidden lg:block">
+          <nav aria-label="Contents" className="hidden lg:block">
             <div className="sticky top-28">
               <p className="pv-sans text-[10px] uppercase tracking-[0.3em] text-black/50 mb-4">
-                Sommaire
+                Contents
               </p>
               <ol className="space-y-3 pv-sans text-sm">
                 {SECTIONS.map(([id, label], i) => (
@@ -159,44 +159,35 @@ export default function Page() {
           </nav>
 
           <div className="max-w-2xl">
-            <Section id="quoi" n={1} title="Le bitcoin, c’est quoi ?">
+            <Section id="what" n={1} title="What is bitcoin?">
               <p>
-                Le bitcoin est une monnaie numérique qui n’appartient à aucune banque ni à aucun
-                État. Elle circule directement de personne à personne, sur Internet, à n’importe
-                quelle heure. On la garde dans une application sur son téléphone : un{' '}
-                <strong className="text-[#173B32]">portefeuille</strong> (en anglais, un « wallet
-                »).
+                Bitcoin is a digital currency that belongs to no bank and no government. It moves
+                directly from person to person, over the Internet, at any hour. You keep it in an
+                app on your phone: a <strong className="text-[#173B32]">wallet</strong>.
               </p>
               <p>
-                Un bitcoin se divise en 100 millions de{' '}
-                <strong className="text-[#173B32]">sats</strong> (satoshis). Pour vos achats, vous
-                paierez quelques milliers ou dizaines de milliers de sats. Le prix est toujours
-                affiché en FCFA dans la boutique : le montant en sats est calculé au moment du
-                paiement.
+                One bitcoin divides into 100 million{' '}
+                <strong className="text-[#173B32]">sats</strong> (satoshis). For your purchases, you
+                will pay a few thousand to a few tens of thousands of sats. Shops always show prices
+                in FCFA: the amount in sats is worked out when you pay.
               </p>
               <p>
-                Les paiements passent par <strong className="text-[#173B32]">Lightning</strong>, le
-                réseau rapide du bitcoin : ils arrivent en quelques secondes et coûtent quelques
-                francs de frais au plus. C’est ce réseau qu’utilisent les factures Selly.
+                Payments go over <strong className="text-[#173B32]">Lightning</strong>, bitcoin’s
+                fast network: they arrive in seconds and cost a few francs in fees at most. Selly’s
+                invoices use this network.
               </p>
             </Section>
 
-            <Section id="pourquoi" n={2} title="Pourquoi payer en bitcoin">
+            <Section id="why" n={2} title="Why pay with bitcoin">
               <ul className="grid sm:grid-cols-2 gap-4 !mt-6">
                 {[
                   [
-                    'Direct au vendeur',
-                    'Votre argent va dans le portefeuille de la boutique. Selly ne le touche jamais.',
+                    'Straight to the vendor',
+                    'Your money goes into the shop’s wallet. Selly never touches it.',
                   ],
-                  [
-                    'En quelques secondes',
-                    'Le vendeur voit le paiement aussitôt et prépare votre commande.',
-                  ],
-                  [
-                    'Presque sans frais',
-                    'Quelques francs sur Lightning, quel que soit le montant.',
-                  ],
-                  ['Sans compte bancaire', 'Un téléphone suffit, de Dakar comme de la diaspora.'],
+                  ['In seconds', 'The vendor sees the payment at once and prepares your order.'],
+                  ['Almost no fees', 'A few francs on Lightning, whatever the amount.'],
+                  ['No bank account needed', 'A phone is enough, from Dakar or abroad.'],
                 ].map(([t, d]) => (
                   <li key={t} className="border border-[#1111111f] p-5">
                     <span className="block pv-serif text-2xl text-[#173B32]">{t}</span>
@@ -205,160 +196,145 @@ export default function Page() {
                 ))}
               </ul>
               <p>
-                Le cours du bitcoin bouge, parfois beaucoup. Pour un achat, cela compte peu : le
-                montant est fixé en FCFA quand vous commandez, et vous ne gardez les sats que le
-                temps de payer. Si vous en gardez plus longtemps, n’y mettez que ce que vous pouvez
-                vous permettre de voir varier.
+                The price of bitcoin moves, sometimes a lot. For a purchase, that matters little:
+                the amount is set in FCFA when you order, and you only hold the sats long enough to
+                pay. If you keep some for longer, only put in what you can afford to see go up and
+                down.
               </p>
             </Section>
 
-            <Section id="obtenir" n={3} title="Obtenir du bitcoin">
-              <p>
-                Deux étapes : une application pour recevoir et payer, puis quelques sats achetés en
-                FCFA.
-              </p>
+            <Section id="get" n={3} title="Getting bitcoin">
+              <p>Two steps: an app to receive and pay, then a few sats bought with FCFA.</p>
 
-              <h3 className="pv-serif text-3xl !mt-8">1. Installer un portefeuille Lightning</h3>
-              <p>Gratuits, en français ou en anglais, sur Android et iPhone. Un seul suffit :</p>
+              <h3 className="pv-serif text-3xl !mt-8">1. Install a Lightning wallet</h3>
+              <p>All free, on Android and iPhone. One is enough:</p>
               <div className="grid sm:grid-cols-2 gap-4">
                 <Pick name="Wallet of Satoshi" href="https://www.walletofsatoshi.com">
-                  Le plus simple pour commencer : rien à configurer. L’application garde vos sats
-                  pour vous.
+                  The simplest way to start: nothing to set up. The app holds your sats for you.
                 </Pick>
                 <Pick name="Phoenix" href="https://phoenix.acinq.co">
-                  Vous gardez vous-même vos sats, avec une phrase de secours. Un peu plus de frais
-                  au premier dépôt.
+                  You hold your sats yourself, with a recovery phrase. A slightly higher fee on the
+                  first deposit.
                 </Pick>
                 <Pick name="Blink" href="https://www.blink.sv">
-                  Pensé pour payer au quotidien, avec un compte en dollars stables en option.
+                  Made for everyday payments, with an optional stable dollar account.
                 </Pick>
                 <Pick name="Breez" href="https://breez.technology">
-                  Vous gardez vos sats, interface claire, pour qui veut aller plus loin.
+                  You hold your sats, with a clear interface, for those who want to go further.
                 </Pick>
               </div>
 
-              <h3 className="pv-serif text-3xl !mt-10">
-                2. Acheter des sats avec Orange Money ou Wave
-              </h3>
+              <h3 className="pv-serif text-3xl !mt-10">2. Buy sats with Orange Money or Wave</h3>
               <div className="grid sm:grid-cols-2 gap-4">
                 <Pick name="Banxaas" href="https://banxaas.com">
-                  Plateforme sénégalaise : vous payez en FCFA par Orange Money ou Wave et recevez
-                  des sats dans votre portefeuille.
+                  A Senegalese platform: you pay in FCFA with Orange Money or Wave and receive sats
+                  in your wallet.
                 </Pick>
-                <Pick name="Échange entre particuliers (P2P)" href="https://p2p.binance.com/fr">
-                  Des vendeurs proposent des sats contre Orange Money ou Wave. Choisissez des
-                  vendeurs bien notés, et ne payez qu’à travers la plateforme.
+                <Pick name="Peer-to-peer exchange (P2P)" href="https://p2p.binance.com/en">
+                  Sellers offer sats for Orange Money or Wave. Pick well-rated sellers, and only pay
+                  through the platform.
                 </Pick>
               </div>
               <p>
-                Le plus simple reste parfois de demander à un proche qui a déjà du bitcoin de vous
-                en envoyer : donnez-lui une facture ou votre adresse de réception, et remboursez-le
-                en FCFA.
+                Sometimes the simplest is to ask someone close who already has bitcoin to send you
+                some: give them an invoice or your receiving address, and pay them back in FCFA.
               </p>
             </Section>
 
-            <Section id="payer" n={4} title="Payer une commande">
+            <Section id="pay" n={4} title="Paying for an order">
               <ol className="space-y-6 !mt-6">
-                <Step n={1} title="Commandez dans la boutique">
-                  Choisissez vos articles et la livraison. Vous arrivez sur la page de paiement,
-                  avec le montant en FCFA et en sats.
+                <Step n={1} title="Order in the shop">
+                  Choose your items and the delivery. You reach the payment page, with the amount in
+                  FCFA and in sats.
                 </Step>
-                <Step n={2} title="Ouvrez votre portefeuille">
-                  Sur le téléphone, touchez « Ouvrir mon portefeuille ». Depuis un ordinateur,
-                  scannez le code QR avec l’application.
+                <Step n={2} title="Open your wallet">
+                  On your phone, tap « Ouvrir mon portefeuille » (open my wallet). From a computer,
+                  scan the QR code with the app.
                 </Step>
-                <Step n={3} title="Confirmez">
-                  Vérifiez le montant et validez. En quelques secondes, la page affiche « Paiement
-                  reçu » et le vendeur est prévenu.
+                <Step n={3} title="Confirm">
+                  Check the amount and approve. Within seconds, the page shows « Paiement reçu »
+                  (payment received) and the vendor is notified.
                 </Step>
               </ol>
               <p>
-                Gardez le lien de la page de paiement : il montre l’état de votre commande jusqu’à
-                la livraison. Une facture reste valable un temps limité ; si elle expire, repassez
-                commande, le prix sera recalculé.
+                Keep the link to the payment page: it shows your order’s status until delivery. An
+                invoice is valid for a limited time; if it expires, order again and the price is
+                worked out afresh.
               </p>
             </Section>
 
-            <Section id="vendeurs" n={5} title="Pour les vendeurs">
+            <Section id="vendors" n={5} title="For vendors">
               <p>
-                Votre boutique Selly reçoit les paiements dans votre propre portefeuille, relié par
-                Nostr Wallet Connect (NWC). Des portefeuilles compatibles :{' '}
+                Your Selly shop receives payments in your own wallet, linked with Nostr Wallet
+                Connect (NWC). Compatible wallets include{' '}
                 <Out href="https://getalby.com">Alby Hub</Out>,{' '}
-                <Out href="https://coinos.io">Coinos</Out> ou{' '}
-                <Out href="https://primal.net">Primal</Out>. La page Portefeuille du tableau de bord
-                vous guide pour le relier.
+                <Out href="https://coinos.io">Coinos</Out> and{' '}
+                <Out href="https://primal.net">Primal</Out>. The Wallet page of the dashboard walks
+                you through linking it.
               </p>
               <p>
-                Pour retrouver des FCFA, revendez vos sats contre Orange Money ou Wave, par exemple
-                sur <Out href="https://banxaas.com">Banxaas</Out>. Votre abonnement Selly se paie
-                aussi en sats, depuis le même portefeuille.
+                To get FCFA back, sell your sats for Orange Money or Wave, for example on{' '}
+                <Out href="https://banxaas.com">Banxaas</Out>. Your Selly subscription is paid in
+                sats too, from the same wallet.
               </p>
             </Section>
 
-            <Section id="prudence" n={6} title="Les bons réflexes">
+            <Section id="safety" n={6} title="Staying safe">
               <ul className="list-disc pl-5 space-y-2 marker:text-[#8AAE4A]">
                 <li>
-                  Si votre portefeuille vous donne une{' '}
-                  <strong className="text-[#173B32]">phrase de secours</strong> (12 ou 24 mots),
-                  écrivez-la sur papier et rangez-la. Sans elle, un téléphone perdu, ce sont des
-                  sats perdus.
+                  If your wallet gives you a{' '}
+                  <strong className="text-[#173B32]">recovery phrase</strong> (12 or 24 words),
+                  write it on paper and keep it safe. Without it, a lost phone means lost sats.
                 </li>
                 <li>
-                  Ne donnez jamais cette phrase à personne. Ni Selly ni un vendeur ne vous la
-                  demandera.
+                  Never give that phrase to anyone. Neither Selly nor a vendor will ever ask for it.
                 </li>
+                <li>Start small: buy what you need for an order or two.</li>
                 <li>
-                  Commencez petit : achetez ce dont vous avez besoin pour une commande ou deux.
+                  A bitcoin payment cannot be reversed: check the amount and the shop before you
+                  approve.
                 </li>
-                <li>
-                  Un paiement bitcoin ne s’annule pas : vérifiez le montant et la boutique avant de
-                  valider.
-                </li>
-                <li>
-                  Méfiez-vous des promesses de gains rapides : ce sont presque toujours des
-                  arnaques.
-                </li>
+                <li>Beware of promises of quick gains: they are almost always scams.</li>
               </ul>
             </Section>
 
-            <Section id="questions" n={7} title="Questions fréquentes">
+            <Section id="faq" n={7} title="Common questions">
               <div className="!mt-2">
-                <Faq q="Selly garde-t-il mon argent ?">
-                  Non. Le paiement va directement de votre portefeuille à celui du vendeur. Selly
-                  crée la facture et suit la commande, sans jamais détenir les fonds.
+                <Faq q="Does Selly hold my money?">
+                  No. The payment goes straight from your wallet to the vendor’s. Selly creates the
+                  invoice and follows the order, without ever holding the funds.
                 </Faq>
-                <Faq q="Et si le cours change pendant que je paie ?">
-                  Le montant en sats est fixé pour la durée de la facture. Si elle expire avant le
-                  paiement, une nouvelle commande recalcule le montant au cours du moment.
+                <Faq q="What if the price changes while I pay?">
+                  The amount in sats is fixed for as long as the invoice is valid. If it expires
+                  before you pay, a new order works out the amount at the current rate.
                 </Faq>
-                <Faq q="Mon paiement n’apparaît pas.">
-                  Patientez quelques secondes, puis touchez « J’ai payé, actualiser » sur la page de
-                  paiement. Si votre portefeuille indique que le paiement est parti et que la page
-                  ne bouge pas, écrivez au vendeur depuis cette même page.
+                <Faq q="My payment doesn’t show up.">
+                  Wait a few seconds, then tap « J’ai payé, actualiser » (I have paid, refresh) on
+                  the payment page. If your wallet says the payment went through and the page does
+                  not change, write to the vendor from that same page.
                 </Faq>
-                <Faq q="Faut-il un compte bancaire ou une pièce d’identité ?">
-                  Pas pour un portefeuille Lightning. Les plateformes d’achat de bitcoin peuvent en
-                  revanche vérifier votre identité, selon le montant.
+                <Faq q="Do I need a bank account or an ID?">
+                  Not for a Lightning wallet. Platforms that sell bitcoin may check your identity,
+                  depending on the amount.
                 </Faq>
-                <Faq q="Je veux en savoir plus sur le bitcoin.">
-                  <Out href="https://bitcoin.org/fr/">bitcoin.org</Out> explique le fonctionnement
-                  en détail, en français.
+                <Faq q="I want to learn more about bitcoin.">
+                  <Out href="https://bitcoin.org/en/">bitcoin.org</Out> explains how it works in
+                  detail.
                 </Faq>
               </div>
             </Section>
 
             <div className="mt-16 border border-[#173B32] p-8 md:p-10 bg-[#173B32] text-[#F6F4F0]">
-              <p className="pv-serif text-3xl md:text-4xl font-light">Prêt à payer ?</p>
+              <p className="pv-serif text-3xl md:text-4xl font-light">Ready to pay?</p>
               <p className="pv-sans mt-3 text-[15px] leading-relaxed text-[#F6F4F0]/75">
-                Revenez à votre page de paiement : son lien est dans votre navigateur, ou
-                demandez-le au vendeur. Vous vendez en ligne ? Ouvrez votre boutique Selly en
-                quelques minutes.
+                Go back to your payment page: its link is in your browser, or ask the vendor for it.
+                Selling online? Open your Selly shop in a few minutes.
               </p>
               <Link
                 href="/app/login"
                 className="mt-6 inline-block pv-sans text-xs uppercase tracking-[0.2em] font-medium border border-[#F6F4F0] px-6 py-4 hover:bg-[#F6F4F0] hover:text-[#173B32] transition-colors"
               >
-                Créer ma boutique
+                Create my shop
               </Link>
             </div>
           </div>
