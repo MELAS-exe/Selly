@@ -1,8 +1,10 @@
 import { core } from '@selly/db';
 import { eq } from '@selly/db/orm';
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
+import { z } from 'zod';
 import { requireSession, requireVendor } from '../auth/http';
 import { findVendorById, findVendorBySlug, storeStatus, vendorSettings } from '../catalog/store';
+import { removeEmail, requestEmail, verifyEmail } from '../events/email';
 import { createBody, createVendor, patchBody, patchVendor, vendorView } from './service';
 
 const whatsappLink = (e164: string | null) =>
@@ -59,6 +61,25 @@ export const vendorsModule: FastifyPluginAsync = async (app) => {
     const s = await requireVendor(ctx(), req);
     return vendorView(ctx(), await findVendorById(ctx(), s.vendorId));
   });
+
+  // Alerts by email: the address gets a code, and becomes the alert address when the code comes back.
+  const emailBody = z.strictObject({ address: z.string().max(254) });
+  const codeBody = z.strictObject({ code: z.string().regex(/^\d{6}$/, 'Six digits') });
+  const me = async (req: FastifyRequest) => {
+    const s = await requireVendor(ctx(), req);
+    return findVendorById(ctx(), s.vendorId);
+  };
+  app.post(
+    '/api/v1/vendors/me/alerts/email',
+    { config: { rateLimit: { max: 5, timeWindow: '10 minutes' } } },
+    async (req) => requestEmail(ctx(), await me(req), emailBody.parse(req.body).address),
+  );
+  app.post(
+    '/api/v1/vendors/me/alerts/email/verify',
+    { config: { rateLimit: { max: 10, timeWindow: '10 minutes' } } },
+    async (req) => verifyEmail(ctx(), await me(req), codeBody.parse(req.body).code),
+  );
+  app.delete('/api/v1/vendors/me/alerts/email', async (req) => removeEmail(ctx(), await me(req)));
 
   app.patch('/api/v1/vendors/me', async (req) => {
     const s = await requireVendor(ctx(), req);

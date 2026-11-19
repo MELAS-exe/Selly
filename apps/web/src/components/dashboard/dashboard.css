@@ -1390,9 +1390,10 @@ select.form-control {
 }
 .product-meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 4px 10px;
   margin-top: auto;
   padding-top: 14px;
   font-size: 13px;
@@ -2481,4 +2482,331 @@ a.popover-item:hover {
   border-style: dashed;
   border-color: var(--line-strong);
   cursor: pointer;
+}
+.photo-pick .photo-first {
+  top: auto;
+  right: auto;
+  bottom: 4px;
+  left: 4px;
+  width: auto;
+  padding: 0 6px;
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+/* -------------------------------------------------------------------------- Selly, over every page */
+
+.selly-fab {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 0 18px 0 14px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--on-dark);
+  background: var(--ink);
+  border: 0;
+  box-shadow: 0 16px 34px -18px rgba(23, 59, 50, 0.7);
+  cursor: pointer;
+}
+.selly-fab-mark {
+  width: 20px;
+  color: var(--lime);
+}
+.selly-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(23, 59, 50, 0.32);
+}
+.selly-sheet {
+  display: flex;
+  flex-direction: column;
+  width: min(440px, 100%);
+  height: 100%;
+  background: var(--paper);
+  border-left: 1px solid var(--line);
+  box-shadow: -24px 0 48px -32px rgba(23, 59, 50, 0.6);
+  animation: selly-in 200ms ease-out;
+}
+@keyframes selly-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+.selly-sheet-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.selly-sheet-head h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 26px;
+  font-weight: 500;
+  line-height: 1;
+}
+.selly-sheet-head p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--ink-55);
+}
+.selly-sheet-mark {
+  width: 26px;
+  color: var(--ink);
+}
+.selly-thread {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.selly-empty {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 28px 8px;
+  text-align: center;
+}
+.selly-empty strong {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 500;
+}
+.selly-examples {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.selly-bubble-photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.selly-bubble-photos img {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+}
+.selly-attach {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 8px;
+  padding: 10px 16px 0;
+  border-top: 1px solid var(--line-soft);
+}
+.selly-attach .form-hint {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.selly-compose {
+  align-items: flex-end;
+  gap: 8px;
+  padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+}
+.selly-compose textarea {
+  flex: 1;
+  min-width: 0;
+  min-height: 42px;
+  max-height: 140px;
+  padding: 10px 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  resize: none;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line-strong);
+  outline: none;
+}
+@media (max-width: 700px) {
+  /* Above the bottom menu. */
+  .selly-fab {
+    right: 16px;
+    bottom: calc(68px + 14px + env(safe-area-inset-bottom));
+  }
+  .selly-sheet {
+    width: 100%;
+    border-left: 0;
+  }
+}
+@media (pointer: coarse), (max-width: 700px) {
+  .selly-compose textarea {
+    font-size: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .selly-sheet {
+    animation: none;
+  }
+}
+
+/* Drafts left to check, at the top of the catalogue. */
+.pending-drafts {
+  margin-bottom: 28px;
+  scroll-margin-top: 88px;
+}
+.pending-drafts .panel-title {
+  margin: 0 0 4px;
+}
+
+/* -------------------------------------------------------------------------- selling in a discussion */
+
+.sell-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 16px 0;
+}
+.thread-cards {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+.thread-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px;
+  font-size: 12px;
+  color: inherit;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid var(--line);
+}
+.bubble.me .thread-card {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--on-dark-line);
+}
+.thread-card img {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+}
+.thread-card span,
+.pick-row span,
+.order-line span {
+  display: grid;
+  min-width: 0;
+}
+.thread-card b,
+.pick-row b,
+.order-line b {
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pick-list {
+  display: grid;
+  gap: 6px;
+  max-height: 300px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.pick-row {
+  display: grid;
+  grid-template-columns: auto 44px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 6px 10px;
+  font-size: 13px;
+  border: 1px solid var(--line-soft);
+  cursor: pointer;
+}
+.pick-row.on {
+  border-color: var(--ink);
+}
+.pick-row img,
+.pick-row > svg {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+}
+.order-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 13px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.order-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  margin-top: 6px;
+}
+.form-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 700px) {
+  .order-add,
+  .form-pair {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* The product picker of the discussion tools: search, category and stock chips, a scrolling list. */
+.picker {
+  display: grid;
+  gap: 10px;
+}
+.picker-filters,
+.variant-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.variant-chips {
+  grid-column: 2 / -1;
+  padding-bottom: 4px;
+}
+.chip {
+  min-height: 32px;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  cursor: pointer;
+}
+.chip.on {
+  color: var(--on-dark);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+.chip:disabled {
+  opacity: 0.35;
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+@media (pointer: coarse), (max-width: 700px) {
+  .chip {
+    min-height: 40px;
+  }
 }

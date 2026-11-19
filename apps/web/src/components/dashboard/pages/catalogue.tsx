@@ -8,15 +8,19 @@ import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { ApiError } from '@/lib/browser-api';
 import { newKey, uploadImages, useDashboard, useResource } from '../data';
 import { fmtXof, formatOptions } from '../format';
-import { Camera, Eye, ImagePlus, Minus, Package, Plus, Search, X } from '../icons';
+import { Camera, Eye, ImagePlus, Minus, Package, Pencil, Plus, Search, X } from '../icons';
+import { openSelly } from '../selly-assistant';
 import type { Category, Page, VendorProduct } from '../types';
 import { Badge, Empty, Failed, Loading, Modal, PageTitle } from '../ui';
+import { PendingDrafts } from './drafts';
 
 export function Catalogue() {
   const { mutate } = useDashboard();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<VendorProduct | null>(null);
+  const [managing, setManaging] = useState(false);
   const products = useResource<Page<VendorProduct>>(
     search.trim() ? `/inventory?q=${encodeURIComponent(search.trim())}` : '/inventory',
   );
@@ -41,9 +45,9 @@ export function Catalogue() {
         description="Le stock disponible tient compte des articles réservés par les commandes en attente de paiement."
         action={
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <Link href="/app/brouillons?photo=1" className="button">
+            <button type="button" className="button" onClick={() => openSelly({ photo: true })}>
               <ImagePlus size={15} /> Depuis une photo
-            </Link>
+            </button>
             <button type="button" className="button primary" onClick={() => setAdding(true)}>
               <Plus size={15} /> Nouveau produit
             </button>
@@ -76,10 +80,14 @@ export function Catalogue() {
             ))}
           </select>
         )}
+        <button type="button" className="button small" onClick={() => setManaging(true)}>
+          <Plus size={12} /> Catégories
+        </button>
         <span className="demo-chip">
           {shown.length} produit{shown.length > 1 ? 's' : ''}
         </span>
       </div>
+      <PendingDrafts />
       {products.error && !products.data ? (
         <Failed error={products.error} retry={products.reload} />
       ) : !products.data ? (
@@ -161,6 +169,9 @@ export function Catalogue() {
                   <span className="table-secondary">
                     {p.variants.reduce((n, v) => n + v.available, 0)} disponibles
                   </span>
+                  <button type="button" className="text-link" onClick={() => setEditing(p)}>
+                    <Pencil size={12} /> Modifier
+                  </button>
                   <button
                     type="button"
                     className="text-link"
@@ -185,28 +196,68 @@ export function Catalogue() {
           ))}
         </div>
       )}
-      {adding && <NewProduct categories={cats} onClose={() => setAdding(false)} />}
+      {managing && (
+        <Categories
+          list={cats}
+          onClose={() => setManaging(false)}
+          onRemoved={(id) => id === category && setCategory('')}
+        />
+      )}
+      {adding && <ProductForm categories={cats} onClose={() => setAdding(false)} />}
+      {editing && (
+        <ProductForm categories={cats} product={editing} onClose={() => setEditing(null)} />
+      )}
     </>
   );
 }
 
-/** Option names core accepts: lowercase letters and _ (drafts.ts). "Tailles" become { size }. */
-function NewProduct({ categories, onClose }: { categories: Category[]; onClose: () => void }) {
+/** A photo in the form: one already on the product (its storage key), or a new file shown from memory. */
+interface Pick {
+  url: string;
+  key?: string;
+  file?: File;
+}
+
+/**
+ * Adds a product, or edits one (`product`). Editing sends what core's PATCH takes: name, price, category,
+ * description and the photos, the kept ones by storage key and the new ones uploaded first. Stock and sizes stay
+ * on the card (− and +), where each change is a ledger entry. Option names core accepts: lowercase letters and _
+ * (drafts.ts), so "Tailles" become { size }.
+ */
+function ProductForm({
+  categories,
+  product,
+  onClose,
+}: {
+  categories: Category[];
+  product?: VendorProduct;
+  onClose: () => void;
+}) {
   const { mutate, request, flash, demo } = useDashboard();
-  const [title, setTitle] = useState('');
-  const [price, setPrice] = useState('');
-  const [category, setCategory] = useState(categories[0]?.id ?? '');
-  const [description, setDescription] = useState('');
+  const editing = !!product;
+  const [title, setTitle] = useState(product?.title ?? '');
+  const [price, setPrice] = useState(product ? String(product.price.amount) : '');
+  const [category, setCategory] = useState(
+    product ? (product.category_id ?? '') : (categories[0]?.id ?? ''),
+  );
+  const [description, setDescription] = useState(product?.description ?? '');
   const [sizes, setSizes] = useState('');
   const [stock, setStock] = useState('1');
   const [busy, setBusy] = useState(false);
-  const [photos, setPhotos] = useState<{ file: File; url: string }[]>([]);
+  const [photos, setPhotos] = useState<Pick[]>(
+    product?.images.map((i) => ({ url: i.url, key: i.storage_key })) ?? [],
+  );
   // One key per opened form: a double tap or a retry never creates the product twice. The photos already sent keep
   // their storage key, so a retry sends the same request.
   const [key] = useState(newKey);
   const sent = useRef(new Map<File, string>());
   const picker = useRef<HTMLInputElement>(null);
-  useEffect(() => () => photos.forEach((p) => URL.revokeObjectURL(p.url)), [photos]);
+  useEffect(
+    () => () => {
+      for (const p of photos) if (p.file) URL.revokeObjectURL(p.url);
+    },
+    [photos],
+  );
 
   const sizeList = sizes
     .split(/[,;]/)
@@ -216,35 +267,54 @@ function NewProduct({ categories, onClose }: { categories: Category[]; onClose: 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
-    const onHand = Math.max(0, Number(stock) || 0);
     try {
       const imageKeys: string[] = [];
       for (const p of photos) {
-        let k = sent.current.get(p.file);
-        if (!k && !demo) {
+        let k = p.key ?? (p.file ? sent.current.get(p.file) : undefined);
+        if (!k && p.file && !demo) {
           k = (await uploadImages(request, [p.file]))[0];
           if (k) sent.current.set(p.file, k);
         }
         if (k) imageKeys.push(k);
       }
-      await mutate(
-        '/inventory',
-        {
-          method: 'POST',
-          idempotencyKey: key,
-          body: {
-            title: title.trim(),
-            ...(description.trim() ? { description: description.trim() } : {}),
-            ...(category ? { category_id: category } : {}),
-            price: { amount: Number(price), currency: 'XOF' },
-            ...(imageKeys.length ? { image_keys: imageKeys } : {}),
-            variants: sizeList.length
-              ? sizeList.map((size) => ({ options: { size }, on_hand: onHand }))
-              : [{ options: {}, on_hand: onHand }],
+      const fields = {
+        title: title.trim(),
+        price: { amount: Number(price), currency: 'XOF' },
+      };
+      if (product) {
+        await mutate(
+          `/inventory/${product.id}`,
+          {
+            method: 'PATCH',
+            body: {
+              ...fields,
+              description: description.trim(),
+              category_id: category || null,
+              image_keys: imageKeys,
+            },
           },
-        },
-        `${title.trim()} ajouté au catalogue.`,
-      );
+          `${title.trim()} mis à jour.`,
+        );
+      } else {
+        const onHand = Math.max(0, Number(stock) || 0);
+        await mutate(
+          '/inventory',
+          {
+            method: 'POST',
+            idempotencyKey: key,
+            body: {
+              ...fields,
+              ...(description.trim() ? { description: description.trim() } : {}),
+              ...(category ? { category_id: category } : {}),
+              ...(imageKeys.length ? { image_keys: imageKeys } : {}),
+              variants: sizeList.length
+                ? sizeList.map((size) => ({ options: { size }, on_hand: onHand }))
+                : [{ options: {}, on_hand: onHand }],
+            },
+          },
+          `${title.trim()} ajouté au catalogue.`,
+        );
+      }
       onClose();
     } catch (err) {
       if (!(err instanceof ApiError)) flash('L’envoi d’une photo a échoué. Réessayez.', 'error');
@@ -253,11 +323,12 @@ function NewProduct({ categories, onClose }: { categories: Category[]; onClose: 
   }
 
   return (
-    <Modal title="Ajouter un produit" onClose={onClose}>
+    <Modal title={editing ? 'Modifier le produit' : 'Ajouter un produit'} onClose={onClose}>
       <form onSubmit={submit}>
         <p className="modal-copy">
-          Le produit apparaît dans votre boutique dès que vous l’ajoutez (dès qu’elle est publiée
-          pour vos clients), et l’assistant peut le proposer.
+          {editing
+            ? 'Les changements apparaissent dans votre boutique dès que vous enregistrez. Le stock se règle avec − et + sur la fiche.'
+            : 'Le produit apparaît dans votre boutique dès que vous l’ajoutez (dès qu’elle est publiée pour vos clients), et l’assistant peut le proposer.'}
         </p>
         <div className="form-label">Photos, jusqu’à 8</div>
         <div className="photo-picks">
@@ -271,6 +342,16 @@ function NewProduct({ categories, onClose }: { categories: Category[]; onClose: 
               >
                 <X size={12} />
               </button>
+              {i > 0 && (
+                <button
+                  type="button"
+                  className="photo-first"
+                  aria-label={`Mettre la photo ${i + 1} en premier`}
+                  onClick={() => setPhotos((all) => [p, ...all.filter((x) => x !== p)])}
+                >
+                  En 1er
+                </button>
+              )}
             </span>
           ))}
           {photos.length < 8 && (
@@ -339,31 +420,37 @@ function NewProduct({ categories, onClose }: { categories: Category[]; onClose: 
               placeholder="15000"
             />
           </div>
-          <div>
-            <label className="form-label" htmlFor="np-stock">
-              {sizeList.length ? 'Stock par taille' : 'Stock'}
+          {!editing && (
+            <div>
+              <label className="form-label" htmlFor="np-stock">
+                {sizeList.length ? 'Stock par taille' : 'Stock'}
+              </label>
+              <input
+                id="np-stock"
+                className="form-control"
+                type="number"
+                inputMode="numeric"
+                min="0"
+                value={stock}
+                onChange={(e) => setStock(e.target.value)}
+              />
+            </div>
+          )}
+        </div>
+        {!editing && (
+          <>
+            <label className="form-label" htmlFor="np-sizes">
+              Tailles ou pointures, facultatif
             </label>
             <input
-              id="np-stock"
+              id="np-sizes"
               className="form-control"
-              type="number"
-              inputMode="numeric"
-              min="0"
-              value={stock}
-              onChange={(e) => setStock(e.target.value)}
+              value={sizes}
+              onChange={(e) => setSizes(e.target.value)}
+              placeholder="Ex. 40, 41, 42 ou S, M, L"
             />
-          </div>
-        </div>
-        <label className="form-label" htmlFor="np-sizes">
-          Tailles ou pointures, facultatif
-        </label>
-        <input
-          id="np-sizes"
-          className="form-control"
-          value={sizes}
-          onChange={(e) => setSizes(e.target.value)}
-          placeholder="Ex. 40, 41, 42 ou S, M, L"
-        />
+          </>
+        )}
         {categories.length > 0 && (
           <>
             <label className="form-label" htmlFor="np-cat">
@@ -404,10 +491,118 @@ function NewProduct({ categories, onClose }: { categories: Category[]; onClose: 
             type="submit"
             disabled={busy || !title.trim() || !price}
           >
-            <Plus size={14} /> Ajouter au catalogue
+            {editing ? (
+              busy ? (
+                'Enregistrement…'
+              ) : (
+                'Enregistrer'
+              )
+            ) : (
+              <>
+                <Plus size={14} /> Ajouter au catalogue
+              </>
+            )}
           </button>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+/** The shop's departments, next to the products they sort. Removing one leaves its products uncategorised. */
+function Categories({
+  list,
+  onClose,
+  onRemoved,
+}: {
+  list: Category[];
+  onClose: () => void;
+  onRemoved: (id: string) => void;
+}) {
+  const { mutate } = useDashboard();
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const taken = list.some((c) => c.name.trim().toLowerCase() === name.trim().toLowerCase());
+  async function add() {
+    setBusy(true);
+    try {
+      await mutate(
+        '/vendors/me/categories',
+        { method: 'POST', body: { name: name.trim() } },
+        `Catégorie ${name.trim()} ajoutée.`,
+      );
+      setName('');
+    } catch {
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Modal title="Catégories" onClose={onClose}>
+      <p className="modal-copy">
+        Les rayons de votre boutique, dans ses filtres. Supprimer une catégorie ne supprime aucun
+        produit.
+      </p>
+      <div className="zone-list">
+        {list.map((c) => (
+          <div
+            className="zone-row"
+            key={c.id}
+            style={{ gridTemplateColumns: 'minmax(0, 1fr) auto' }}
+          >
+            <span>{c.name}</span>
+            <button
+              type="button"
+              className="button small ghost"
+              aria-label={`Supprimer ${c.name}`}
+              onClick={() =>
+                mutate(
+                  `/vendors/me/categories/${c.id}`,
+                  { method: 'DELETE' },
+                  `Catégorie ${c.name} supprimée.`,
+                ).then(
+                  () => onRemoved(c.id),
+                  () => {},
+                )
+              }
+            >
+              <X size={12} />
+            </button>
+          </div>
+        ))}
+      </div>
+      {list.length === 0 && <p className="form-hint">Aucune catégorie pour l’instant.</p>}
+      <form
+        className="zone-add"
+        style={{ gridTemplateColumns: 'minmax(0, 1fr) auto' }}
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (name.trim().length >= 2 && !taken) add();
+        }}
+      >
+        <div>
+          <label className="form-label" htmlFor="c-name">
+            Nouvelle catégorie
+          </label>
+          <input
+            id="c-name"
+            className="form-control"
+            maxLength={40}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Ex. Robes"
+            aria-invalid={taken}
+          />
+        </div>
+        <button
+          type="submit"
+          className="button small"
+          disabled={busy || name.trim().length < 2 || taken}
+        >
+          <Plus size={12} /> Ajouter
+        </button>
+      </form>
+      {taken && <p className="form-error">Cette catégorie existe déjà.</p>}
     </Modal>
   );
 }

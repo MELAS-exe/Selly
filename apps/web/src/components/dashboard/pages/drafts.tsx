@@ -1,7 +1,7 @@
 'use client';
 
-// Brouillons photo (architecture.md 6.5 and 8.6): the vendor sends a photo and a sentence, the vision model fills a
-// draft, and nothing is published before the vendor checks it. Each field shows how sure the model is.
+// Photo drafts (architecture.md 6.5 and 8.6): the vendor sends Selly a photo and a sentence, the vision model fills
+// a draft, and nothing is published before the vendor checks it. Each field shows how sure the model is.
 
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
@@ -19,28 +19,32 @@ const FROM: Record<string, string> = {
   inferred: 'une déduction',
 };
 
-export function Drafts() {
-  const params = useSearchParams();
+/**
+ * Drafts still to check, at the top of the catalogue. Drafts made with Selly are confirmed in the conversation;
+ * these are the others (or ones left there), and failed photos of the last day. Nothing shows when all is checked.
+ */
+export function PendingDrafts() {
   const review = useResource<Page<Draft>>('/inventory/drafts?status=needs_review');
   const processing = useResource<Page<Draft>>('/inventory/drafts?status=processing', 4000);
   const failed = useResource<Page<Draft>>('/inventory/drafts?status=failed');
   const recentFailures = (failed.data?.data ?? []).filter(
     (d) => Date.now() - Date.parse(d.created_at) < 86_400_000,
   );
+  const toCheck = review.data?.data ?? [];
+  const reading = processing.data?.data.length ?? 0;
+  if (toCheck.length === 0 && reading === 0 && recentFailures.length === 0) return null;
 
   return (
-    <>
-      <PageTitle
-        eyebrow="Assistant vendeur · à vérifier"
-        title="Brouillons photo"
-        description="Prenez un produit en photo, ajoutez une phrase (« 5 paires du 40 au 44 à 20 000 ») : Selly prépare la fiche. Rien n’est publié avant votre confirmation."
-      />
-      <PhotoForm autoOpen={params.get('photo') === '1'} />
-      {(processing.data?.data.length ?? 0) > 0 && (
+    <section id="brouillons" className="pending-drafts" aria-labelledby="brouillons-title">
+      <h2 id="brouillons-title" className="panel-title">
+        Brouillons photo à vérifier
+      </h2>
+      <p className="form-hint">
+        Rien n’est publié avant votre confirmation. Pour en créer un, envoyez une photo à Selly.
+      </p>
+      {reading > 0 && (
         <div className="draft-note" role="status">
-          <b>Lecture en cours…</b> {processing.data?.data.length} photo
-          {(processing.data?.data.length ?? 0) > 1 ? 's' : ''} en cours d’analyse. Le brouillon
-          apparaît ici dans quelques secondes.
+          <b>Lecture en cours…</b> {reading} photo{reading > 1 ? 's' : ''} en cours d’analyse.
         </div>
       )}
       {recentFailures.length > 0 && (
@@ -53,99 +57,13 @@ export function Drafts() {
           </span>
         </div>
       )}
-      {review.error && !review.data ? (
-        <Failed error={review.error} retry={review.reload} />
-      ) : !review.data ? (
-        <Loading />
-      ) : review.data.data.length === 0 ? (
-        <div className="panel">
-          <Empty
-            icon={CircleCheck}
-            title="Tout est vérifié"
-            text="Les nouveaux brouillons photo apparaîtront ici."
-          />
-        </div>
-      ) : (
+      {toCheck.length > 0 && (
         <div className="draft-grid">
-          {review.data.data.map((d) => (
+          {toCheck.map((d) => (
             <DraftCard key={d.id} draft={d} />
           ))}
         </div>
       )}
-    </>
-  );
-}
-
-/** Photo → presigned upload → restock-ai (docs/api.json, media and inventory). */
-function PhotoForm({ autoOpen }: { autoOpen: boolean }) {
-  const { request, refresh, flash, demo } = useDashboard();
-  const input = useRef<HTMLInputElement>(null);
-  const [files, setFiles] = useState<File[]>([]);
-  const [text, setText] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (autoOpen && !demo) input.current?.click();
-  }, [autoOpen, demo]);
-
-  async function send() {
-    setBusy(true);
-    try {
-      const keys = await uploadImages(request, files);
-      await request('/inventory/restock-ai', {
-        method: 'POST',
-        idempotencyKey: newKey(),
-        body: { image_keys: keys, ...(text.trim() ? { text: text.trim() } : {}) },
-      });
-      setFiles([]);
-      setText('');
-      flash('Photo envoyée. Le brouillon arrive dans quelques secondes.');
-      refresh();
-    } catch (err) {
-      flash(
-        err instanceof ApiError ? errorText(err) : 'L’envoi de la photo a échoué. Réessayez.',
-        'error',
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <section className="panel" style={{ marginBottom: 24 }}>
-      <div className="chat-compose" style={{ borderTop: 0, flexWrap: 'wrap' }}>
-        <input
-          ref={input}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          capture="environment"
-          multiple
-          hidden
-          onChange={(e) => setFiles(Array.from(e.target.files ?? []).slice(0, 6))}
-        />
-        <button type="button" className="button" onClick={() => input.current?.click()}>
-          <Camera size={15} />
-          {files.length
-            ? `${files.length} photo${files.length > 1 ? 's' : ''}`
-            : 'Prendre une photo'}
-        </button>
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          maxLength={1000}
-          placeholder="Prix, tailles, quantités : « 5 paires du 40 au 44 à 20 000 »"
-          aria-label="Ce que Selly doit savoir sur ce produit"
-          style={{ minWidth: 220 }}
-        />
-        <button
-          type="button"
-          className="button primary"
-          disabled={busy || files.length === 0}
-          onClick={send}
-        >
-          <ImagePlus size={15} /> {busy ? 'Envoi…' : 'Préparer la fiche'}
-        </button>
-      </div>
     </section>
   );
 }

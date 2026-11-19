@@ -406,6 +406,117 @@ describe('handoff and the vendor inbox', () => {
     expect(llm.requests).toHaveLength(2);
   });
 
+  it('lets the vendor show products and make the order, which the customer pays from the chat', async () => {
+    const { app, openChat, history, core, vendorHeaders } = setup();
+    const { token, conversationId } = await openChat();
+    const robe = core.products.find((p) => p.slug === 'robe-wax-noire');
+    const url = (path: string) => `/api/v1/conversations/${conversationId}/${path}`;
+
+    // A product card, with or without words.
+    const shown = await app.inject({
+      method: 'POST',
+      url: url('messages'),
+      headers: vendorHeaders,
+      payload: { client_message_id: 'vendor-card-01', product_ids: [robe?.id] },
+    });
+    expect(shown.statusCode).toBe(201);
+    expect((await history(token)).at(-1)).toMatchObject({
+      author: 'vendor',
+      cards: [{ type: 'product', product_id: robe?.id, title: 'Robe wax noire' }],
+    });
+
+    // A proposed cart: the customer completes it (quantities, delivery, details) in the shop's cart.
+    const variant42 = variantOf(core, 'robe-wax-noire', '42');
+    const proposed = await app.inject({
+      method: 'POST',
+      url: url('messages'),
+      headers: vendorHeaders,
+      payload: {
+        client_message_id: 'vendor-cart-01',
+        cart: [{ product_id: robe?.id, variant_id: variant42 }],
+      },
+    });
+    expect(proposed.statusCode).toBe(201);
+    expect((await history(token)).at(-1)).toMatchObject({
+      text: expect.stringContaining('Commander'),
+      cards: [
+        {
+          type: 'cart',
+          lines: [
+            { variant_id: variant42, product_slug: 'robe-wax-noire', options: { size: '42' } },
+          ],
+        },
+      ],
+    });
+    const foreign = await app.inject({
+      method: 'POST',
+      url: url('messages'),
+      headers: vendorHeaders,
+      payload: {
+        client_message_id: 'vendor-cart-02',
+        cart: [{ product_id: robe?.id, variant_id: uuidv7() }],
+      },
+    });
+    expect(foreign.statusCode).toBe(422);
+
+    // The exact total, then the order with that total.
+    const items = [{ variant_id: variant42, quantity: 1 }];
+    const delivery = { method: 'pickup' as const };
+    const quote = await app.inject({
+      method: 'POST',
+      url: url('quotes'),
+      headers: vendorHeaders,
+      payload: { items, delivery },
+    });
+    expect(quote.statusCode).toBe(200);
+    const order = () =>
+      app.inject({
+        method: 'POST',
+        url: url('orders'),
+        headers: { ...vendorHeaders, 'idempotency-key': 'vendor-order-key-0001' },
+        payload: {
+          client_message_id: 'vendor-order-01',
+          customer: { display_name: 'Fatou', phone_e164: '+221771234567' },
+          items,
+          delivery,
+          expected_total: quote.json().total,
+        },
+      });
+    const made = await order();
+    expect(made.statusCode).toBe(201);
+    const card = (await history(token)).at(-1);
+    expect(card).toMatchObject({
+      author: 'vendor',
+      kind: 'order_link',
+      cards: [{ type: 'order', status: 'pending_payment', checkout_url: expect.any(String) }],
+    });
+    // A double tap replays: one order, one card.
+    expect((await order()).statusCode).toBe(201);
+    expect(core.orders).toHaveLength(1);
+
+    // Neither an empty message nor a stale total gets through.
+    const empty = await app.inject({
+      method: 'POST',
+      url: url('messages'),
+      headers: vendorHeaders,
+      payload: { client_message_id: 'vendor-empty-1' },
+    });
+    expect(empty.statusCode).toBe(422);
+    const stale = await app.inject({
+      method: 'POST',
+      url: url('orders'),
+      headers: { ...vendorHeaders, 'idempotency-key': 'vendor-order-key-0002' },
+      payload: {
+        client_message_id: 'vendor-order-02',
+        customer: { display_name: 'Fatou', phone_e164: '+221771234567' },
+        items,
+        delivery,
+        expected_total: { amount: 1, currency: 'XOF' },
+      },
+    });
+    expect(stale.json().code).toBe('PRICE_CHANGED');
+  });
+
   it('answers the waiting message when the vendor gives the chat back to the bot', async () => {
     const { app, openChat, send, history, llm, vendorHeaders } = setup();
     const { token, conversationId } = await openChat();

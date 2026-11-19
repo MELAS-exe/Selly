@@ -7,6 +7,7 @@ import { PgLeader } from './leader';
 import { purgeOldChallenges } from './modules/auth/service';
 import { deliverAlerts, nostrDmSender, webPushSender } from './modules/events/alerts';
 import { dispatchOnce } from './modules/events/dispatcher';
+import { emailSender } from './modules/events/email';
 import { purgeOldNotifications } from './modules/events/notifications';
 import { failStaleDrafts } from './modules/inventory/drafts';
 import { objectStoreFromConfig } from './modules/media/storage';
@@ -59,9 +60,11 @@ async function main() {
     signals: new Signals(),
     keyring,
     log: silentLogger,
+    email: null,
   };
   const app = buildApp(ctx);
   ctx.log = app.log;
+  ctx.email = emailSender(config, app.log);
   const signals = new PgSignals(pool, app.log);
   ctx.signals = signals;
   await signals.start();
@@ -161,6 +164,7 @@ async function main() {
   });
   // Alerts outside the dashboard: Web Push and Nostr direct messages.
   const senders = {
+    email: ctx.email,
     push: webPushSender(config),
     dm: nostrDmSender(
       config.SECRETS_PLATFORM_NOSTR_KEY,

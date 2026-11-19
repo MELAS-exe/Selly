@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { SellyMark } from '@/components/brand/selly-mark';
 import type { AskDetail } from '../storefront/ask-button';
 import { ChatPanel } from './chat-panel';
 
@@ -59,7 +60,7 @@ export function AskSelly({
       >
         {variant === 'floating' ? (
           <>
-            <img src="/brand/selly-s-light.png" alt="" className="w-6" />
+            <SellyMark className="w-6 text-[var(--sf-accent,#8aae4a)]" />
             <span className="hidden text-left sm:block">
               <span className="block font-semibold">Parler à Selly</span>
               <span className="block text-sm text-d-paper/75">Votre conseillère de boutique</span>
@@ -67,7 +68,7 @@ export function AskSelly({
           </>
         ) : (
           <>
-            <img src="/brand/selly-s.png" alt="" className="w-4" />
+            <SellyMark className="w-4 text-[var(--sf-accent-text,#173b32)]" />
             Poser une question à Selly
           </>
         )}

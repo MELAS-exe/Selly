@@ -50,7 +50,11 @@ export interface Vendor extends VendorBase {
       negotiation?: { mode: 'fixed' | 'allow'; max_discount_pct: number };
       keep_logs?: boolean;
     };
-    alerts: { web_push: boolean };
+    alerts: {
+      web_push: boolean;
+      /** address: confirmed, gets alerts; pending_address: waiting for its code. Missing on an older core. */
+      email?: { enabled: boolean; address: string | null; pending_address: string | null };
+    };
     branding?: Branding;
   };
 }
@@ -123,7 +127,8 @@ export interface VendorProduct {
   category_id: string | null;
   price: Money;
   status: 'active' | 'hidden' | 'archived';
-  images: Image[];
+  /** storage_key: sent back in image_keys to keep the photo when the product is edited. */
+  images: (Image & { storage_key: string })[];
   variants: VendorVariant[];
   created_at: string;
   updated_at: string;

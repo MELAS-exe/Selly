@@ -271,6 +271,8 @@ const settingsPatch = z.strictObject({
   alerts: z
     .strictObject({
       web_push: z.boolean().optional(),
+      // The address itself is set with POST /vendors/me/alerts/email and its code.
+      email_enabled: z.boolean().optional(),
       nostr_dm: z
         .strictObject({
           enabled: z.boolean(),

@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import type { CSSProperties, ReactNode } from 'react';
 import { AskSelly } from '@/components/chat/ask-selly';
 import { AskButton } from '@/components/storefront/ask-button';
@@ -11,8 +12,20 @@ import { ShopMenu } from '@/components/storefront/shop-menu';
 import { storefrontStyle } from '@/lib/brand-colors';
 import { getStore } from '@/lib/core';
 import '@/components/storefront/storefront.css';
-// The turning stamp (pv-spin) lives with the landing page's styles.
+// The turning rings (pv-spin) take their keyframes from the landing page's styles.
 import '@/components/landing/landing.css';
+
+// The shop's own logo in the browser tab, on every page of the shop; Selly's icon when it has none.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const { store } = await getStore(slug);
+  const logo = store.branding?.logo_url;
+  return logo ? { icons: { icon: logo, apple: logo } } : {};
+}
 
 export default async function ShopLayout({
   children,
@@ -96,7 +109,11 @@ export default async function ShopLayout({
             >
               <ArrowUpRight size={15} /> Partager
             </ShareButton>
-            <CartDrawer slug={slug} ordersOpen={store.ordering?.enabled !== false} />
+            <CartDrawer
+              slug={slug}
+              delivery={store.delivery}
+              ordersOpen={store.ordering?.enabled !== false}
+            />
             <ShopMenu />
           </div>
         </div>

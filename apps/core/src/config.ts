@@ -73,6 +73,10 @@ const schema = z.object({
   VAPID_SUBJECT: z.string().default('mailto:support@selly.example'),
   // Nostr direct-message alerts (NIP-17) are sent from this key (64 hex), to these relays.
   SECRETS_PLATFORM_NOSTR_KEY: z.string().default(''),
+  // Alerts by email (modules/events/email.ts): none, log (development: printed, not sent) or resend.
+  EMAIL_PROVIDER: z.enum(['none', 'log', 'resend']).default('none'),
+  RESEND_API_KEY: z.string().default(''),
+  EMAIL_FROM: z.string().default('Selly <alertes@selly.app>'),
   NOSTR_DM_RELAYS: z.string().default('wss://relay.damus.io,wss://nos.lol,wss://relay.primal.net'),
   // How often the alert worker runs. 0 turns it off.
   ALERTS_INTERVAL_MS: z.coerce.number().int().min(0).default(5_000),

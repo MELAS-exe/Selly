@@ -1,6 +1,7 @@
 import type { core } from '@selly/db';
 import type { PgDatabase } from '@selly/db/orm';
 import type { Config } from './config';
+import type { EmailSender } from './modules/events/email';
 import type { ObjectStore } from './modules/media/storage';
 import type { InvoiceGateway } from './modules/payments/provider';
 import type { RateService } from './modules/rates/service';
@@ -25,6 +26,8 @@ export interface Context {
   /** Null when no SECRETS_KEK_V<n> is set: wallets cannot be linked or used. */
   keyring: Keyring | null;
   log: Logger;
+  /** Null when EMAIL_PROVIDER is none: no codes, no email alerts. */
+  email: EmailSender | null;
 }
 
 export interface Logger {

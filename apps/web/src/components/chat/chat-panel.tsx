@@ -1,11 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ChatBubbleIn } from '@/components/motion/chat-bubble-in';
 import { TypingDots } from '@/components/motion/typing-dots';
+import { addLine, readCart, writeCart } from '@/lib/cart';
 import { ensureSession, newClientMessageId, sendMessage, subscribe } from '@/lib/chat';
-import type { ChatMessage, ChatSession } from '@/lib/chat-types';
-import { formatMoney } from '@/lib/format';
+import type { CartCard, ChatMessage, ChatSession } from '@/lib/chat-types';
+import { formatMoney, formatOptions } from '@/lib/format';
+import { SellyMark } from '../brand/selly-mark';
+import { openCart } from '../storefront/cart-drawer';
 
 type Status = 'loading' | 'ready' | 'failed';
 
@@ -117,30 +121,60 @@ export function ChatPanel({
     }
   }
 
-  return (
+  // Escape closes, as in the dashboard.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  // A cart the vendor proposed goes into the shop's cart, where the customer picks quantities and delivery.
+  function openProposal(card: CartCard) {
+    let lines = readCart(slug);
+    for (const l of card.lines)
+      lines = addLine(lines, {
+        variant_id: l.variant_id,
+        product_slug: l.product_slug,
+        title: l.title,
+        options: l.options,
+        unit_price: l.unit_price,
+        quantity: 1,
+      });
+    writeCart(slug, lines);
+    onClose();
+    openCart();
+  }
+
+  // Rendered at the shop root: a parent with a transform or a backdrop-filter (the product page, the header) would
+  // trap a fixed overlay inside it, leaving the page readable through the "backdrop".
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
-      className="fixed inset-0 z-30 flex items-end justify-center bg-ink/40 sm:items-center"
+      className="fixed inset-0 z-50 flex justify-end bg-ink/40"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="open-rows flex h-[85dvh] w-full max-w-sm flex-col rounded-t-[var(--radius-tile)] bg-paper sm:h-[32rem] sm:rounded-[var(--radius-tile)]">
+      {/* A sheet from the right, full screen on a phone: as Selly in the vendor's dashboard. */}
+      <div className="sf-chat-sheet flex h-full w-full max-w-[440px] flex-col border-l border-line bg-paper shadow-[-24px_0_48px_-32px_rgba(23,59,50,0.6)]">
         <div className="flex min-h-0 flex-1 flex-col">
-          <header className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
-            <div>
-              <h2 id={titleId} className="font-bold">
-                {storeName}
+          <header className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-line px-4 py-4">
+            <SellyMark className="w-7 text-[var(--sf-accent-text,#173b32)]" />
+            <div className="min-w-0">
+              <h2 id={titleId} className="sf-serif truncate text-2xl leading-none font-medium">
+                Selly
               </h2>
-              {mode === 'human' && (
-                <p className="text-sm text-leaf">{modeLabel ?? 'Le vendeur répond'}</p>
-              )}
+              <p className="mt-1 truncate text-sm text-muted">
+                {mode === 'human'
+                  ? (modeLabel ?? 'Le vendeur répond')
+                  : `Conseillère de ${storeName}`}
+              </p>
             </div>
             <button
               type="button"
               onClick={onClose}
               aria-label="Fermer"
-              className="press grid size-9 place-items-center rounded-full text-muted"
+              className="press grid size-11 place-items-center border border-line text-muted"
             >
               <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="none">
                 <path
@@ -188,7 +222,12 @@ export function ChatPanel({
               <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-4">
                 <p className="pb-1 text-center text-xs text-muted">{session.disclosure}</p>
                 {messages.map((m) => (
-                  <MessageBubble key={m.id} message={m} onQuickReply={submit} />
+                  <MessageBubble
+                    key={m.id}
+                    message={m}
+                    onQuickReply={submit}
+                    onOpenCart={openProposal}
+                  />
                 ))}
                 {typing && (
                   <div className="mr-auto">
@@ -241,6 +280,37 @@ export function ChatPanel({
           )}
         </div>
       </div>
+    </div>,
+    document.querySelector('.sf') ?? document.body,
+  );
+}
+
+/** The vendor's proposed cart: its items, and « Commander » to finish it in the shop's cart. */
+function CartProposal({ card, onOpen }: { card: CartCard; onOpen: (card: CartCard) => void }) {
+  return (
+    <div className="mt-2 rounded-[var(--radius-tile)] border border-line p-3">
+      <p className="font-semibold">Votre panier</p>
+      <ul className="mt-2 space-y-2">
+        {card.lines.map((l) => (
+          <li key={l.variant_id} className="flex items-center gap-3">
+            {l.image_url && (
+              <img src={l.image_url} alt="" className="size-10 shrink-0 object-cover" />
+            )}
+            <span className="min-w-0 flex-1">
+              <span className="block truncate">{l.title}</span>
+              <span className="block text-sm text-muted">{formatOptions(l.options)}</span>
+            </span>
+            <span className="tnum shrink-0">{formatMoney(l.unit_price)}</span>
+          </li>
+        ))}
+      </ul>
+      <button
+        type="button"
+        onClick={() => onOpen(card)}
+        className="press mt-3 min-h-11 w-full bg-ink px-4 font-semibold text-paper"
+      >
+        Commander
+      </button>
     </div>
   );
 }
@@ -248,9 +318,11 @@ export function ChatPanel({
 function MessageBubble({
   message,
   onQuickReply,
+  onOpenCart,
 }: {
   message: ChatMessage;
   onQuickReply: (text: string, quickReplyId: string) => void;
+  onOpenCart: (card: CartCard) => void;
 }) {
   if (message.author === 'system') {
     return (
@@ -267,7 +339,9 @@ function MessageBubble({
       )}
       {message.text && <ChatBubbleIn from={from}>{message.text}</ChatBubbleIn>}
       {message.cards.map((card) =>
-        card.type === 'product' ? (
+        card.type === 'cart' ? (
+          <CartProposal key="cart" card={card} onOpen={onOpenCart} />
+        ) : card.type === 'product' ? (
           <a
             key={card.product_id}
             href={card.url}

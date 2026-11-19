@@ -155,3 +155,36 @@ describe('Nostr direct message', () => {
     }
   });
 });
+
+describe('alerts by email', () => {
+  it('confirms the address with a code, then sends alerts there', async () => {
+    const s = await createShop(t.db, 'alerts-email');
+    const [v] = await t.db.select().from(core.vendors).where(eq(core.vendors.id, s.vendorId));
+    const { requestEmail, verifyEmail } = await import('./modules/events/email');
+    await requestEmail(t.ctx, v as never, 'Awa@Example.com');
+    const code = /(\d{6})/.exec(t.emails.at(-1)?.subject ?? '')?.[1] as string;
+    expect(t.emails.at(-1)?.to).toBe('awa@example.com');
+    const [pending] = await t.db.select().from(core.vendors).where(eq(core.vendors.id, s.vendorId));
+    await expect(
+      verifyEmail(t.ctx, pending as never, code === '000000' ? '111111' : '000000'),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    const [again] = await t.db.select().from(core.vendors).where(eq(core.vendors.id, s.vendorId));
+    expect((await verifyEmail(t.ctx, again as never, code)).email.address).toBe('awa@example.com');
+
+    await t.db.transaction((tx) =>
+      notifyVendor(tx, {
+        vendorId: s.vendorId,
+        type: 'order.paid',
+        data: { number: 'E1', order_id: 'x', total: { amount: 1000, currency: 'XOF' } },
+        now: t.clock.now(),
+      }),
+    );
+    const sent: string[] = [];
+    await deliverAlerts(t.ctx, {
+      push: null,
+      dm: null,
+      email: { send: async (m) => void sent.push(`${m.to} ${m.subject}`) },
+    });
+    expect(sent).toContain('awa@example.com Commande E1 payée');
+  });
+});

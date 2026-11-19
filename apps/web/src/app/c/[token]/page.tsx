@@ -42,7 +42,6 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
           >
             <ShopMark name={store.display_name} logo={shop?.branding?.logo_url ?? null} />
           </a>
-          <span className="sf-eyebrow hidden sm:block">Paiement direct au vendeur</span>
         </div>
       </header>
 

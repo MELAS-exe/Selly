@@ -112,7 +112,7 @@ function noteFor(type: string, data: Record<string, unknown>): Omit<LiveNote, 'i
           data.status === 'failed'
             ? 'La photo n’a pas pu être lue. Réessayez.'
             : 'Un brouillon photo est prêt à vérifier',
-        href: '/app/brouillons',
+        href: '/app/catalogue#brouillons',
       };
     case 'wallet.degraded':
       return { type, text: 'Votre portefeuille ne répond plus', href: '/app/portefeuille' };

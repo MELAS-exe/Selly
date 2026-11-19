@@ -5,6 +5,7 @@ import { createTestDb } from '@selly/db/testing';
 import { buildApp } from './app';
 import { loadConfig } from './config';
 import { type Context, type Database, silentLogger } from './context';
+import type { EmailMessage } from './modules/events/email';
 import { MemoryObjectStore } from './modules/media/storage';
 import { FakeInvoiceProvider } from './modules/payments/fake';
 import { singleProvider } from './modules/payments/provider';
@@ -41,6 +42,8 @@ export async function createTestApp(env: Record<string, string> = {}) {
   const media = new MemoryObjectStore();
   // BTC = 90,000 EUR: 59,036,130 XOF per BTC, the example of architecture.md section 4.5.
   const feeds = [feed('a', 9_000_000n), feed('b', 9_000_000n)];
+  // Emails "sent" by core, for the tests to read (codes, alerts).
+  const emails: EmailMessage[] = [];
   const ctx: Context = {
     config: loadConfig({
       NODE_ENV: 'test',
@@ -62,12 +65,14 @@ export async function createTestApp(env: Record<string, string> = {}) {
     signals,
     keyring: Keyring.forTests(),
     log: silentLogger,
+    email: { send: async (m) => void emails.push(m) },
   };
   const app = buildApp(ctx);
   await app.ready();
   return {
     app,
     ctx,
+    emails,
     db,
     provider,
     media,

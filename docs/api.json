@@ -175,7 +175,21 @@
                     "payment_options": [
                       "lightning"
                     ],
-                    "powered_by_badge": false
+                    "powered_by_badge": false,
+                    "branding": {
+                      "logo_url": null,
+                      "primary_color": "#173B32",
+                      "accent_color": "#C8553D",
+                      "background_color": null,
+                      "banner": null,
+                      "hero": {
+                        "eyebrow": null,
+                        "title": null,
+                        "text": null,
+                        "cta": null
+                      }
+                    },
+                    "categories": []
                   },
                   "products": [
                     {
@@ -202,7 +216,8 @@
                         "color": [
                           "noir"
                         ]
-                      }
+                      },
+                      "category_id": null
                     },
                     {
                       "id": "0193a8f0-7c1e-7d3b-8a1d-4f2b1c0d4e60",
@@ -227,7 +242,8 @@
                           "43",
                           "44"
                         ]
-                      }
+                      },
+                      "category_id": null
                     }
                   ],
                   "next_cursor": null
@@ -332,7 +348,8 @@
                         "color": [
                           "noir"
                         ]
-                      }
+                      },
+                      "category_id": null
                     }
                   ],
                   "next_cursor": null
@@ -2801,6 +2818,25 @@
                       "nostr_dm": {
                         "enabled": false,
                         "pubkey": null
+                      },
+                      "email": {
+                        "enabled": false,
+                        "address": null,
+                        "pending_address": null
+                      }
+                    },
+                    "branding": {
+                      "logo_key": null,
+                      "logo_url": null,
+                      "primary_color": "#173B32",
+                      "accent_color": "#C8553D",
+                      "background_color": null,
+                      "banner": null,
+                      "hero": {
+                        "eyebrow": null,
+                        "title": null,
+                        "text": null,
+                        "cta": null
                       }
                     }
                   },
@@ -2927,6 +2963,25 @@
                       "nostr_dm": {
                         "enabled": false,
                         "pubkey": null
+                      },
+                      "email": {
+                        "enabled": false,
+                        "address": null,
+                        "pending_address": null
+                      }
+                    },
+                    "branding": {
+                      "logo_key": null,
+                      "logo_url": null,
+                      "primary_color": "#173B32",
+                      "accent_color": "#C8553D",
+                      "background_color": null,
+                      "banner": null,
+                      "hero": {
+                        "eyebrow": null,
+                        "title": null,
+                        "text": null,
+                        "cta": null
                       }
                     }
                   },
@@ -3106,6 +3161,25 @@
                       "nostr_dm": {
                         "enabled": true,
                         "pubkey": "b8bd0c19507e241ba3b4d0aaa58c7bb567e05d8643a90277f0b72ad44f110786"
+                      },
+                      "email": {
+                        "enabled": false,
+                        "address": null,
+                        "pending_address": null
+                      }
+                    },
+                    "branding": {
+                      "logo_key": null,
+                      "logo_url": null,
+                      "primary_color": "#173B32",
+                      "accent_color": "#C8553D",
+                      "background_color": null,
+                      "banner": null,
+                      "hero": {
+                        "eyebrow": null,
+                        "title": null,
+                        "text": null,
+                        "cta": null
                       }
                     }
                   },
@@ -4495,7 +4569,8 @@
                           "url": "https://cdn.selly.example/p/0193a8f0/640.webp",
                           "width": 640,
                           "height": 853,
-                          "dominant": "#1b1b1f"
+                          "dominant": "#1b1b1f",
+                          "storage_key": "p/0193a8f0/640.webp"
                         }
                       ],
                       "variants": [
@@ -4623,7 +4698,8 @@
                       "url": "https://cdn.selly.example/p/0193a8f0/640.webp",
                       "width": 640,
                       "height": 853,
-                      "dominant": "#1b1b1f"
+                      "dominant": "#1b1b1f",
+                      "storage_key": "p/0193a8f0/640.webp"
                     }
                   ],
                   "variants": [
@@ -4786,7 +4862,8 @@
                       "url": "https://cdn.selly.example/p/0193a8f0/640.webp",
                       "width": 640,
                       "height": 853,
-                      "dominant": "#1b1b1f"
+                      "dominant": "#1b1b1f",
+                      "storage_key": "p/0193a8f0/640.webp"
                     }
                   ],
                   "variants": [
@@ -5751,7 +5828,8 @@
                       "url": "https://cdn.selly.example/p/0193a8f0/640.webp",
                       "width": 640,
                       "height": 853,
-                      "dominant": "#1b1b1f"
+                      "dominant": "#1b1b1f",
+                      "storage_key": "p/0193a8f0/640.webp"
                     }
                   ],
                   "variants": [
@@ -9635,7 +9713,8 @@
                       "url": "https://cdn.selly.example/p/0193a8f0/640.webp",
                       "width": 640,
                       "height": 853,
-                      "dominant": "#1b1b1f"
+                      "dominant": "#1b1b1f",
+                      "storage_key": "p/0193a8f0/640.webp"
                     }
                   ],
                   "variants": [
@@ -10499,7 +10578,8 @@
                       "url": "https://cdn.selly.example/p/0193a8f0/640.webp",
                       "width": 640,
                       "height": 853,
-                      "dominant": "#1b1b1f"
+                      "dominant": "#1b1b1f",
+                      "storage_key": "p/0193a8f0/640.webp"
                     }
                   ],
                   "variants": [
@@ -10568,6 +10648,185 @@
         },
         "tags": [
           "Internal"
+        ]
+      }
+    },
+    "/api/v1/conversations/{id}/quotes": {
+      "post": {
+        "tags": [
+          "Inbox"
+        ],
+        "operationId": "quoteForConversation",
+        "summary": "The exact total of a cart, before the vendor makes the order in the chat",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Conversation id.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "0193a8f4-6f7a-7b8c-9d0e-1f2a3b4c5d6e"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CartQuoteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Core’s quote.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalCartQuote"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not this vendor’s conversation.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "OUT_OF_STOCK.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_FAILED.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "vendorSession": []
+          }
+        ]
+      }
+    },
+    "/api/v1/conversations/{id}/orders": {
+      "post": {
+        "tags": [
+          "Inbox"
+        ],
+        "operationId": "createOrderInConversation",
+        "summary": "The vendor makes the order and sends it to the customer as an order card",
+        "description": "Needs an Idempotency-Key (16 to 64 characters). The order is tied to the conversation; the customer pays from the card’s « Payer », on the checkout page. The chat stays with the vendor for 30 minutes.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Conversation id.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "0193a8f4-6f7a-7b8c-9d0e-1f2a3b4c5d6e"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 64
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VendorOrderRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The order and the message with its card.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VendorOrderCreated"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "STORE_PAUSED or ORDERS_NOT_OPEN.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not this vendor’s conversation.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "OUT_OF_STOCK or PRICE_CHANGED (quote again).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_FAILED.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "vendorSession": []
+          }
         ]
       }
     }
@@ -12821,11 +13080,47 @@
                   "pubkey"
                 ],
                 "additionalProperties": false
+              },
+              "email": {
+                "type": "object",
+                "description": "Alerts by email. address: confirmed (gets alerts); pending_address: waiting for its code (POST /api/v1/vendors/me/alerts/email, then /verify).",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "address": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "pending_address": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "enabled",
+                  "address",
+                  "pending_address"
+                ],
+                "additionalProperties": false
               }
             },
             "required": [
               "web_push",
-              "nostr_dm"
+              "nostr_dm",
+              "email"
             ],
             "additionalProperties": false
           },
@@ -13901,7 +14196,7 @@
           "images": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Image"
+              "$ref": "#/components/schemas/VendorImage"
             }
           },
           "variants": {
@@ -14785,6 +15080,9 @@
           },
           {
             "$ref": "#/components/schemas/OrderCard"
+          },
+          {
+            "$ref": "#/components/schemas/CartCard"
           }
         ],
         "discriminator": {
@@ -15218,13 +15516,47 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 1000
+          },
+          "product_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 3,
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Products to show the customer, sent as product cards (as the agent sends them)."
+          },
+          "cart": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 10,
+            "items": {
+              "type": "object",
+              "properties": {
+                "product_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "variant_id": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "required": [
+                "product_id",
+                "variant_id"
+              ],
+              "additionalProperties": false
+            },
+            "description": "A cart to propose: sent as a cart card the customer completes and pays."
           }
         },
         "required": [
-          "client_message_id",
-          "text"
+          "client_message_id"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A vendor message: text, product_ids, cart, or any of them together."
       },
       "ConversationModeRequest": {
         "type": "object",
@@ -16471,6 +16803,163 @@
         ],
         "additionalProperties": false,
         "description": "The dashboard numbers: the same as Metrics, plus the sales chart (paid orders and their revenue by payment date: one point a day, or a month for `year`) and the revenue of the same length of time just before (for `year`, the same dates last year). The agent gets Metrics only."
+      },
+      "VendorImage": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "width": {
+            "type": "integer"
+          },
+          "height": {
+            "type": "integer"
+          },
+          "dominant": {
+            "type": "string",
+            "pattern": "^#[0-9a-f]{6}$"
+          },
+          "storage_key": {
+            "type": "string",
+            "description": "Send it back in image_keys (PATCH /api/v1/inventory/{product_id}) to keep this photo."
+          }
+        },
+        "required": [
+          "url",
+          "width",
+          "height",
+          "dominant",
+          "storage_key"
+        ],
+        "additionalProperties": false,
+        "description": "A product photo, as the vendor sees it: with its storage key."
+      },
+      "VendorOrderRequest": {
+        "type": "object",
+        "description": "An order the vendor makes in the chat, for this conversation. Send the total of POST .../quotes as expected_total.",
+        "properties": {
+          "client_message_id": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 64
+          },
+          "customer": {
+            "$ref": "#/components/schemas/CustomerInput"
+          },
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 20,
+            "items": {
+              "$ref": "#/components/schemas/CartItemInput"
+            }
+          },
+          "delivery": {
+            "$ref": "#/components/schemas/DeliveryInput"
+          },
+          "expected_total": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "The message with the order card. Default: the order number, the total and « Payer »."
+          }
+        },
+        "required": [
+          "client_message_id",
+          "customer",
+          "items",
+          "delivery",
+          "expected_total"
+        ],
+        "additionalProperties": false
+      },
+      "VendorOrderCreated": {
+        "type": "object",
+        "properties": {
+          "order": {
+            "$ref": "#/components/schemas/InternalOrderCreated"
+          },
+          "message": {
+            "$ref": "#/components/schemas/ChatMessage"
+          }
+        },
+        "required": [
+          "order",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "CartCard": {
+        "type": "object",
+        "description": "A cart the vendor proposes in the chat. The customer opens it in the shop’s cart and chooses the quantities, the delivery and their details there, then pays.",
+        "properties": {
+          "type": {
+            "const": "cart"
+          },
+          "lines": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 10,
+            "items": {
+              "type": "object",
+              "properties": {
+                "product_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "product_slug": {
+                  "type": "string"
+                },
+                "variant_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "options": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "unit_price": {
+                  "$ref": "#/components/schemas/Money"
+                },
+                "image_url": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "product_id",
+                "product_slug",
+                "variant_id",
+                "title",
+                "options",
+                "unit_price",
+                "image_url"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "type",
+          "lines"
+        ],
+        "additionalProperties": false
       }
     }
   }

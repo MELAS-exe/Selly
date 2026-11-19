@@ -1,5 +1,5 @@
 // Alerts outside the dashboard (architecture.md sections 3.4, 3.7 and 6.6): Web Push to the vendor's installed
-// PWA, and a Nostr direct message (NIP-17) for plans that include it. The dashboard stream already shows every
+// PWA, an email to a confirmed address (email.ts), and a Nostr direct message (NIP-17) for plans that include it. The dashboard stream already shows every
 // notification; these reach a vendor who is not looking.
 //
 // The worker runs on the job leader. It claims each notification before sending (delivered_at), so a restart never
@@ -12,6 +12,7 @@ import { sendNotification } from 'web-push';
 import type { Context } from '../../context';
 import { alertSettings } from '../catalog/store';
 import { currentSubscription } from '../subscriptions/service';
+import { alertEmail, type EmailSender } from './email';
 
 const { vendorNotifications: vn, pushSubscriptions: ps, vendors } = core;
 type Notification = typeof vn.$inferSelect;
@@ -165,6 +166,7 @@ export function nostrDmSender(secretKeyHex: string, relays: string[]): DmSender 
 export interface AlertSenders {
   push: PushSender | null;
   dm: DmSender | null;
+  email?: EmailSender | null;
 }
 
 // ---------------------------------------------------------------------------------------------- worker
@@ -180,6 +182,7 @@ export async function deliverAlerts(ctx: Context, senders: AlertSenders) {
     .limit(100);
   let pushed = 0;
   let dms = 0;
+  let emails = 0;
   for (const n of rows) {
     const claimed = await ctx.db
       .update(vn)
@@ -218,6 +221,15 @@ export async function deliverAlerts(ctx: Context, senders: AlertSenders) {
       }
     }
 
+    if (senders.email && settings.email.enabled && settings.email.address) {
+      try {
+        await senders.email.send(alertEmail(settings.email.address, alert));
+        emails++;
+      } catch (err) {
+        ctx.log.warn({ err: String(err), vendorId: n.vendorId }, 'email alert not sent');
+      }
+    }
+
     if (senders.dm && settings.nostr_dm.enabled && settings.nostr_dm.pubkey) {
       // The plan must still include it: a shop that moved down to Starter stops getting them.
       const sub = await currentSubscription(ctx, n.vendorId);
@@ -234,5 +246,5 @@ export async function deliverAlerts(ctx: Context, senders: AlertSenders) {
       }
     }
   }
-  return { checked: rows.length, pushed, dms };
+  return { checked: rows.length, pushed, dms, emails };
 }
