@@ -1,7 +1,9 @@
 'use client';
 
-import { type CSSProperties, useEffect, useId, useState } from 'react';
+import { type CSSProperties, Fragment, useEffect, useId, useRef, useState } from 'react';
 import { SiteHeader } from '../brand/site-header';
+import { LandingCursor } from './cursor';
+import { landingMotion } from './motion';
 import './landing.css';
 
 /** Text on a circle. Each instance gets its own path id: three copies used to share id="circlePath". */
@@ -22,10 +24,77 @@ function CircleText({ className, d, text }: { className: string; d: string; text
 /** Splits a sentence into words that light up one after the other while the quote scrolls by. */
 function Lit({ text, from = 0 }: { text: string; from?: number }) {
   return text.split(' ').map((w, i) => (
-    <span key={i} className="lit" style={{ '--w': from + i } as CSSProperties}>
-      {w}{' '}
-    </span>
+    <Fragment key={i}>
+      <span className="lit" style={{ '--w': from + i } as CSSProperties}>
+        {w}
+      </span>{' '}
+    </Fragment>
   ));
+}
+
+/** A hero title line, with its light green copy on top: the line rolls over to it under the cursor (motion.ts). */
+function FlipLine({ text, i, className = '' }: { text: string; i: number; className?: string }) {
+  return (
+    <span
+      data-cursor="flip"
+      className={`hero-line flip-line pointer-events-auto ${className}`}
+      style={{ '--i': i } as CSSProperties}
+    >
+      <span className="flip-face">{text}</span>
+      <span className="flip-face flip-alt" aria-hidden="true">
+        {text}
+      </span>
+    </span>
+  );
+}
+
+const TOOLKIT = [
+  {
+    title: 'Your storefront',
+    sub: 'A link made for sharing',
+    text: 'Bring your products together in a clean shop customers can browse from any phone.',
+    img: 'storefront',
+  },
+  {
+    title: 'Live catalog',
+    sub: 'Products and availability',
+    text: 'Show what you sell and keep product details and stock easy to understand.',
+    img: 'catalog',
+  },
+  {
+    title: 'Sales assistant',
+    sub: 'Helpful answers, instantly',
+    text: 'Help customers find the right item and answer common questions while they shop.',
+    img: 'assistant',
+  },
+  {
+    title: 'Easy ordering',
+    sub: 'From browse to order',
+    text: 'Give shoppers a straightforward way to choose products and send you their order.',
+    img: 'ordering',
+  },
+  {
+    title: 'Stock-aware',
+    sub: 'Availability at a glance',
+    text: 'Keep customers informed about what is ready to order, so fewer conversations hit a dead end.',
+    img: 'stock',
+  },
+  {
+    title: 'Direct payments',
+    sub: 'Lightning to your wallet',
+    text: 'Accept fast Lightning payments directly to your wallet, without adding another step for your customers.',
+    img: 'payments',
+  },
+];
+
+/** A gallery photo in grayscale, with its colour copy that the cursor's lens uncovers (cursor.tsx). */
+function GalleryPhoto({ src, alt }: { src: string; alt: string }) {
+  return (
+    <div className="gal-par absolute inset-x-0 -inset-y-[6%] transition-[scale] duration-(--dur-ui) ease-(--ease-out-expo) group-hover:scale-105">
+      <img alt={alt} className="gal-img w-full h-full object-cover" src={src} />
+      <img alt="" aria-hidden="true" className="gal-color" src={src} />
+    </div>
+  );
 }
 
 const TICKER = [
@@ -87,33 +156,16 @@ export function Landing() {
     return () => io.disconnect();
   }, []);
 
-  // Scroll reveals: CSS scroll-driven animations where supported (landing.css), else this.
-  useEffect(() => {
-    if (CSS.supports('animation-timeline: view()')) return;
-    const els = Array.from(document.querySelectorAll<HTMLElement>('.reveal-on-scroll'));
-    const hidden = 'opacity-0 translate-y-8'.split(' ');
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          entry.target.classList.remove(...hidden);
-          entry.target.classList.add('opacity-100', 'translate-y-0');
-          observer.unobserve(entry.target);
-        }
-      },
-      { threshold: 0.1 },
-    );
-    for (const el of els) {
-      if (el.getBoundingClientRect().top < window.innerHeight) continue;
-      el.classList.remove('opacity-100');
-      el.classList.add(...hidden);
-      observer.observe(el);
-    }
-    return () => observer.disconnect();
-  }, []);
+  // Every entrance and hover of the page (motion.ts).
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => (rootRef.current ? landingMotion(rootRef.current) : undefined), []);
 
   return (
-    <div className="theme-paper-vermilion min-h-screen w-full overflow-clip flex flex-col selection:bg-[#E3342F] selection:text-[#F6F4F0]">
+    <div
+      ref={rootRef}
+      className="theme-paper-vermilion min-h-screen w-full overflow-clip flex flex-col selection:bg-[#E3342F] selection:text-[#F6F4F0]"
+    >
+      <LandingCursor />
       <div aria-hidden="true" className="scroll-progress" />
       <SiteHeader onDark={onDark} />
       <section className="relative pt-64 pb-56 md:pt-32 md:pb-24 px-6 md:px-12 max-w-7xl mx-auto w-full min-h-[85vh] flex flex-col items-center justify-center border-x border-[#1111111f]">
@@ -165,7 +217,7 @@ export function Landing() {
           </div>
         </div>
         <div className="relative z-10 w-full flex flex-col items-center text-center -mt-8 md:-mt-16 pointer-events-none">
-          <div className="hero-circle mb-8 relative w-24 h-24 md:w-32 md:h-32 animate-pv-fade-up">
+          <div className="hero-circle hero-circle-in mb-8 relative w-24 h-24 md:w-32 md:h-32">
             <CircleText
               className="w-full h-full pv-spin motion-loop"
               d="M 60, 60 m -45, 0 a 45,45 0 1,1 90,0 a 45,45 0 1,1 -90,0"
@@ -179,21 +231,21 @@ export function Landing() {
               />
             </div>
           </div>
-          <h1 className="pv-serif text-6xl md:text-8xl lg:text-[11rem] leading-[0.9] font-light tracking-[-0.02em] mb-8 mix-blend-normal">
-            <span className="hero-line [--i:0]">Your shop.</span>
-            <span className="hero-line italic [--i:1]">Your assistant.</span>
-            <span className="hero-line [--i:2]">More sales.</span>
+          <h1 className="split-wait pv-serif text-6xl md:text-8xl lg:text-[11rem] leading-[0.9] font-light tracking-[-0.02em] mb-8 mix-blend-normal">
+            <FlipLine i={0} text="Your shop." />
+            <FlipLine i={1} text="Your assistant." className="italic" />
+            <FlipLine i={2} text="More sales." />
           </h1>
-          <p className="pv-sans text-sm md:text-base max-w-md leading-relaxed text-black/70 uppercase tracking-widest mb-16 animate-pv-fade-up [--d:420ms]">
+          <p className="hero-lede split-wait pv-sans text-sm md:text-base max-w-md leading-relaxed text-black/70 uppercase tracking-widest mb-16">
             Selly puts your catalog, a sales assistant, and direct payments in one simple link.
           </p>
-          <div className="flex flex-col items-center gap-4 animate-pv-fade-up [--d:520ms]">
-            <div className="w-px h-16 bg-[#111]"></div>
+          <div className="split-wait flex flex-col items-center gap-4">
+            <div className="hero-rule w-px h-16 bg-[#111]"></div>
             <a
               href="/app/login"
               className="pv-sans text-xs uppercase tracking-[0.2em] font-medium pointer-events-auto hover:text-[#8AAE4A] transition-colors"
             >
-              Create your shop{' '}
+              <span className="hero-cta-text">Create your shop</span>{' '}
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="13"
@@ -232,13 +284,17 @@ export function Landing() {
       </div>
       <section className="py-20 md:py-32 px-6 md:px-12 max-w-7xl mx-auto w-full border-x border-[#1111111f]">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-12">
-          <div className="md:col-span-4 reveal-on-scroll opacity-100">
+          <div className="md:col-span-4">
             <h2 className="pv-sans text-xs uppercase tracking-[0.3em] font-medium text-[#E3342F] mb-4 flex items-center gap-4">
-              <span className="w-8 h-px bg-[#E3342F]"></span>Why Selly
+              <span data-anim="rule" className="w-8 h-px bg-[#E3342F]"></span>
+              <span data-anim="chars">Why Selly</span>
             </h2>
           </div>
-          <div className="md:col-span-8 reveal-on-scroll [--d:75ms] opacity-100">
-            <h3 className="lit-quote pv-serif text-4xl md:text-6xl leading-tight font-light mb-12">
+          <div className="md:col-span-8">
+            <h3
+              data-anim="lit"
+              className="lit-quote pv-serif text-4xl md:text-6xl leading-tight font-light mb-12"
+            >
               <Lit text='"A ready-to-share storefront, a helpful sales assistant, and' />
               <span className="italic text-[#8AAE4A]">
                 <Lit text="payment" from={10} />
@@ -246,11 +302,11 @@ export function Landing() {
               <Lit text='direct to your wallet."' from={11} />
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pv-sans text-sm leading-relaxed text-black/70">
-              <p>
+              <p data-anim="lines">
                 Set up a simple online shop for the products you already sell. Share one link on
                 WhatsApp, Instagram, or wherever your customers find you.
               </p>
-              <p>
+              <p data-anim="lines">
                 Selly keeps your catalog and stock visible, helps customers choose what to order,
                 and sends Lightning payments straight to your wallet.
               </p>
@@ -260,17 +316,37 @@ export function Landing() {
       </section>
       <section
         data-dark-section
-        className="py-16 md:py-24 px-6 md:px-12 max-w-7xl mx-auto w-full border-x border-y border-[#1111111f] bg-[#111]"
+        data-meet
+        className="relative overflow-clip py-16 md:py-24 px-6 md:px-12 max-w-7xl mx-auto w-full border-x border-y border-[#1111111f] bg-[#111]"
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
-          <div className="order-2 md:order-1 reveal-on-scroll opacity-100">
+        {/* Selly's name, huge and outlined, sliding both ways behind the section as it scrolls by. */}
+        <div
+          aria-hidden="true"
+          className="meet-ghost pointer-events-none absolute inset-0 flex flex-col justify-center gap-4 select-none"
+        >
+          <div className="meet-ghost-track pv-serif italic whitespace-nowrap">
+            Selly · Selly · Selly · Selly ·
+          </div>
+          <div className="meet-ghost-track pv-serif whitespace-nowrap">
+            Ask · Answer · Sell · Ask · Answer · Sell ·
+          </div>
+        </div>
+        <div className="relative grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+          <div className="order-2 md:order-1">
             <div className="pv-sans text-xs uppercase tracking-[0.3em] font-medium text-white/50 mb-8 flex items-center gap-4">
-              <span className="w-8 h-px bg-white/50"></span>Your sales assistant
+              <span data-anim="rule" className="w-8 h-px bg-white/50"></span>
+              <span data-anim="chars">Your sales assistant</span>
             </div>
-            <h2 className="pv-serif text-5xl md:text-7xl font-light text-white mb-6">
-              Meet <span className="italic">Selly</span>
+            <h2
+              data-anim="words"
+              className="pv-serif text-5xl md:text-7xl font-light text-white mb-6"
+            >
+              Meet <span className="italic text-[#a3c651]">Selly</span>
             </h2>
-            <p className="pv-sans text-white/70 leading-relaxed mb-8 max-w-md text-sm">
+            <p
+              data-anim="lines"
+              className="pv-sans text-white/70 leading-relaxed mb-8 max-w-md text-sm"
+            >
               Selly helps customers discover your products, check what is in stock, and place an
               order. You stay focused on your business while every conversation makes buying easier.
             </p>
@@ -278,7 +354,9 @@ export function Landing() {
               href="#how-it-works"
               className="inline-flex items-center gap-4 text-white hover:text-[#E3342F] transition-colors group"
             >
-              <span className="pv-sans text-xs uppercase tracking-widest">See how it works</span>
+              <span data-anim="chars" className="pv-sans text-xs uppercase tracking-widest">
+                See how it works
+              </span>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="14"
@@ -289,7 +367,7 @@ export function Landing() {
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="lucide lucide-arrow-right group-hover:translate-x-2 transition-transform"
+                className="lucide lucide-arrow-right group-hover:translate-x-2 transition-transform nudge motion-loop"
                 aria-hidden="true"
               >
                 <path d="M5 12h14"></path>
@@ -297,16 +375,29 @@ export function Landing() {
               </svg>
             </a>
           </div>
-          <div className="order-1 md:order-2 h-[50vh] md:h-[80vh] relative bg-[#F6F4F0] reveal-on-scroll [--d:75ms] opacity-100">
-            <img
-              alt="Selly, your sales assistant"
-              className="mascot-in w-full h-full object-contain p-8 md:p-12"
-              src="/brand/selly-mascot.webp"
-              width={800}
-              height={800}
-              loading="lazy"
-              decoding="async"
-            />
+          <div className="meet-panel order-1 md:order-2 h-[50vh] md:h-[80vh] relative bg-[#F6F4F0] overflow-clip">
+            <span aria-hidden="true" className="meet-spark top-[14%] left-[16%] text-3xl">
+              ✦
+            </span>
+            <span aria-hidden="true" className="meet-spark top-[22%] right-[14%] text-xl">
+              ✦
+            </span>
+            <span aria-hidden="true" className="meet-spark bottom-[18%] left-[22%] text-2xl">
+              ✦
+            </span>
+            <div className="meet-tilt w-full h-full">
+              <div className="meet-float w-full h-full">
+                <img
+                  alt="Selly, your sales assistant"
+                  className="meet-mascot w-full h-full object-contain p-8 md:p-12"
+                  src="/brand/selly-mascot.webp"
+                  width={800}
+                  height={800}
+                  loading="lazy"
+                  decoding="async"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -320,241 +411,95 @@ export function Landing() {
           className="absolute -left-24 top-1/2 -translate-y-1/2 w-[34rem] h-auto opacity-[0.04] pointer-events-none select-none"
         />
         <div className="max-w-6xl mx-auto relative z-10">
-          <div className="text-center mb-16 md:mb-32 reveal-on-scroll opacity-100">
+          <div className="text-center mb-16 md:mb-32">
             <div className="pv-sans text-xs uppercase tracking-[0.3em] font-medium text-[#E3342F] mb-6 flex items-center justify-center gap-4">
-              <span className="w-8 h-px bg-[#E3342F]"></span>The Selly toolkit
-              <span className="w-8 h-px bg-[#E3342F]"></span>
+              <span data-anim="rule" className="w-8 h-px bg-[#E3342F]"></span>
+              <span data-anim="chars">The Selly toolkit</span>
+              <span data-anim="rule" className="w-8 h-px bg-[#E3342F]"></span>
             </div>
-            <h2 className="pv-serif text-5xl md:text-7xl font-light mb-6">Everything to sell</h2>
-            <p className="pv-sans text-sm uppercase tracking-[0.2em] text-black/60">
+            <h2 data-anim="words" className="pv-serif text-5xl md:text-7xl font-light mb-6">
+              Everything to sell
+            </h2>
+            <p
+              data-anim="chars"
+              className="pv-sans text-sm uppercase tracking-[0.2em] text-black/60"
+            >
               One link. A smoother way to shop.
             </p>
           </div>
           <div className="flex flex-col relative md:min-h-[50vh] max-w-4xl mx-auto">
-            <div className="group flex flex-row gap-4 md:gap-10 items-start reveal-on-scroll border-b border-[#1111111f] py-8 first:pt-0 last:border-0 last:pb-0 opacity-100">
-              <div className="flex items-start gap-3 md:gap-8 shrink-0 w-auto">
-                <div className="pt-2">
-                  <span className="pv-sans text-[10px] uppercase tracking-[0.2em] kit-num inline-block text-[#E3342F] font-medium opacity-40 group-hover:opacity-100 transition-opacity duration-(--dur-ui)">
-                    01
-                  </span>
-                </div>
-                <div className="kit-media relative overflow-clip aspect-[4/5] transition-[rotate] duration-(--dur-ui) ease-(--ease-out-expo) group-hover:-rotate-2 w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
-                  <img
-                    alt="Your storefront"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
-                    src="/landing/features/storefront.webp"
-                  />
-                  <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
-                </div>
-              </div>
-              <div className="flex-1 min-w-0 flex flex-col lg:flex-row gap-4 lg:gap-12 pt-1 lg:pt-2 w-full">
-                <div className="lg:w-[40%]">
-                  <h4 className="pv-serif text-xl md:text-2xl lg:text-3xl mb-1.5 group-hover:text-[#E3342F] transition-colors duration-(--dur-ui)">
-                    Your storefront
-                  </h4>
-                  <div className="pv-sans text-[10px] font-medium tracking-[0.15em] uppercase text-black/80">
-                    A link made for sharing
+            {TOOLKIT.map((k, i) => (
+              <div
+                key={k.img}
+                data-kit-row
+                className="group flex flex-row gap-4 md:gap-10 items-start border-b border-[#1111111f] py-8 first:pt-0 last:border-0 last:pb-0"
+              >
+                <div className="flex items-start gap-3 md:gap-8 shrink-0 w-auto">
+                  <div className="pt-2">
+                    <span className="pv-sans text-[10px] uppercase tracking-[0.2em] kit-num tabular-nums inline-block text-[#E3342F] font-medium opacity-40 group-hover:opacity-100 transition-opacity duration-(--dur-ui)">
+                      {String(i + 1).padStart(2, '0')}
+                    </span>
+                  </div>
+                  <div className="kit-media relative overflow-clip aspect-[4/5] transition-[rotate] duration-(--dur-ui) ease-(--ease-out-expo) group-hover:-rotate-2 w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
+                    <img
+                      alt={k.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-[scale] duration-(--dur-ui) ease-(--ease-out-expo)"
+                      src={`/landing/features/${k.img}.webp`}
+                    />
+                    <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
                   </div>
                 </div>
-                <div className="lg:w-[60%]">
-                  <p className="pv-sans text-xs lg:text-[13px] leading-[1.6] tracking-wide text-black/60 max-w-md">
-                    Bring your products together in a clean shop customers can browse from any
-                    phone.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="group flex flex-row gap-4 md:gap-10 items-start reveal-on-scroll border-b border-[#1111111f] py-8 first:pt-0 last:border-0 last:pb-0 opacity-100">
-              <div className="flex items-start gap-3 md:gap-8 shrink-0 w-auto">
-                <div className="pt-2">
-                  <span className="pv-sans text-[10px] uppercase tracking-[0.2em] kit-num inline-block text-[#E3342F] font-medium opacity-40 group-hover:opacity-100 transition-opacity duration-(--dur-ui)">
-                    02
-                  </span>
-                </div>
-                <div className="kit-media relative overflow-clip aspect-[4/5] transition-[rotate] duration-(--dur-ui) ease-(--ease-out-expo) group-hover:-rotate-2 w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
-                  <img
-                    alt="Live catalog"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
-                    src="/landing/features/catalog.webp"
-                  />
-                  <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
-                </div>
-              </div>
-              <div className="flex-1 min-w-0 flex flex-col lg:flex-row gap-4 lg:gap-12 pt-1 lg:pt-2 w-full">
-                <div className="lg:w-[40%]">
-                  <h4 className="pv-serif text-xl md:text-2xl lg:text-3xl mb-1.5 group-hover:text-[#E3342F] transition-colors duration-(--dur-ui)">
-                    Live catalog
-                  </h4>
-                  <div className="pv-sans text-[10px] font-medium tracking-[0.15em] uppercase text-black/80">
-                    Products and availability
+                <div className="flex-1 min-w-0 flex flex-col lg:flex-row gap-4 lg:gap-12 pt-1 lg:pt-2 w-full">
+                  <div className="lg:w-[40%]">
+                    <h4 className="kit-title pv-serif text-xl md:text-2xl lg:text-3xl mb-1.5 group-hover:text-[#E3342F] transition-colors duration-(--dur-ui)">
+                      {k.title}
+                    </h4>
+                    <div className="kit-sub overflow-clip pv-sans text-[10px] font-medium tracking-[0.15em] uppercase text-black/80">
+                      {k.sub}
+                    </div>
+                  </div>
+                  <div className="lg:w-[60%]">
+                    <p className="kit-text pv-sans text-xs lg:text-[13px] leading-[1.6] tracking-wide text-black/60 max-w-md">
+                      {k.text}
+                    </p>
                   </div>
                 </div>
-                <div className="lg:w-[60%]">
-                  <p className="pv-sans text-xs lg:text-[13px] leading-[1.6] tracking-wide text-black/60 max-w-md">
-                    Show what you sell and keep product details and stock easy to understand.
-                  </p>
-                </div>
               </div>
-            </div>
-            <div className="group flex flex-row gap-4 md:gap-10 items-start reveal-on-scroll border-b border-[#1111111f] py-8 first:pt-0 last:border-0 last:pb-0 opacity-100">
-              <div className="flex items-start gap-3 md:gap-8 shrink-0 w-auto">
-                <div className="pt-2">
-                  <span className="pv-sans text-[10px] uppercase tracking-[0.2em] kit-num inline-block text-[#E3342F] font-medium opacity-40 group-hover:opacity-100 transition-opacity duration-(--dur-ui)">
-                    03
-                  </span>
-                </div>
-                <div className="kit-media relative overflow-clip aspect-[4/5] transition-[rotate] duration-(--dur-ui) ease-(--ease-out-expo) group-hover:-rotate-2 w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
-                  <img
-                    alt="Sales assistant"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
-                    src="/landing/features/assistant.webp"
-                  />
-                  <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
-                </div>
-              </div>
-              <div className="flex-1 min-w-0 flex flex-col lg:flex-row gap-4 lg:gap-12 pt-1 lg:pt-2 w-full">
-                <div className="lg:w-[40%]">
-                  <h4 className="pv-serif text-xl md:text-2xl lg:text-3xl mb-1.5 group-hover:text-[#E3342F] transition-colors duration-(--dur-ui)">
-                    Sales assistant
-                  </h4>
-                  <div className="pv-sans text-[10px] font-medium tracking-[0.15em] uppercase text-black/80">
-                    Helpful answers, instantly
-                  </div>
-                </div>
-                <div className="lg:w-[60%]">
-                  <p className="pv-sans text-xs lg:text-[13px] leading-[1.6] tracking-wide text-black/60 max-w-md">
-                    Help customers find the right item and answer common questions while they shop.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="group flex flex-row gap-4 md:gap-10 items-start reveal-on-scroll border-b border-[#1111111f] py-8 first:pt-0 last:border-0 last:pb-0 opacity-100">
-              <div className="flex items-start gap-3 md:gap-8 shrink-0 w-auto">
-                <div className="pt-2">
-                  <span className="pv-sans text-[10px] uppercase tracking-[0.2em] kit-num inline-block text-[#E3342F] font-medium opacity-40 group-hover:opacity-100 transition-opacity duration-(--dur-ui)">
-                    04
-                  </span>
-                </div>
-                <div className="kit-media relative overflow-clip aspect-[4/5] transition-[rotate] duration-(--dur-ui) ease-(--ease-out-expo) group-hover:-rotate-2 w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
-                  <img
-                    alt="Easy ordering"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
-                    src="/landing/features/ordering.webp"
-                  />
-                  <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
-                </div>
-              </div>
-              <div className="flex-1 min-w-0 flex flex-col lg:flex-row gap-4 lg:gap-12 pt-1 lg:pt-2 w-full">
-                <div className="lg:w-[40%]">
-                  <h4 className="pv-serif text-xl md:text-2xl lg:text-3xl mb-1.5 group-hover:text-[#E3342F] transition-colors duration-(--dur-ui)">
-                    Easy ordering
-                  </h4>
-                  <div className="pv-sans text-[10px] font-medium tracking-[0.15em] uppercase text-black/80">
-                    From browse to order
-                  </div>
-                </div>
-                <div className="lg:w-[60%]">
-                  <p className="pv-sans text-xs lg:text-[13px] leading-[1.6] tracking-wide text-black/60 max-w-md">
-                    Give shoppers a straightforward way to choose products and send you their order.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="group flex flex-row gap-4 md:gap-10 items-start reveal-on-scroll border-b border-[#1111111f] py-8 first:pt-0 last:border-0 last:pb-0 opacity-100">
-              <div className="flex items-start gap-3 md:gap-8 shrink-0 w-auto">
-                <div className="pt-2">
-                  <span className="pv-sans text-[10px] uppercase tracking-[0.2em] kit-num inline-block text-[#E3342F] font-medium opacity-40 group-hover:opacity-100 transition-opacity duration-(--dur-ui)">
-                    05
-                  </span>
-                </div>
-                <div className="kit-media relative overflow-clip aspect-[4/5] transition-[rotate] duration-(--dur-ui) ease-(--ease-out-expo) group-hover:-rotate-2 w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
-                  <img
-                    alt="Stock-aware"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
-                    src="/landing/features/stock.webp"
-                  />
-                  <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
-                </div>
-              </div>
-              <div className="flex-1 min-w-0 flex flex-col lg:flex-row gap-4 lg:gap-12 pt-1 lg:pt-2 w-full">
-                <div className="lg:w-[40%]">
-                  <h4 className="pv-serif text-xl md:text-2xl lg:text-3xl mb-1.5 group-hover:text-[#E3342F] transition-colors duration-(--dur-ui)">
-                    Stock-aware
-                  </h4>
-                  <div className="pv-sans text-[10px] font-medium tracking-[0.15em] uppercase text-black/80">
-                    Availability at a glance
-                  </div>
-                </div>
-                <div className="lg:w-[60%]">
-                  <p className="pv-sans text-xs lg:text-[13px] leading-[1.6] tracking-wide text-black/60 max-w-md">
-                    Keep customers informed about what is ready to order, so fewer conversations hit
-                    a dead end.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="group flex flex-row gap-4 md:gap-10 items-start reveal-on-scroll border-b border-[#1111111f] py-8 first:pt-0 last:border-0 last:pb-0 opacity-100">
-              <div className="flex items-start gap-3 md:gap-8 shrink-0 w-auto">
-                <div className="pt-2">
-                  <span className="pv-sans text-[10px] uppercase tracking-[0.2em] kit-num inline-block text-[#E3342F] font-medium opacity-40 group-hover:opacity-100 transition-opacity duration-(--dur-ui)">
-                    06
-                  </span>
-                </div>
-                <div className="kit-media relative overflow-clip aspect-[4/5] transition-[rotate] duration-(--dur-ui) ease-(--ease-out-expo) group-hover:-rotate-2 w-24 md:w-32 lg:w-40 shrink-0 bg-[#EAE7E0]">
-                  <img
-                    alt="Direct payments"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
-                    src="/landing/features/payments.webp"
-                  />
-                  <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
-                </div>
-              </div>
-              <div className="flex-1 min-w-0 flex flex-col lg:flex-row gap-4 lg:gap-12 pt-1 lg:pt-2 w-full">
-                <div className="lg:w-[40%]">
-                  <h4 className="pv-serif text-xl md:text-2xl lg:text-3xl mb-1.5 group-hover:text-[#E3342F] transition-colors duration-(--dur-ui)">
-                    Direct payments
-                  </h4>
-                  <div className="pv-sans text-[10px] font-medium tracking-[0.15em] uppercase text-black/80">
-                    Lightning to your wallet
-                  </div>
-                </div>
-                <div className="lg:w-[60%]">
-                  <p className="pv-sans text-xs lg:text-[13px] leading-[1.6] tracking-wide text-black/60 max-w-md">
-                    Accept fast Lightning payments directly to your wallet, without adding another
-                    step for your customers.
-                  </p>
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
-          <div className="mt-12 md:mt-24 pt-10 md:pt-12 border-t border-[#1111111f] flex flex-col md:flex-row justify-between items-center gap-8 reveal-on-scroll [--d:150ms] opacity-100">
+          <div className="mt-12 md:mt-24 pt-10 md:pt-12 border-t border-[#1111111f] flex flex-col md:flex-row justify-between items-center gap-8">
             <div className="flex items-center gap-4">
               <span className="w-1.5 h-1.5 rounded-full bg-[#E3342F] pv-pulse motion-loop"></span>
-              <span className="pv-sans text-[9px] uppercase tracking-[0.2em] font-medium">
+              <span
+                data-anim="chars"
+                className="pv-sans text-[9px] uppercase tracking-[0.2em] font-medium"
+              >
                 Made for small businesses
               </span>
             </div>
-            <p className="pv-sans text-xs text-black/60 uppercase tracking-widest text-center md:text-left">
+            <p
+              data-anim="lines"
+              className="pv-sans text-xs text-black/60 uppercase tracking-widest text-center md:text-left"
+            >
               Share your shop wherever your customers are. <br className="hidden md:block" /> No
               complicated setup required.
             </p>
-            <p className="pv-serif italic text-2xl">One simple link</p>
+            <p data-anim="words" className="pv-serif italic text-2xl">
+              One simple link
+            </p>
           </div>
         </div>
       </section>
       <section className="pb-20 pt-16 md:pb-32 md:pt-24 px-6 md:px-12 max-w-7xl mx-auto w-full border-x border-t border-[#1111111f]">
-        <div className="mb-16 reveal-on-scroll opacity-100">
+        <div className="mb-16">
           <div className="pv-sans text-xs uppercase tracking-[0.3em] font-medium text-[#E3342F] mb-4 flex items-center gap-4">
-            <span className="w-8 h-px bg-[#E3342F]"></span>A shop that is yours
+            <span data-anim="rule" className="w-8 h-px bg-[#E3342F]"></span>
+            <span data-anim="chars">A shop that is yours</span>
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
-          <div className="md:col-span-12 h-[50vh] md:h-[70vh] relative overflow-clip group reveal-on-scroll opacity-100">
-            <img
-              alt="Art gallery hall"
-              className="gal-par w-full h-full object-cover transition-transform duration-(--dur-ui) ease-(--ease-out-expo) group-hover:scale-105"
-              src="/landing/gallery/gallery.jpg"
-            />
+          <div className="md:col-span-12 h-[50vh] md:h-[70vh] gal-tile relative overflow-clip group">
+            <GalleryPhoto alt="Art gallery hall" src="/landing/gallery/gallery.jpg" />
             <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
             <div className="gal-card absolute bottom-6 left-6 bg-[#F6F4F0] bg-opacity-95 p-5 pr-12 border border-black/10 transition-transform duration-(--dur-ui) ease-(--ease-out-expo) group-hover:translate-x-2">
               <h3 className="pv-serif text-3xl mb-1 group-hover:text-[#8AAE4A] transition-colors duration-(--dur-ui)">
@@ -565,31 +510,19 @@ export function Landing() {
               </p>
             </div>
           </div>
-          <div className="md:col-span-8 h-[350px] md:h-[450px] relative overflow-clip group reveal-on-scroll [--d:100ms] opacity-100">
-            <img
-              alt="Seller packing an order"
-              className="gal-par w-full h-full object-cover transition-transform duration-(--dur-ui) ease-(--ease-out-expo) group-hover:scale-105"
-              src="/landing/gallery/packaging.jpg"
-            />
+          <div className="md:col-span-8 h-[350px] md:h-[450px] gal-tile relative overflow-clip group">
+            <GalleryPhoto alt="Seller packing an order" src="/landing/gallery/packaging.jpg" />
             <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
           </div>
-          <div className="md:col-span-4 h-[350px] md:h-[450px] relative overflow-clip group reveal-on-scroll [--d:75ms] opacity-100">
-            <img
-              alt="Boutique interior"
-              className="gal-par w-full h-full object-cover transition-transform duration-(--dur-ui) ease-(--ease-out-expo) group-hover:scale-105"
-              src="/landing/gallery/boutique.jpg"
-            />
+          <div className="md:col-span-4 h-[350px] md:h-[450px] gal-tile relative overflow-clip group">
+            <GalleryPhoto alt="Boutique interior" src="/landing/gallery/boutique.jpg" />
             <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
           </div>
-          <div className="md:col-span-4 h-[350px] md:h-[450px] relative overflow-clip group reveal-on-scroll [--d:100ms] opacity-100">
-            <img
-              alt="Sneaker store"
-              className="gal-par w-full h-full object-cover transition-transform duration-(--dur-ui) ease-(--ease-out-expo) group-hover:scale-105"
-              src="/landing/gallery/sneakers.jpg"
-            />
+          <div className="md:col-span-4 h-[350px] md:h-[450px] gal-tile relative overflow-clip group">
+            <GalleryPhoto alt="Sneaker store" src="/landing/gallery/sneakers.jpg" />
             <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
           </div>
-          <div className="md:col-span-4 h-[350px] md:h-[450px] relative overflow-clip group reveal-on-scroll [--d:75ms] opacity-100">
+          <div className="md:col-span-4 h-[350px] md:h-[450px] relative overflow-clip group">
             <div className="w-full h-full bg-[#EAE7E0] flex flex-col items-center justify-center p-6 md:p-8 text-center border border-[#1111111f] relative group-hover:bg-[#EAE7E0]/80 transition-colors duration-(--dur-ui) ease-(--ease-out-expo)">
               <div className="absolute top-0 left-0 w-full h-1 bg-[#E3342F] scale-x-0 group-hover:scale-x-100 origin-left transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"></div>
               <img
@@ -601,17 +534,13 @@ export function Landing() {
                 alt=""
                 className="w-20 h-20 md:w-28 md:h-28 object-contain mb-4 md:mb-8 opacity-90 group-hover:scale-105 transition-transform duration-(--dur-ui) ease-(--ease-out-expo)"
               />
-              <p className="pv-serif text-2xl md:text-3xl italic leading-snug">
+              <p data-anim="words" className="pv-serif text-2xl md:text-3xl italic leading-snug">
                 "Simple to share. Easy to order."
               </p>
             </div>
           </div>
-          <div className="md:col-span-4 h-[350px] md:h-[450px] relative overflow-clip group reveal-on-scroll [--d:100ms] opacity-100">
-            <img
-              alt="Wax-print fabric market"
-              className="gal-par w-full h-full object-cover transition-transform duration-(--dur-ui) ease-(--ease-out-expo) group-hover:scale-105"
-              src="/landing/gallery/market.jpg"
-            />
+          <div className="md:col-span-4 h-[350px] md:h-[450px] gal-tile relative overflow-clip group">
+            <GalleryPhoto alt="Wax-print fabric market" src="/landing/gallery/market.jpg" />
             <div className="absolute inset-0 border border-[#1111111f] pointer-events-none"></div>
           </div>
         </div>
@@ -621,12 +550,16 @@ export function Landing() {
         className="py-20 md:py-32 px-6 md:px-12 max-w-7xl mx-auto w-full border-x border-t border-[#1111111f] relative overflow-clip bg-[#F6F4F0]"
       >
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 lg:gap-8 items-start relative z-10">
-          <div className="lg:col-span-5 flex flex-col justify-between h-full reveal-on-scroll opacity-100">
+          <div className="lg:col-span-5 flex flex-col justify-between h-full">
             <div>
               <div className="pv-sans text-xs uppercase tracking-[0.3em] font-medium text-[#E3342F] mb-8 flex items-center gap-4">
-                <span className="w-8 h-px bg-[#E3342F]"></span>Get started
+                <span data-anim="rule" className="w-8 h-px bg-[#E3342F]"></span>
+                <span data-anim="chars">Get started</span>
               </div>
-              <h2 className="scroll-curtain pv-serif text-5xl md:text-7xl font-light leading-[1.1] mb-8">
+              <h2
+                data-anim="words"
+                className="pv-serif text-5xl md:text-7xl font-light leading-[1.1] mb-8"
+              >
                 Start your <br />
                 <span className="italic text-[#8AAE4A]">Selly shop</span>
               </h2>
@@ -635,21 +568,27 @@ export function Landing() {
               <div className="flex gap-6 group">
                 <span className="step-line w-4 h-px bg-[#E3342F] mt-2 origin-left group-hover:scale-x-200 transition-transform duration-(--dur-ui)"></span>
                 <div>
-                  <div className="text-black font-medium mb-1">Set up</div>
+                  <div data-anim="chars" className="text-black font-medium mb-1">
+                    Set up
+                  </div>
                   <div>Start with your products</div>
                 </div>
               </div>
               <div className="flex gap-6 group">
                 <span className="step-line w-4 h-px bg-[#E3342F] mt-2 origin-left group-hover:scale-x-200 transition-transform duration-(--dur-ui)"></span>
                 <div>
-                  <div className="text-black font-medium mb-1">Share</div>
+                  <div data-anim="chars" className="text-black font-medium mb-1">
+                    Share
+                  </div>
                   <div>WhatsApp, Instagram, anywhere</div>
                 </div>
               </div>
               <div className="flex gap-6 group">
                 <span className="step-line w-4 h-px bg-[#E3342F] mt-2 origin-left group-hover:scale-x-200 transition-transform duration-(--dur-ui)"></span>
                 <div>
-                  <div className="text-black font-medium mb-1">Get paid</div>
+                  <div data-anim="chars" className="text-black font-medium mb-1">
+                    Get paid
+                  </div>
                   <div>Lightning payments to your wallet</div>
                 </div>
               </div>
@@ -668,9 +607,9 @@ export function Landing() {
               </div>
             </div>
           </div>
-          <div className="lg:col-span-5 flex flex-col justify-center reveal-on-scroll [--d:75ms] lg:pl-8 pt-4 lg:pt-0 opacity-100">
+          <div className="lg:col-span-5 flex flex-col justify-center lg:pl-8 pt-4 lg:pt-0">
             <div className="mb-12">
-              <p className="pv-sans text-sm leading-relaxed text-black/60 mb-6">
+              <p data-anim="lines" className="pv-sans text-sm leading-relaxed text-black/60 mb-6">
                 Sign in with a Nostr key, name your shop and connect your wallet. Your shop is live
                 in a few minutes, with a 14-day free trial.
               </p>
