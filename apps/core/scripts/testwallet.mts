@@ -1,5 +1,5 @@
-// A fake Lightning wallet for local demos, from the testkit (packages/nwc/src/testkit): two receive-only NWC wallets,
-// one for a vendor and one for the platform (subscriptions), speaking real NIP-47 over the local relay. No channel,
+// A fake Lightning wallet for local demos, from the testkit (packages/nwc/src/testkit): receive-only NWC wallets,
+// one for a vendor, one for the platform (subscriptions) and one for the demo shop (scripts/demo-shop.mts), speaking real NIP-47 over the local relay. No channel,
 // no liquidity: invoices settle when you say so. Dev only, never in production.
 //
 //   pnpm dev:testwallet                    run both wallets (keep the terminal open) and print their links
@@ -25,18 +25,23 @@ const RELAY = process.env.TESTWALLET_RELAY ?? 'ws://localhost:7777';
 const PORT = Number(process.env.TESTWALLET_PORT ?? 7788);
 const API = `http://127.0.0.1:${PORT}`;
 
-type Role = 'vendor' | 'platform';
+type Role = 'vendor' | 'platform' | 'demo';
+const ROLES = ['vendor', 'platform', 'demo'] as const;
 type Keys = { walletSecret: string; clientSecret: string };
 
 function loadKeys(): Record<Role, Keys> {
-  if (existsSync(STATE)) return JSON.parse(readFileSync(STATE, 'utf8'));
-  const make = () => ({
-    walletSecret: randomBytes(32).toString('hex'),
-    clientSecret: randomBytes(32).toString('hex'),
-  });
-  const keys = { vendor: make(), platform: make() };
+  const keys: Partial<Record<Role, Keys>> = existsSync(STATE)
+    ? JSON.parse(readFileSync(STATE, 'utf8'))
+    : {};
+  // A wallet added since the file was written gets its keys now; the others keep theirs.
+  if (ROLES.every((role) => keys[role])) return keys as Record<Role, Keys>;
+  for (const role of ROLES)
+    keys[role] ??= {
+      walletSecret: randomBytes(32).toString('hex'),
+      clientSecret: randomBytes(32).toString('hex'),
+    };
   writeFileSync(STATE, `${JSON.stringify(keys, null, 2)}\n`);
-  return keys;
+  return keys as Record<Role, Keys>;
 }
 
 const send = (res: import('node:http').ServerResponse, status: number, body: unknown) => {
@@ -47,18 +52,20 @@ const send = (res: import('node:http').ServerResponse, status: number, body: unk
 async function serve() {
   const keys = loadKeys();
   const wallets = {} as Record<Role, FakeNwcWallet>;
-  for (const role of ['vendor', 'platform'] as const)
+  for (const role of ROLES)
     wallets[role] = await FakeNwcWallet.start({ relayUrl: RELAY, keys: keys[role] });
 
   const all = () =>
-    (['vendor', 'platform'] as const).flatMap((role) =>
-      wallets[role].listInvoices().map((i) => ({ wallet: role, ...i })),
-    );
+    ROLES.flatMap((role) => wallets[role].listInvoices().map((i) => ({ wallet: role, ...i })));
 
   const server = createServer(async (req, res) => {
     try {
       if (req.method === 'GET' && req.url === '/uris')
-        return send(res, 200, { vendor: wallets.vendor.uri, platform: wallets.platform.uri });
+        return send(res, 200, {
+          vendor: wallets.vendor.uri,
+          platform: wallets.platform.uri,
+          demo: wallets.demo.uri,
+        });
       if (req.method === 'GET' && req.url === '/invoices') return send(res, 200, all());
       if (req.method === 'POST' && req.url === '/pay') {
         let raw = '';
@@ -95,6 +102,9 @@ Vendor wallet:
 
 Platform wallet (subscriptions):
   ${wallets.platform.uri}
+
+Demo shop wallet (linked by scripts/demo-shop.mts):
+  ${wallets.demo.uri}
 
 Core needs INVOICE_PROVIDER=nwc and NWC_ALLOW_INSECURE_RELAYS=true. Then, in another terminal:
   pnpm testwallet link --slug <your-shop>     or paste the vendor link in the dashboard (Portefeuille)
