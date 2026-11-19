@@ -547,30 +547,20 @@
   height: 0;
 }
 
-/* Gallery: photos in grayscale where there is a cursor to bring their colour back; in colour on touch screens. */
-.gal-color {
+/* Gallery: photos in grayscale where there is a cursor to paint their colour back; in colour on touch screens. */
+.gal-paint {
   display: none;
 }
 .has-cursor .gal-img {
   filter: grayscale(1);
 }
-.has-cursor .gal-color {
+.has-cursor .gal-paint {
   display: block;
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  -webkit-mask-image: radial-gradient(
-    circle at var(--mx, -9999px) var(--my, -9999px),
-    #000 calc(var(--r, 0px) - 1px),
-    transparent var(--r, 0px)
-  );
-  mask-image: radial-gradient(
-    circle at var(--mx, -9999px) var(--my, -9999px),
-    #000 calc(var(--r, 0px) - 1px),
-    transparent var(--r, 0px)
-  );
+  pointer-events: none;
 }
 
 /* "Meet Selly": the outlined giant words behind, the sparks around Selly. */

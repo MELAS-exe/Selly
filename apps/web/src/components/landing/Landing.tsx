@@ -87,12 +87,12 @@ const TOOLKIT = [
   },
 ];
 
-/** A gallery photo in grayscale, with its colour copy that the cursor's lens uncovers (cursor.tsx). */
+/** A gallery photo in grayscale, and the canvas where the cursor's lens paints its colour back (cursor.tsx). */
 function GalleryPhoto({ src, alt }: { src: string; alt: string }) {
   return (
     <div className="gal-par absolute inset-x-0 -inset-y-[6%] transition-[scale] duration-(--dur-ui) ease-(--ease-out-expo) group-hover:scale-105">
       <img alt={alt} className="gal-img w-full h-full object-cover" src={src} />
-      <img alt="" aria-hidden="true" className="gal-color" src={src} />
+      <canvas aria-hidden="true" className="gal-paint" />
     </div>
   );
 }

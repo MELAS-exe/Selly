@@ -75,7 +75,9 @@ function hero(root: HTMLElement, motion: boolean): () => void {
     gsap.set(alt, { visibility: 'visible' });
 
     // In: each line turns up from below, letter after letter; slow enough to read as a sequence.
+    // A cursor already on the line when it has arrived rolls it right away.
     let ready = !motion;
+    let sync = () => {};
     if (motion)
       tl.from(
         a,
@@ -87,25 +89,47 @@ function hero(root: HTMLElement, motion: boolean): () => void {
           stagger: 0.045,
           onComplete: () => {
             ready = true;
+            sync();
           },
         },
         0.2 + i * 0.32,
       );
 
-    // Hover: the line rolls over to its light green copy, and back when the cursor leaves.
-    const turn = (on: boolean) => {
-      if (!ready) return;
+    // Hover: the line rolls over to its light green copy. A roll always plays to its end; then, if the cursor has
+    // left by now (or come back), the line rolls to match.
+    let hovered = false;
+    let green = false;
+    let rolling = false;
+    sync = () => {
+      if (!ready || rolling || hovered === green) return;
+      const on = hovered;
       if (!motion) {
         gsap.set(a, { opacity: on ? 0 : 1 });
         gsap.set(b, { opacity: on ? 1 : 0 });
+        green = on;
         return;
       }
-      const v = { duration: 0.7, ease: 'power3.inOut', stagger: 0.022, overwrite: true };
+      rolling = true;
+      const v = { duration: 0.7, ease: 'power3.inOut', stagger: 0.022 };
       gsap.to(a, { rotateX: on ? 90 : 0, ...v });
-      gsap.to(b, { rotateX: on ? 0 : -90, ...v });
+      gsap.to(b, {
+        rotateX: on ? 0 : -90,
+        ...v,
+        onComplete: () => {
+          rolling = false;
+          green = on;
+          sync();
+        },
+      });
     };
-    const enter = () => turn(true);
-    const leave = () => turn(false);
+    const enter = () => {
+      hovered = true;
+      sync();
+    };
+    const leave = () => {
+      hovered = false;
+      sync();
+    };
     line.addEventListener('pointerenter', enter);
     line.addEventListener('pointerleave', leave);
     off.push(() => {
