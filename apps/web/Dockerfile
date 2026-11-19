@@ -17,7 +17,11 @@ ENV CORE_URL=$CORE_URL AGENT_URL=$AGENT_URL NEXT_TELEMETRY_DISABLED=1
 RUN pnpm --filter @selly/web build
 
 FROM node:24-alpine AS runtime
-ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0 NEXT_TELEMETRY_DISABLED=1
+# The server pages and the chat stream read them at run time too (src/lib/core.ts).
+ARG CORE_URL=http://core:4000
+ARG AGENT_URL=http://agent:4100
+ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0 NEXT_TELEMETRY_DISABLED=1 \
+    CORE_URL=$CORE_URL AGENT_URL=$AGENT_URL
 WORKDIR /app
 COPY --from=build /repo/apps/web/.next/standalone ./
 COPY --from=build /repo/apps/web/.next/static ./apps/web/.next/static
