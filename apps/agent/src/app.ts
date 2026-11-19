@@ -19,6 +19,7 @@ import { DemoProvider } from './engine/demo';
 import { FallbackProvider, type LlmProvider } from './engine/llm';
 import { openAiCompatibleFor } from './engine/openai-compatible';
 import { ScriptedProvider } from './engine/scripted';
+import { VideoProvider } from './engine/video';
 import { AppError, CoreError } from './errors';
 import { EntitlementsCache, ProfileCache, RateLimiter, UsageReporter } from './quota';
 import { MemoryStore } from './store/memory';
@@ -65,10 +66,11 @@ export interface BuildOptions {
   imageResolver?: ImageResolver;
 }
 
-/** `scripted` (tests), `demo` (local, no key) or a Claude model id. */
+/** `scripted` (tests), `demo` (local, no key), `video` (the demo video's script) or a Claude model id. */
 export function providerFor(name: string): LlmProvider {
   if (name === 'scripted') return new ScriptedProvider();
   if (name === 'demo') return new DemoProvider();
+  if (name === 'video') return new VideoProvider();
   if (name.startsWith('claude-'))
     return new ClaudeProvider({
       model: name,
@@ -77,7 +79,7 @@ export function providerFor(name: string): LlmProvider {
   const compatible = openAiCompatibleFor(name);
   if (compatible) return compatible;
   throw new Error(
-    `Unknown LLM provider "${name}". Use scripted, demo, a Claude model id, or groq:, ollama:, openai:<model>.`,
+    `Unknown LLM provider "${name}". Use scripted, demo, video, a Claude model id, or groq:, ollama:, openai:<model>.`,
   );
 }
 

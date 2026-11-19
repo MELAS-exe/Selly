@@ -43,10 +43,10 @@ export function claimsOrder(text: string): boolean {
   return ORDER_CLAIM.test(text);
 }
 
-const AMOUNT = String.raw`(\d{1,3}(?:[   .]\d{3})+|\d+)\s*(?:fcfa|f\s?cfa|xof|francs?)`;
+const AMOUNT = String.raw`(\d{1,3}(?:[   .,]\d{3})+|\d+)\s*(?:fcfa|f\s?cfa|xof|francs?)`;
 const TOTAL_RE = new RegExp(String.raw`\btotal\b[^.!?\n\d]{0,60}?` + AMOUNT, 'gi');
 
 /** The amounts a reply calls a total (« Le total est de 20 000 FCFA »). */
 export function totalsIn(text: string): number[] {
-  return [...text.matchAll(TOTAL_RE)].map((m) => Number((m[1] ?? '').replace(/[   .]/g, '')));
+  return [...text.matchAll(TOTAL_RE)].map((m) => Number((m[1] ?? '').replace(/[   .,]/g, '')));
 }

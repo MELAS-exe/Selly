@@ -17,7 +17,7 @@ export interface AgentConfig {
   eventsHmacSecret: string;
   /** Empty means the in-memory store. */
   databaseUrl: string;
-  /** `scripted`, `demo`, or a Claude model id such as `claude-opus-5-5`. */
+  /** `scripted`, `demo`, `video` (the demo video's script), or a Claude model id such as `claude-opus-5-5`. */
   llmPrimary: string;
   llmFallback: string;
   /** Seconds the turn waits for more messages from the same person (section 8.2). */

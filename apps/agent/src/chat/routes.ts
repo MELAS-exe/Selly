@@ -86,26 +86,33 @@ export function registerChatRoutes(app: FastifyInstance, s: AgentServices) {
       expiresAt,
     });
 
-    // The first message is the disclosure (section 8.4).
-    const disclosure = `Assistant automatique de ${vendor.display_name}. Le vendeur peut prendre la main à tout moment.`;
+    // The first message is the disclosure (section 8.4), in the shop's language.
+    const en = vendor.locale.toLowerCase().startsWith('en');
+    const name = vendor.display_name;
+    const disclosure = en
+      ? `Automatic assistant of ${name}. The seller can take over at any time.`
+      : `Assistant automatique de ${name}. Le vendeur peut prendre la main à tout moment.`;
+    const hello = en
+      ? `Hello! I am the automatic assistant of ${name}. The seller can take over at any time.`
+      : `Bonjour ! Je suis l’assistant automatique de ${name}. Le vendeur peut me remplacer à tout moment.`;
     const greeting = await s.conversations.agentReply(
       conv,
       {
         text: body.product_id
-          ? `Bonjour ! Je suis l’assistant automatique de ${vendor.display_name}. Le vendeur peut me remplacer à tout moment. Une question sur cet article ?`
-          : `Bonjour ! Je suis l’assistant automatique de ${vendor.display_name}. Le vendeur peut me remplacer à tout moment. Que cherchez-vous ?`,
+          ? `${hello} ${en ? 'A question about this item?' : 'Une question sur cet article ?'}`
+          : `${hello} ${en ? 'What are you looking for?' : 'Que cherchez-vous ?'}`,
         cards: [],
         quickReplies: body.product_id
           ? [
-              { id: 'sizes', label: 'Tailles disponibles' },
-              { id: 'delivery', label: 'Livraison' },
+              { id: 'sizes', label: en ? 'Sizes in stock' : 'Tailles disponibles' },
+              { id: 'delivery', label: en ? 'Delivery' : 'Livraison' },
             ]
           : [
-              { id: 'browse', label: 'Voir les nouveautés' },
-              { id: 'delivery', label: 'Livraison' },
+              { id: 'browse', label: en ? 'See what is new' : 'Voir les nouveautés' },
+              { id: 'delivery', label: en ? 'Delivery' : 'Livraison' },
             ],
       },
-      assistantLabel(vendor.display_name),
+      assistantLabel(vendor.display_name, vendor.locale),
     );
 
     reply.code(201);

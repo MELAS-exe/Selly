@@ -67,8 +67,12 @@ export function toChatMessage(m: StoredMessage): ChatMessageView {
   };
 }
 
-export const assistantLabel = (shopName: string) => `Assistant de ${shopName}`;
-export const vendorLabel = (shopName: string) => `${shopName} (vendeur)`;
+/** Author labels the customer sees, in the shop's language (vendor locale "en": English). */
+const english = (locale?: string) => !!locale?.toLowerCase().startsWith('en');
+export const assistantLabel = (shopName: string, locale?: string) =>
+  english(locale) ? `${shopName}’s assistant` : `Assistant de ${shopName}`;
+export const vendorLabel = (shopName: string, locale?: string) =>
+  english(locale) ? `${shopName} (seller)` : `${shopName} (vendeur)`;
 
 export class ConversationService {
   constructor(
