@@ -163,10 +163,10 @@ const getProduct = tool({
 const quoteCart = tool({
   name: 'quote_cart',
   description:
-    'Calcule le total exact (articles, livraison, remise) côté boutique. Obligatoire avant create_order. Ne calcule jamais un total toi-même. discount_pct est la remise demandée ; la boutique la plafonne à max_discount_pct.',
+    'Calcule le total exact (articles, livraison, remise) côté boutique. Obligatoire avant create_order, avec la livraison. Ne calcule jamais un total toi-même. discount_pct est la remise demandée ; la boutique la plafonne à max_discount_pct. Sans delivery, le prix est calculé hors livraison (delivery_included false) : utile pour répondre tout de suite à un client qui marchande ; dis alors « hors livraison ». Si la taille n’est pas encore choisie, prends n’importe quelle variante en stock du produit.',
   input: z.strictObject({
     items,
-    delivery,
+    delivery: delivery.optional(),
     discount_pct: z.number().int().min(0).max(100).optional(),
   }),
   async run(p, ctx) {
@@ -180,7 +180,7 @@ function rememberQuote(
   ctx: ToolContext,
   req: {
     items: { variant_id: string; quantity: number }[];
-    delivery: unknown;
+    delivery?: unknown;
     discount_pct?: number;
   },
   quote: CartQuote,

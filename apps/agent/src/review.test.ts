@@ -124,6 +124,39 @@ describe('negotiated discount', () => {
     });
     expect(s.core.orders[0]?.total).toBe(31500);
   });
+
+  it('answers a bargain before the delivery is chosen, then quotes again with it to order', async () => {
+    const s = setup();
+    const items = [{ variant_id: variantOf(s.core, 'boubou-bazin-bleu', 'L'), quantity: 1 }];
+    const delivery = { method: 'delivery', zone_id: 'dakar-plateau' };
+    const results: string[] = [];
+    s.llm.push(
+      () => [toolCall('quote_cart', { items, discount_pct: 10 })],
+      (req) => {
+        results.push(JSON.stringify(req.messages.at(-1)));
+        return [say('Je peux vous le faire à 31 500 FCFA hors livraison. Livraison ou retrait ?')];
+      },
+      // An order needs a quote with the delivery: the price-only quote is not enough.
+      () => [
+        toolCall('create_order', {
+          items,
+          delivery,
+          customer: { display_name: 'Moussa', phone_e164: '+221770001122' },
+        }),
+      ],
+      (req) => {
+        results.push(JSON.stringify(req.messages.at(-1)));
+        return [say('Je calcule le total avec la livraison.')];
+      },
+    );
+    const { token } = await s.openChat();
+    await s.send(token, 'Dernier prix pour le boubou en L ?');
+    expect(results[0]).toMatch(/delivery_included\\":false/);
+    expect(results[0]).toContain('31500');
+    await s.send(token, 'Livraison au Plateau, Moussa +221770001122');
+    expect(results[1]).toContain('QUOTE_REQUIRED');
+    expect(s.core.orders).toHaveLength(0);
+  });
 });
 
 describe('order status is limited to the conversation (6)', () => {
