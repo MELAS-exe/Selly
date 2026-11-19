@@ -254,6 +254,32 @@ describe('catalog for the agent', () => {
     ).toBe(false);
   });
 
+  it('finds sizes and colours whatever the vendor named the option: taille, pointure, couleur', async () => {
+    const s = await createShop(t.db, 'ia-search-fr');
+    const url = (q: string) => `/internal/v1/vendors/${s.vendorId}/products/search?${q}`;
+    const tpl = '/internal/v1/vendors/{id}/products/search';
+    const search = async (q: string) => (await call('GET', tpl, url(q))).body.results;
+    const named = (options: Record<string, string>) =>
+      t.db
+        .update(core.productVariants)
+        .set({ options })
+        .where(eq(core.productVariants.id, s.variantId));
+
+    await named({ Pointure: '42', Couleur: 'Noir' });
+    expect(await search('q=robe&size=42&color=noir')).toHaveLength(1);
+    expect(await search('q=robe&size=pointure 42')).toHaveLength(1);
+    expect(await search('q=robe&size=44')).toHaveLength(0);
+    expect(await search('q=robe&color=rouge')).toHaveLength(0);
+
+    await named({ taille: 'M' });
+    expect(await search('q=robe&size=m')).toHaveLength(1);
+    expect(await search('q=robe&size=L')).toHaveLength(0);
+
+    // An option that is not a size never answers for one.
+    await named({ format: '42' });
+    expect(await search('q=robe&size=42')).toHaveLength(0);
+  });
+
   it('gives exact stock for a product of this vendor only', async () => {
     const s = await createShop(t.db, 'ia-detail');
     const other = await createShop(t.db, 'ia-detail-other');

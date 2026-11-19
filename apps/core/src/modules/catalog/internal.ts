@@ -30,6 +30,16 @@ function optionMatches(value: string | undefined, wanted: string | undefined): b
   return v === w || v.replace(/^(t|taille|pointure)\s*/, '') === w;
 }
 
+// Vendors name their options in their own words: a size is "taille" for a dress and "pointure" for shoes.
+const SIZE_KEYS = ['size', 'taille', 'pointure'];
+const COLOR_KEYS = ['color', 'colour', 'couleur'];
+
+/** The value of the first option whose name is one of `keys`, without case or accents. */
+function optionNamed(options: Record<string, string>, keys: readonly string[]) {
+  for (const [key, value] of Object.entries(options)) if (keys.includes(norm(key))) return value;
+  return undefined;
+}
+
 export async function searchProducts(
   ctx: Context,
   vendor: Vendor,
@@ -79,7 +89,9 @@ export async function searchProducts(
     const vs = variants
       .filter((v) => v.productId === p.id)
       .filter(
-        (v) => optionMatches(v.options.size, q.size) && optionMatches(v.options.color, q.color),
+        (v) =>
+          optionMatches(optionNamed(v.options, SIZE_KEYS), q.size) &&
+          optionMatches(optionNamed(v.options, COLOR_KEYS), q.color),
       );
     if (vs.length === 0) continue; // the size or colour asked for does not exist for this product
     results.push({
