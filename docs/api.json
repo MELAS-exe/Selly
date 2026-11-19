@@ -175,7 +175,21 @@
                     "payment_options": [
                       "lightning"
                     ],
-                    "powered_by_badge": false
+                    "powered_by_badge": false,
+                    "branding": {
+                      "logo_url": null,
+                      "primary_color": "#173B32",
+                      "accent_color": "#C8553D",
+                      "background_color": null,
+                      "banner": null,
+                      "hero": {
+                        "eyebrow": null,
+                        "title": null,
+                        "text": null,
+                        "cta": null
+                      }
+                    },
+                    "categories": []
                   },
                   "products": [
                     {
@@ -202,7 +216,8 @@
                         "color": [
                           "noir"
                         ]
-                      }
+                      },
+                      "category_id": null
                     },
                     {
                       "id": "0193a8f0-7c1e-7d3b-8a1d-4f2b1c0d4e60",
@@ -227,7 +242,8 @@
                           "43",
                           "44"
                         ]
-                      }
+                      },
+                      "category_id": null
                     }
                   ],
                   "next_cursor": null
@@ -332,7 +348,8 @@
                         "color": [
                           "noir"
                         ]
-                      }
+                      },
+                      "category_id": null
                     }
                   ],
                   "next_cursor": null
@@ -2801,6 +2818,25 @@
                       "nostr_dm": {
                         "enabled": false,
                         "pubkey": null
+                      },
+                      "email": {
+                        "enabled": false,
+                        "address": null,
+                        "pending_address": null
+                      }
+                    },
+                    "branding": {
+                      "logo_key": null,
+                      "logo_url": null,
+                      "primary_color": "#173B32",
+                      "accent_color": "#C8553D",
+                      "background_color": null,
+                      "banner": null,
+                      "hero": {
+                        "eyebrow": null,
+                        "title": null,
+                        "text": null,
+                        "cta": null
                       }
                     }
                   },
@@ -2927,6 +2963,25 @@
                       "nostr_dm": {
                         "enabled": false,
                         "pubkey": null
+                      },
+                      "email": {
+                        "enabled": false,
+                        "address": null,
+                        "pending_address": null
+                      }
+                    },
+                    "branding": {
+                      "logo_key": null,
+                      "logo_url": null,
+                      "primary_color": "#173B32",
+                      "accent_color": "#C8553D",
+                      "background_color": null,
+                      "banner": null,
+                      "hero": {
+                        "eyebrow": null,
+                        "title": null,
+                        "text": null,
+                        "cta": null
                       }
                     }
                   },
@@ -3106,6 +3161,25 @@
                       "nostr_dm": {
                         "enabled": true,
                         "pubkey": "b8bd0c19507e241ba3b4d0aaa58c7bb567e05d8643a90277f0b72ad44f110786"
+                      },
+                      "email": {
+                        "enabled": false,
+                        "address": null,
+                        "pending_address": null
+                      }
+                    },
+                    "branding": {
+                      "logo_key": null,
+                      "logo_url": null,
+                      "primary_color": "#173B32",
+                      "accent_color": "#C8553D",
+                      "background_color": null,
+                      "banner": null,
+                      "hero": {
+                        "eyebrow": null,
+                        "title": null,
+                        "text": null,
+                        "cta": null
                       }
                     }
                   },
@@ -4495,7 +4569,8 @@
                           "url": "https://cdn.selly.example/p/0193a8f0/640.webp",
                           "width": 640,
                           "height": 853,
-                          "dominant": "#1b1b1f"
+                          "dominant": "#1b1b1f",
+                          "storage_key": "p/0193a8f0/640.webp"
                         }
                       ],
                       "variants": [
@@ -4623,7 +4698,8 @@
                       "url": "https://cdn.selly.example/p/0193a8f0/640.webp",
                       "width": 640,
                       "height": 853,
-                      "dominant": "#1b1b1f"
+                      "dominant": "#1b1b1f",
+                      "storage_key": "p/0193a8f0/640.webp"
                     }
                   ],
                   "variants": [
@@ -4786,7 +4862,8 @@
                       "url": "https://cdn.selly.example/p/0193a8f0/640.webp",
                       "width": 640,
                       "height": 853,
-                      "dominant": "#1b1b1f"
+                      "dominant": "#1b1b1f",
+                      "storage_key": "p/0193a8f0/640.webp"
                     }
                   ],
                   "variants": [
@@ -5751,7 +5828,8 @@
                       "url": "https://cdn.selly.example/p/0193a8f0/640.webp",
                       "width": 640,
                       "height": 853,
-                      "dominant": "#1b1b1f"
+                      "dominant": "#1b1b1f",
+                      "storage_key": "p/0193a8f0/640.webp"
                     }
                   ],
                   "variants": [
@@ -9635,7 +9713,8 @@
                       "url": "https://cdn.selly.example/p/0193a8f0/640.webp",
                       "width": 640,
                       "height": 853,
-                      "dominant": "#1b1b1f"
+                      "dominant": "#1b1b1f",
+                      "storage_key": "p/0193a8f0/640.webp"
                     }
                   ],
                   "variants": [
@@ -10499,7 +10578,8 @@
                       "url": "https://cdn.selly.example/p/0193a8f0/640.webp",
                       "width": 640,
                       "height": 853,
-                      "dominant": "#1b1b1f"
+                      "dominant": "#1b1b1f",
+                      "storage_key": "p/0193a8f0/640.webp"
                     }
                   ],
                   "variants": [
@@ -10642,7 +10722,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "vendorSession": []
+          }
+        ]
       }
     },
     "/api/v1/conversations/{id}/orders": {
@@ -10737,7 +10822,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "vendorSession": []
+          }
+        ]
       }
     }
   },

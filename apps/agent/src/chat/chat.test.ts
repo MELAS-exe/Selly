@@ -442,7 +442,9 @@ describe('handoff and the vendor inbox', () => {
       cards: [
         {
           type: 'cart',
-          lines: [{ variant_id: variant42, product_slug: 'robe-wax-noire', options: { size: '42' } }],
+          lines: [
+            { variant_id: variant42, product_slug: 'robe-wax-noire', options: { size: '42' } },
+          ],
         },
       ],
     });
