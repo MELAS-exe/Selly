@@ -12,3 +12,5 @@ coverage/
 
 # Keys of the local fake wallets (pnpm dev:testwallet)
 .testwallet.json
+# The demo shop (apps/core/scripts/demo-shop.mts): its vendor key and photos
+.demo-shop/
