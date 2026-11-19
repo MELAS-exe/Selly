@@ -1,0 +1,129 @@
+SELLY: HOW TO TRY IT AND SIGN IN AS THE DEMO SHOP
+=================================================
+
+Selly runs on your computer in about 15 minutes. You then sign in, the normal way (a Nostr key), as
+Maison Sokhna: a demo shop with its own logo and colours, 20 products, six weeks of paid orders and
+customer conversations. You can also create your own shop.
+
+
+WHAT YOU NEED
+-------------
+- Node.js 24 and pnpm 10        https://nodejs.org   then:  npm install -g pnpm@10
+- Docker Desktop (running)       https://www.docker.com/products/docker-desktop
+- Google Chrome (or Brave, Edge) with a Nostr signer extension, see step 6
+
+
+1. GET THE CODE
+---------------
+    git clone https://github.com/MELAS-exe/Selly.git
+    cd Selly
+    pnpm install
+
+
+2. SETTINGS
+-----------
+Copy the example settings:
+
+    cp .env.example .env            (Windows PowerShell: copy .env.example .env)
+
+Open .env in a text editor and set these lines (they turn on photo storage and the fake Lightning
+wallets used for the demo; nothing here touches real money):
+
+    MEDIA_STORE=s3
+    INVOICE_PROVIDER=nwc
+    NWC_ALLOW_INSECURE_RELAYS=true
+    SECRETS_KEK_V1=<paste the output of the command below>
+
+    node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+
+
+3. START EVERYTHING (three terminals, from the Selly folder)
+-------------------------------------------------------
+Terminal 1, the database, photo storage and relay, then the apps:
+
+    pnpm infra:up
+    pnpm dev
+
+    Wait until you see the web app ready on http://localhost:3000 (the first start takes a minute).
+
+Terminal 2, the fake Lightning wallets (keep it open):
+
+    pnpm dev:testwallet
+
+
+4. CREATE THE DEMO SHOP (terminal 3, once)
+------------------------------------------
+    pnpm --filter @selly/core exec tsx scripts/demo-shop.mts
+
+It takes two or three minutes: it creates the shop, its products with photos, and pays 85 orders
+through the fake wallet. It ends with "done: http://localhost:3000/s/maison-sokhna".
+
+
+5. LOOK AT THE SHOP AS A CUSTOMER (no sign-in)
+----------------------------------------------
+    http://localhost:3000/s/maison-sokhna
+
+Add something to the cart and order: you get a Lightning payment page. To "pay" it with the fake
+wallet, run in terminal 3:
+
+    pnpm testwallet pay
+
+The payment page turns to "Paiement reçu" by itself.
+
+
+6. SIGN IN AS THE SHOP (the normal way, with a Nostr key)
+---------------------------------------------------------
+Selly has no passwords: a vendor signs in with a Nostr key. The demo shop's key:
+
+    Secret key (nsec):  nsec19sqnr30hewl5ha7c65rgf56wluf6tn770h7wc8lt49f2tjx0ey4spllaaq
+    Public key (npub):  npub1mu28sl69f56vj6wxnpt0dnxwmsjt95wyreex73cdhgz67vnuwv0qhuxhlh
+
+This key is public on purpose. It only opens the Maison Sokhna demo shop in YOUR local copy of
+Selly; never use it for anything else.
+
+  a. Install a Nostr signer extension in Chrome, for example nos2x:
+     https://chromewebstore.google.com/search/nos2x
+     (Alby, https://getalby.com, works too.)
+  b. Open the extension's options (right-click its icon, "Options") and paste the secret key
+     (nsec1...) above as the private key. Save.
+  c. Go to http://localhost:3000/app/login and choose "Nostr browser extension".
+     Approve the signature request from the extension.
+  d. You are in the Maison Sokhna dashboard.
+
+Worth a look in the dashboard:
+  - Accueil: orders to ship, 30-day sales, discussions waiting, stock to watch
+  - Commandes: mark a paid order as shipped
+  - Discussions: two customers wait for an answer; reply, show products, or propose a cart
+  - Catalogue: products, stock per size, add a product
+  - Réglages: logo, colours, banner and texts, with a live preview of the shop
+
+
+OR: CREATE YOUR OWN SHOP
+------------------------
+Without any extension: http://localhost:3000/app/login, then "Create a new key". Choose a
+passphrase, save the backup key it shows, name your shop, and link the fake wallet: copy the
+"Demo shop wallet" or "Vendor wallet" link printed by terminal 2 into the Portefeuille page.
+(A wallet already used for one shop's free trial cannot start another: if it says so, use the
+other link.)
+
+
+THE SALES ASSISTANT
+-------------------
+The chat in every shop ("Demander à Selly") runs without any AI key, with simple scripted answers.
+For real answers from Selly, add these lines to .env, then restart terminal 1:
+
+    LLM_PRIMARY=groq:openai/gpt-oss-120b
+    GROQ_API_KEY=<the Groq key sent to you with this file>
+    AGENT_TURN_DEADLINE_MS=150000
+
+(Groq's free tier is slow at times: an answer can take up to a minute. With a Claude key instead:
+LLM_PRIMARY=claude-opus-5-5 and ANTHROPIC_API_KEY=<the key>.)
+
+
+IF SOMETHING GOES WRONG
+-----------------------
+- "The shop maison-sokhna exists already": it is already created, go to step 5.
+- "The fake wallets are not running": start terminal 2 (pnpm dev:testwallet), then step 4 again.
+- Shop photos missing: check MEDIA_STORE=s3 in .env, then restart terminal 1.
+- Port already in use: stop other apps on ports 3000, 4000, 4100, 5432, 7777, 9000.
+- Everything else: README.md and CONTRIBUTING.md.
