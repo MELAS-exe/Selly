@@ -6,7 +6,7 @@ import { useEffect, useRef } from 'react';
 /** Radius of the gallery's colour lens, in px; the ring is drawn at this size over the photos (landing.css). */
 const LENS = 80;
 /** The colour the lens leaves behind stays this long (ms), then fades over TRAIL_FADE. */
-const TRAIL_HOLD = 1000;
+const TRAIL_HOLD = 2000;
 const TRAIL_FADE = 600;
 
 /**
@@ -85,8 +85,8 @@ export function LandingCursor() {
       py = y;
     };
 
-    // Over the gallery the ring leaves a liquid of colour behind it: drops along its path, droplets flung off when it
-    // moves fast, and now and then a drip running down from the trail. Each grows in, holds for TRAIL_HOLD, then
+    // Over the gallery the ring leaves a liquid of colour behind it: drops along its path, droplets shed at its tail
+    // that drift away, and now and then a drip running down from the trail. Each grows in, holds for TRAIL_HOLD, then
     // shrinks away. Drops are soft-edged and the canvas goes through a threshold (#gal-goo, Landing.tsx), so the ones
     // that touch melt into one shape with a clean edge. Each photo keeps its own drops, in its own pixels (the photos
     // zoom on hover and drift with the scroll), and is redrawn while it has any.
@@ -124,13 +124,15 @@ export function LandingCursor() {
       for (const ph of photos) {
         const { canvas: c } = ph;
         ph.drops = ph.drops.filter((d) => now - d.t < TRAIL_HOLD + TRAIL_FADE);
-        // Droplets fly and fall; drips slide down slowly.
+        // Droplets drift off and slow down, drips slide down; both sink a little.
         for (const d of ph.drops) {
           if (!d.vx && !d.vy && !d.g) continue;
-          d.vy += d.g * dt;
-          d.vx *= 0.92 ** (dt * 60);
+          const drag = 0.95 ** (dt * 60);
+          d.vx *= drag;
+          d.vy *= drag;
           d.x += d.vx * dt;
           d.y += d.vy * dt;
+          d.vy += d.g * dt;
         }
         const b = c.getBoundingClientRect();
         if (from && b.width) {
@@ -171,24 +173,28 @@ export function LandingCursor() {
                     g: 90,
                   });
               }
-              // Droplets, flung forward and outward when the ring moves fast.
-              const speed = dist / Math.max(dt, 1 / 120);
-              if (speed > 500) {
+              // Droplets at the tail: they shed from the sides of the stroke behind the ring and drift away, backwards
+              // and outwards, slowing down, so the liquid stretches into a thread and lets them go. Mostly small, now
+              // and then a big one. The faster the ring, the more of them.
+              if (dist > 1) {
                 const ux = (x - from.x) / dist;
                 const uy = (y - from.y) / dist;
-                const n = Math.min(3, Math.floor(speed / 900) + (Math.random() < 0.5 ? 1 : 0));
-                for (let i = 0; i < n; i++) {
-                  const p = at(1);
+                const speed = dist / Math.max(dt, 1 / 120);
+                let chance = Math.min(0.95, dist / (lens.r * 0.5));
+                while (Math.random() < chance) {
+                  chance -= 0.6;
+                  const p = at(Math.random() * 0.5);
                   const side = Math.random() < 0.5 ? -1 : 1;
-                  const fling = speed * (0.25 + Math.random() * 0.25) * k;
-                  const spread = (120 + Math.random() * 220) * side * k;
+                  const size = Math.random() ** 2.2;
+                  const out = (170 + Math.random() * 200) * side * k;
+                  const back = Math.min(speed, 1800) * (0.08 + Math.random() * 0.14) * k;
                   drop({
-                    x: p.x + ux * lens.r * k * 0.6,
-                    y: p.y + uy * lens.r * k * 0.6,
-                    r: lens.r * k * (0.12 + Math.random() * 0.16),
-                    vx: ux * fling - uy * spread,
-                    vy: uy * fling + ux * spread,
-                    g: 700,
+                    x: p.x - ux * lens.r * k * 0.45 - uy * side * lens.r * k * 0.55,
+                    y: p.y - uy * lens.r * k * 0.45 + ux * side * lens.r * k * 0.55,
+                    r: lens.r * k * (0.13 + size * 0.3),
+                    vx: -ux * back - uy * out,
+                    vy: -uy * back + ux * out,
+                    g: 40 + Math.random() * 60,
                   });
                 }
               }
