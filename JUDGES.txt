@@ -118,6 +118,7 @@ OR: CREATE YOUR OWN SHOP
 Without any extension: http://localhost:3000/app/login, then "Create a new key". Choose a
 passphrase, save the backup key it shows, name your shop, and link the fake wallet: copy the
 "Demo shop wallet" or "Vendor wallet" link printed by terminal 2 into the Portefeuille page.
+(With Docker, the links are printed by: docker compose logs demo)
 (A wallet already used for one shop's free trial cannot start another: if it says so, use the
 other link.)
 

@@ -49,6 +49,8 @@ The happy path, about five minutes:
    The payment page turns to « Paiement reçu » by itself. The order is paid into the shop's own wallet.
 4. Sign in as the shop to see its dashboard: [JUDGES.txt](JUDGES.txt), step 6, gives the public demo key and the
    browser extension to use. The new order is at the top of _Commandes_.
+5. Or make your own shop, with no extension: http://localhost:3000/app/login, « Create a new key », name the shop,
+   and paste the "Vendor wallet" link that `docker compose logs demo` prints.
 
 - `DEMO_LANG=en docker compose up --build` makes the shop in English, as in the demo video. This only applies
   to an empty database.
