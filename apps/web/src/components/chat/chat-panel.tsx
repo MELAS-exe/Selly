@@ -7,8 +7,9 @@ import { TypingDots } from '@/components/motion/typing-dots';
 import { addLine, readCart, writeCart } from '@/lib/cart';
 import { ensureSession, newClientMessageId, sendMessage, subscribe } from '@/lib/chat';
 import type { CartCard, ChatMessage, ChatSession } from '@/lib/chat-types';
-import { formatMoney, formatOptions } from '@/lib/format';
+import { formatOptions } from '@/lib/format';
 import { SellyMark } from '../brand/selly-mark';
+import { useLang, useMoney, useT } from '../lang';
 import { openCart } from '../storefront/cart-drawer';
 
 type Status = 'loading' | 'ready' | 'failed';
@@ -34,6 +35,7 @@ export function ChatPanel({
   productTitle?: string;
   onClose: () => void;
 }) {
+  const t = useT();
   const titleId = useId();
   const [status, setStatus] = useState<Status>('loading');
   const [session, setSession] = useState<ChatSession | null>(null);
@@ -166,14 +168,14 @@ export function ChatPanel({
               </h2>
               <p className="mt-1 truncate text-sm text-muted">
                 {mode === 'human'
-                  ? (modeLabel ?? 'Le vendeur répond')
-                  : `Conseillère de ${storeName}`}
+                  ? (modeLabel ?? t('Le vendeur répond', 'The seller is replying'))
+                  : t(`Conseillère de ${storeName}`, `${storeName}’s assistant`)}
               </p>
             </div>
             <button
               type="button"
               onClick={onClose}
-              aria-label="Fermer"
+              aria-label={t('Fermer', 'Close')}
               className="press grid size-11 place-items-center border border-line text-muted"
             >
               <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="none">
@@ -189,21 +191,23 @@ export function ChatPanel({
 
           {productTitle && (
             <p className="border-b border-line bg-mist px-4 py-2 text-[0.9375rem] text-muted">
-              À propos de <span className="font-semibold text-ink">{productTitle}</span>
+              {t('À propos de', 'About')}{' '}
+              <span className="font-semibold text-ink">{productTitle}</span>
             </p>
           )}
 
           {status === 'loading' && (
             <p role="status" className="p-4 text-muted">
-              Connexion…
+              {t('Connexion…', 'Connecting…')}
             </p>
           )}
 
           {status === 'failed' && (
             <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
               <p className="text-muted">
-                Le chat ne répond pas pour le moment.
-                {whatsappLink && ' Écrivez au vendeur en attendant.'}
+                {t('Le chat ne répond pas pour le moment.', 'The chat is not answering right now.')}
+                {whatsappLink &&
+                  t(' Écrivez au vendeur en attendant.', ' Write to the seller meanwhile.')}
               </p>
               {whatsappLink && (
                 <a
@@ -211,7 +215,7 @@ export function ChatPanel({
                   rel="noopener"
                   className="press inline-flex min-h-11 items-center justify-center rounded-[var(--radius-control)] bg-indigo px-4 font-semibold text-paper"
                 >
-                  Écrire sur WhatsApp
+                  {t('Écrire sur WhatsApp', 'Write on WhatsApp')}
                 </a>
               )}
             </div>
@@ -243,7 +247,7 @@ export function ChatPanel({
                 }}
               >
                 <label className="sr-only" htmlFor={`${titleId}-input`}>
-                  Votre message
+                  {t('Votre message', 'Your message')}
                 </label>
                 <textarea
                   id={`${titleId}-input`}
@@ -257,14 +261,14 @@ export function ChatPanel({
                       void submit(draft);
                     }
                   }}
-                  placeholder="Écrivez votre message…"
+                  placeholder={t('Écrivez votre message…', 'Write your message…')}
                   className="min-h-11 flex-1 resize-none rounded-[var(--radius-control)] border border-line px-3 py-2"
                 />
                 <button
                   type="submit"
                   disabled={sending || !draft.trim()}
                   className="press grid min-h-11 min-w-11 place-items-center rounded-[var(--radius-control)] bg-indigo text-paper disabled:opacity-40"
-                  aria-label="Envoyer"
+                  aria-label={t('Envoyer', 'Send')}
                 >
                   <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="none">
                     <path
@@ -287,9 +291,12 @@ export function ChatPanel({
 
 /** The vendor's proposed cart: its items, and « Commander » to finish it in the shop's cart. */
 function CartProposal({ card, onOpen }: { card: CartCard; onOpen: (card: CartCard) => void }) {
+  const { money } = useMoney();
+  const t = useT();
+  const lang = useLang();
   return (
     <div className="mt-2 rounded-[var(--radius-tile)] border border-line p-3">
-      <p className="font-semibold">Votre panier</p>
+      <p className="font-semibold">{t('Votre panier', 'Your cart')}</p>
       <ul className="mt-2 space-y-2">
         {card.lines.map((l) => (
           <li key={l.variant_id} className="flex items-center gap-3">
@@ -298,9 +305,9 @@ function CartProposal({ card, onOpen }: { card: CartCard; onOpen: (card: CartCar
             )}
             <span className="min-w-0 flex-1">
               <span className="block truncate">{l.title}</span>
-              <span className="block text-sm text-muted">{formatOptions(l.options)}</span>
+              <span className="block text-sm text-muted">{formatOptions(l.options, lang)}</span>
             </span>
-            <span className="tnum shrink-0">{formatMoney(l.unit_price)}</span>
+            <span className="tnum shrink-0">{money(l.unit_price)}</span>
           </li>
         ))}
       </ul>
@@ -309,7 +316,7 @@ function CartProposal({ card, onOpen }: { card: CartCard; onOpen: (card: CartCar
         onClick={() => onOpen(card)}
         className="press mt-3 min-h-11 w-full bg-ink px-4 font-semibold text-paper"
       >
-        Commander
+        {t('Commander', 'Order')}
       </button>
     </div>
   );
@@ -324,6 +331,8 @@ function MessageBubble({
   onQuickReply: (text: string, quickReplyId: string) => void;
   onOpenCart: (card: CartCard) => void;
 }) {
+  const { money } = useMoney();
+  const t = useT();
   if (message.author === 'system') {
     return (
       <p role="status" className="text-center text-sm text-muted">
@@ -356,7 +365,7 @@ function MessageBubble({
             )}
             <span>
               <span className="block font-semibold">{card.title}</span>
-              <span className="tnum block">{formatMoney(card.price)}</span>
+              <span className="tnum block">{money(card.price)}</span>
             </span>
           </a>
         ) : (
@@ -365,8 +374,13 @@ function MessageBubble({
             href={card.checkout_url}
             className="mt-2 block rounded-[var(--radius-tile)] border border-line p-3"
           >
-            <span className="block font-semibold">Commande {card.number}</span>
-            <span className="tnum block">{formatMoney(card.total)}</span>
+            <span className="block font-semibold">
+              {t('Commande', 'Order')} {card.number}
+            </span>
+            <span className="tnum block">{money(card.total)}</span>
+            <span className="mt-2 block font-semibold text-[var(--sf-accent-text,#173b32)]">
+              {t('Payer la commande →', 'Pay for the order →')}
+            </span>
           </a>
         ),
       )}

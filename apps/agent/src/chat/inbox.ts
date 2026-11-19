@@ -133,7 +133,7 @@ export function registerInboxRoutes(app: FastifyInstance, s: AgentServices) {
     let { conv } = await ownConversation(req);
     const body = parseBody(VendorMessage, req.body);
     const profile = await s.profiles.get(conv.vendorId);
-    const label = vendorLabel(profile.display_name);
+    const label = vendorLabel(profile.display_name, profile.locale);
     // Every vendor message keeps the chat in `human` for 30 more minutes (section 6.6).
     conv = await s.conversations.setMode(
       conv,
@@ -231,7 +231,7 @@ export function registerInboxRoutes(app: FastifyInstance, s: AgentServices) {
       key,
     );
     const profile = await s.profiles.get(conv.vendorId);
-    const label = vendorLabel(profile.display_name);
+    const label = vendorLabel(profile.display_name, profile.locale);
     conv = await s.conversations.setMode(
       conv,
       'human',
@@ -296,7 +296,7 @@ export function registerInboxRoutes(app: FastifyInstance, s: AgentServices) {
       body.mode,
       until,
       'vendor',
-      vendorLabel(profile.display_name),
+      vendorLabel(profile.display_name, profile.locale),
     );
     // Back to bot with a customer message unanswered: the bot answers it (section 4.4).
     if (body.mode === 'bot') s.turns.schedule(conv.id);

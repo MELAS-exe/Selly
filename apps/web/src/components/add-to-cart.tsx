@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { addLine, readCart, writeCart } from '@/lib/cart';
-import { formatMoney, optionName } from '@/lib/format';
+import { optionName } from '@/lib/format';
 import type { ProductDetail, PublicVariant } from '@/lib/types';
+import { useLang, useMoney, useT } from './lang';
 import { flyToCart } from './motion/fly-to-cart';
 import { durationToken } from './motion/tokens';
 import { openCart } from './storefront/cart-drawer';
@@ -90,6 +91,9 @@ function OptionValues({
 
 /** Option picker, quantity and the add button. The only client JavaScript on a product page. */
 export function AddToCart({ slug, product }: { slug: string; product: ProductDetail }) {
+  const { money } = useMoney();
+  const t = useT();
+  const lang = useLang();
   const keys = Object.keys(product.options);
   // Options with a single value are chosen for the customer.
   const [picked, setPicked] = useState<Record<string, string>>(() => {
@@ -171,7 +175,7 @@ export function AddToCart({ slug, product }: { slug: string; product: ProductDet
         .map((k) => (
           <fieldset key={k}>
             <legend className="mb-2 font-semibold">
-              {optionName(k)}
+              {optionName(k, lang)}
               {picked[k] && <span className="font-normal text-muted"> : {picked[k]}</span>}
             </legend>
             <OptionValues
@@ -188,7 +192,7 @@ export function AddToCart({ slug, product }: { slug: string; product: ProductDet
 
       <div className="flex items-center gap-3">
         <span id="qty-label" className="font-semibold">
-          Quantité
+          {t('Quantité', 'Quantity')}
         </span>
         <div
           role="group"
@@ -197,7 +201,7 @@ export function AddToCart({ slug, product }: { slug: string; product: ProductDet
         >
           <button
             type="button"
-            aria-label="Retirer un"
+            aria-label={t('Retirer un', 'One less')}
             disabled={quantity <= 1}
             onClick={() => changeQuantity(-1)}
             className="size-11 text-xl disabled:text-line"
@@ -229,7 +233,7 @@ export function AddToCart({ slug, product }: { slug: string; product: ProductDet
           </span>
           <button
             type="button"
-            aria-label="Ajouter un"
+            aria-label={t('Ajouter un', 'One more')}
             disabled={quantity >= 50}
             onClick={() => changeQuantity(1)}
             className="size-11 text-xl disabled:text-line"
@@ -263,15 +267,18 @@ export function AddToCart({ slug, product }: { slug: string; product: ProductDet
             >
               <path pathLength={1} d="M4.5 12.5l5 5 10-11" />
             </svg>
-            Ajouté
+            {t('Ajouté', 'Added')}
           </>
         ) : soldOut ? (
-          'Épuisé dans cette option'
+          t('Épuisé dans cette option', 'Sold out in this option')
         ) : missing.length > 0 ? (
-          `Choisissez : ${missing.map(optionName).join(', ').toLowerCase()}`
+          `${t('Choisissez :', 'Choose:')} ${missing
+            .map((k) => optionName(k, lang))
+            .join(', ')
+            .toLowerCase()}`
         ) : (
           <span key={adds} className={adds > 0 ? 'swap-in' : undefined}>
-            {`Ajouter au panier, ${formatMoney({ amount: (variant?.price.amount ?? 0) * quantity, currency: variant?.price.currency ?? 'XOF' })}`}
+            {`${t('Ajouter au panier', 'Add to cart')}, ${money({ amount: (variant?.price.amount ?? 0) * quantity, currency: variant?.price.currency ?? 'XOF' })}`}
           </span>
         )}
       </button>
@@ -279,20 +286,22 @@ export function AddToCart({ slug, product }: { slug: string; product: ProductDet
       {added && (
         <div className="open-rows" ref={revealStatus}>
           <div role="status" className="rounded-[var(--radius-tile)] bg-leaf-soft p-4">
-            <p className="font-semibold text-leaf">Ajouté au panier.</p>
+            <p className="font-semibold text-leaf">
+              {t('Ajouté au panier.', 'Added to the cart.')}
+            </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={openCart}
                 className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] bg-indigo px-5 font-semibold text-paper"
               >
-                Voir le panier
+                {t('Voir le panier', 'View the cart')}
               </button>
               <Link
                 href={`/s/${slug}`}
                 className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] border border-line bg-paper px-5 font-semibold"
               >
-                Continuer mes achats
+                {t('Continuer mes achats', 'Keep shopping')}
               </Link>
             </div>
           </div>

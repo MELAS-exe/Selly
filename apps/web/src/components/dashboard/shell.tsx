@@ -6,8 +6,10 @@
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { type ReactNode, Suspense, useEffect, useRef, useState } from 'react';
+import { langOf, translator } from '@/lib/i18n';
+import { LangProvider } from '../lang';
 import { DashboardProvider, useDashboard, useResource } from './data';
-import { fmtAgo, initials } from './format';
+import { fmtAgo, initials, setDashboardLang } from './format';
 import {
   Bell,
   Bot,
@@ -79,26 +81,49 @@ function Frame({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [seen, setSeen] = useState(0);
 
+  // The vendor's language (lib/i18n.ts): for the format helpers, and for every page through LangProvider.
+  const lang = langOf(vendor?.locale);
+  setDashboardLang(lang);
+  const t = translator(lang);
   const waiting = (chats.data?.data ?? []).filter((c) => c.mode === 'human' || c.unread_count > 0);
   const nav: NavItem[] = [
-    { href: '/app', label: 'Accueil', icon: LayoutDashboard },
+    { href: '/app', label: t('Accueil', 'Home'), icon: LayoutDashboard },
     {
       href: '/app/commandes',
-      label: 'Commandes',
+      label: t('Commandes', 'Orders'),
       icon: ShoppingBag,
       count: toShip.data?.data.length,
     },
-    { href: '/app/discussions', label: 'Discussions', icon: MessageCircle, count: waiting.length },
+    {
+      href: '/app/discussions',
+      label: t('Discussions', 'Chats'),
+      icon: MessageCircle,
+      count: waiting.length,
+    },
     // Drafts left to check (made outside a conversation with Selly) wait at the top of the catalogue.
-    { href: '/app/catalogue', label: 'Catalogue', icon: Package, count: drafts.data?.data.length },
-    { href: '/app/portefeuille', label: 'Portefeuille', icon: Wallet },
-    { href: '/app/abonnement', label: 'Abonnement', icon: Zap },
+    {
+      href: '/app/catalogue',
+      label: t('Catalogue', 'Catalogue'),
+      icon: Package,
+      count: drafts.data?.data.length,
+    },
+    { href: '/app/portefeuille', label: t('Portefeuille', 'Wallet'), icon: Wallet },
+    { href: '/app/abonnement', label: t('Abonnement', 'Subscription'), icon: Zap },
   ];
-  const settings: NavItem = { href: '/app/reglages', label: 'Réglages', icon: Settings2 };
-  const security: NavItem = { href: '/app/securite', label: 'Sécurité', icon: KeyRound };
+  const settings: NavItem = {
+    href: '/app/reglages',
+    label: t('Réglages', 'Settings'),
+    icon: Settings2,
+  };
+  const security: NavItem = {
+    href: '/app/securite',
+    label: t('Sécurité', 'Security'),
+    icon: KeyRound,
+  };
   const isActive = (href: string) =>
     href === '/app' ? pathname === '/app' : pathname === href || pathname.startsWith(`${href}/`);
-  const current = [...nav, settings, security].find((n) => isActive(n.href))?.label ?? 'Accueil';
+  const current =
+    [...nav, settings, security].find((n) => isActive(n.href))?.label ?? t('Accueil', 'Home');
   const unseen = notes.length - seen;
 
   useEffect(() => registerServiceWorker(), []);
@@ -159,182 +184,197 @@ function Frame({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="selly-shell theme-paper-vermilion">
-      <aside className="side">
-        <Link href="/app" className="brand" aria-label="Selly, accueil du tableau de bord">
-          <img src="/brand/selly-wordmark-light.png" alt="Selly" />
-        </Link>
-        <div className="side-caption">Votre boutique</div>
-        <nav className="nav-list" aria-label="Navigation principale">
-          {nav.map((item) => link(item, 'side'))}
-        </nav>
-        <div className="side-spacer" />
-        <div className="store-card">
-          <small>Mini-boutique</small>
-          <div className="store-name">{name}</div>
-          {vendor && (
-            <a className="store-url" href={vendor.store_url} target="_blank" rel="noreferrer">
-              {vendor.store_url.replace(/^https?:\/\//, '')}
-            </a>
-          )}
-        </div>
-        <Link
-          href={settings.href}
-          className={`nav-item settings ${isActive(settings.href) ? 'active' : ''}`}
-        >
-          <Settings2 size={16} /> Réglages
-        </Link>
-        <Link
-          href={security.href}
-          className={`nav-item settings ${isActive(security.href) ? 'active' : ''}`}
-          style={{ borderTop: 0 }}
-        >
-          <KeyRound size={16} /> Sécurité
-        </Link>
-        <div className="profile">
-          <div className="avatar">{initials(name)}</div>
-          <div style={{ minWidth: 0 }}>
-            <strong>{name}</strong>
-            <span>
-              {demo
-                ? 'Boutique de démonstration'
-                : vendor?.live
-                  ? 'En ligne'
-                  : vendor?.live_blockers.includes('wallet_missing') &&
-                      !vendor.live_blockers.some((b) => b.startsWith('subscription_'))
-                    ? 'Non publiée'
-                    : 'Hors ligne'}
-            </span>
+    <LangProvider lang={lang}>
+      <div className="selly-shell theme-paper-vermilion" lang={lang}>
+        <aside className="side">
+          <Link
+            href="/app"
+            className="brand"
+            aria-label={t('Selly, accueil du tableau de bord', 'Selly, dashboard home')}
+          >
+            <img src="/brand/selly-wordmark-light.png" alt="Selly" />
+          </Link>
+          <div className="side-caption">{t('Votre boutique', 'Your shop')}</div>
+          <nav className="nav-list" aria-label={t('Navigation principale', 'Main navigation')}>
+            {nav.map((item) => link(item, 'side'))}
+          </nav>
+          <div className="side-spacer" />
+          <div className="store-card">
+            <small>{t('Mini-boutique', 'Mini-shop')}</small>
+            <div className="store-name">{name}</div>
+            {vendor && (
+              <a className="store-url" href={vendor.store_url} target="_blank" rel="noreferrer">
+                {vendor.store_url.replace(/^https?:\/\//, '')}
+              </a>
+            )}
           </div>
+          <Link
+            href={settings.href}
+            className={`nav-item settings ${isActive(settings.href) ? 'active' : ''}`}
+          >
+            <Settings2 size={16} /> {settings.label}
+          </Link>
+          <Link
+            href={security.href}
+            className={`nav-item settings ${isActive(security.href) ? 'active' : ''}`}
+            style={{ borderTop: 0 }}
+          >
+            <KeyRound size={16} /> {security.label}
+          </Link>
+          <div className="profile">
+            <div className="avatar">{initials(name)}</div>
+            <div style={{ minWidth: 0 }}>
+              <strong>{name}</strong>
+              <span>
+                {demo
+                  ? t('Boutique de démonstration', 'Demo shop')
+                  : vendor?.live
+                    ? t('En ligne', 'Online')
+                    : vendor?.live_blockers.includes('wallet_missing') &&
+                        !vendor.live_blockers.some((b) => b.startsWith('subscription_'))
+                      ? t('Non publiée', 'Not published')
+                      : t('Hors ligne', 'Offline')}
+              </span>
+            </div>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={t('Se déconnecter', 'Sign out')}
+              title={t('Se déconnecter', 'Sign out')}
+              style={{ marginLeft: 'auto', color: 'inherit', borderColor: 'transparent' }}
+              onClick={signOut}
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
+        </aside>
+
+        <main className="main">
+          <header className="topbar">
+            <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+              <img className="topbar-mark" src="/brand/selly-s.png" alt="Selly" />
+              <div className="crumb">
+                <b>{name}</b>
+                <i>/</i>
+                {current}
+              </div>
+            </div>
+            <div className="top-actions">
+              {demo && <span className="demo-chip">{t('Mode démo', 'Demo mode')}</span>}
+              <div style={{ position: 'relative' }} ref={bell}>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label={
+                    unseen > 0
+                      ? t(`Notifications, ${unseen} nouvelles`, `Notifications, ${unseen} new`)
+                      : 'Notifications'
+                  }
+                  aria-expanded={bellOpen}
+                  onClick={() => {
+                    setBellOpen((o) => !o);
+                    setSeen(notes.length);
+                  }}
+                >
+                  <Bell size={17} />
+                  {unseen > 0 && <i className="notification-dot" />}
+                </button>
+                {bellOpen && (
+                  <div className="popover" role="dialog" aria-label="Notifications">
+                    <div className="popover-head">
+                      <span>Notifications</span>
+                      <span className="popover-head-actions">
+                        {notes.length > 0 && (
+                          <button type="button" className="text-link" onClick={clearNotes}>
+                            {t('Effacer', 'Clear')}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="popover-close"
+                          aria-label={t('Fermer les notifications', 'Close the notifications')}
+                          onClick={() => setBellOpen(false)}
+                        >
+                          <X size={15} />
+                        </button>
+                      </span>
+                    </div>
+                    {notes.length === 0 ? (
+                      <p className="popover-empty">
+                        {t(
+                          'Rien de neuf depuis l’ouverture du tableau de bord. Les commandes payées et les discussions qui vous attendent s’afficheront ici.',
+                          'Nothing new since you opened the dashboard. Paid orders and chats waiting for you will show here.',
+                        )}
+                      </p>
+                    ) : (
+                      notes.map((n) =>
+                        n.href ? (
+                          <Link key={n.id} href={n.href} className="popover-item">
+                            {n.text}
+                            <small>{fmtAgo(n.at)}</small>
+                          </Link>
+                        ) : (
+                          <div key={n.id} className="popover-item">
+                            {n.text}
+                            <small>{fmtAgo(n.at)}</small>
+                          </div>
+                        ),
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
+              <a
+                className="icon-button"
+                aria-label={t(
+                  'Aide : payer et recevoir en bitcoin',
+                  'Help: paying and getting paid in bitcoin',
+                )}
+                title={t('Aide', 'Help')}
+                href="/aide/payer-en-bitcoin"
+                target="_blank"
+                rel="noreferrer"
+              >
+                <CircleHelp size={17} />
+              </a>
+            </div>
+          </header>
+          <div className="content">
+            <LiveBanner />
+            <PushOffer trigger={paidLive && !demo} />
+            {children}
+          </div>
+        </main>
+
+        <Suspense fallback={null}>
+          <SellyAssistant />
+        </Suspense>
+
+        <nav className="mobile-nav" aria-label={t('Navigation rapide', 'Quick navigation')}>
+          {nav.slice(0, 4).map((item) => link(item, 'mobile'))}
           <button
             type="button"
-            className="icon-button"
-            aria-label="Se déconnecter"
-            title="Se déconnecter"
-            style={{ marginLeft: 'auto', color: 'inherit', borderColor: 'transparent' }}
-            onClick={signOut}
+            className={`mobile-nav-item ${menuOpen ? 'active' : ''}`}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((o) => !o)}
           >
-            <LogOut size={16} />
+            {menuOpen ? <X size={18} /> : <Menu size={18} />}
+            <span className="mobile-nav-label">{t('Plus', 'More')}</span>
+            {drafts.data?.data.length ? <i className="dot" /> : null}
           </button>
-        </div>
-      </aside>
-
-      <main className="main">
-        <header className="topbar">
-          <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
-            <img className="topbar-mark" src="/brand/selly-s.png" alt="Selly" />
-            <div className="crumb">
-              <b>{name}</b>
-              <i>/</i>
-              {current}
-            </div>
+        </nav>
+        {menuOpen && (
+          <div className="sheet" role="dialog" aria-label={t('Plus', 'More')}>
+            {[nav[4], nav[5], nav[6], nav[7], settings, security].map(
+              (item) => item && link(item, 'sheet'),
+            )}
+            <button type="button" className="nav-item" onClick={signOut}>
+              <LogOut size={16} /> {t('Se déconnecter', 'Sign out')}
+            </button>
           </div>
-          <div className="top-actions">
-            {demo && <span className="demo-chip">Mode démo</span>}
-            <div style={{ position: 'relative' }} ref={bell}>
-              <button
-                type="button"
-                className="icon-button"
-                aria-label={unseen > 0 ? `Notifications, ${unseen} nouvelles` : 'Notifications'}
-                aria-expanded={bellOpen}
-                onClick={() => {
-                  setBellOpen((o) => !o);
-                  setSeen(notes.length);
-                }}
-              >
-                <Bell size={17} />
-                {unseen > 0 && <i className="notification-dot" />}
-              </button>
-              {bellOpen && (
-                <div className="popover" role="dialog" aria-label="Notifications">
-                  <div className="popover-head">
-                    <span>Notifications</span>
-                    <span className="popover-head-actions">
-                      {notes.length > 0 && (
-                        <button type="button" className="text-link" onClick={clearNotes}>
-                          Effacer
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        className="popover-close"
-                        aria-label="Fermer les notifications"
-                        onClick={() => setBellOpen(false)}
-                      >
-                        <X size={15} />
-                      </button>
-                    </span>
-                  </div>
-                  {notes.length === 0 ? (
-                    <p className="popover-empty">
-                      Rien de neuf depuis l’ouverture du tableau de bord. Les commandes payées et
-                      les discussions qui vous attendent s’afficheront ici.
-                    </p>
-                  ) : (
-                    notes.map((n) =>
-                      n.href ? (
-                        <Link key={n.id} href={n.href} className="popover-item">
-                          {n.text}
-                          <small>{fmtAgo(n.at)}</small>
-                        </Link>
-                      ) : (
-                        <div key={n.id} className="popover-item">
-                          {n.text}
-                          <small>{fmtAgo(n.at)}</small>
-                        </div>
-                      ),
-                    )
-                  )}
-                </div>
-              )}
-            </div>
-            <a
-              className="icon-button"
-              aria-label="Aide : payer et recevoir en bitcoin"
-              title="Aide"
-              href="/aide/payer-en-bitcoin"
-              target="_blank"
-              rel="noreferrer"
-            >
-              <CircleHelp size={17} />
-            </a>
-          </div>
-        </header>
-        <div className="content">
-          <LiveBanner />
-          <PushOffer trigger={paidLive && !demo} />
-          {children}
-        </div>
-      </main>
-
-      <Suspense fallback={null}>
-        <SellyAssistant />
-      </Suspense>
-
-      <nav className="mobile-nav" aria-label="Navigation rapide">
-        {nav.slice(0, 4).map((item) => link(item, 'mobile'))}
-        <button
-          type="button"
-          className={`mobile-nav-item ${menuOpen ? 'active' : ''}`}
-          aria-expanded={menuOpen}
-          onClick={() => setMenuOpen((o) => !o)}
-        >
-          {menuOpen ? <X size={18} /> : <Menu size={18} />}
-          <span className="mobile-nav-label">Plus</span>
-          {drafts.data?.data.length ? <i className="dot" /> : null}
-        </button>
-      </nav>
-      {menuOpen && (
-        <div className="sheet" role="dialog" aria-label="Plus">
-          {[nav[4], nav[5], nav[6], nav[7], settings, security].map(
-            (item) => item && link(item, 'sheet'),
-          )}
-          <button type="button" className="nav-item" onClick={signOut}>
-            <LogOut size={16} /> Se déconnecter
-          </button>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </LangProvider>
   );
 }
 

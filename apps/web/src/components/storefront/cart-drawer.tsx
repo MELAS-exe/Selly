@@ -7,8 +7,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { type CartLine, countItems, readCart, setQuantity, writeCart } from '@/lib/cart';
-import { formatMoney, formatOptions } from '@/lib/format';
+import { formatOptions } from '@/lib/format';
 import type { StorePublic } from '@/lib/types';
+import { useMoney, useT } from '../lang';
 import { durationToken, motionToken, prefersReducedMotion } from '../motion/tokens';
 import { CartCheckout } from './cart-checkout';
 import { ArrowRight, Minus, Plus, ShoppingBag, X } from './draft-icons';
@@ -26,6 +27,8 @@ export function CartDrawer({
   delivery: StorePublic['delivery'];
   ordersOpen?: boolean;
 }) {
+  const { money } = useMoney();
+  const t = useT();
   const [lines, setLines] = useState<CartLine[]>([]);
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<'cart' | 'checkout'>('cart');
@@ -97,7 +100,7 @@ export function CartDrawer({
         aria-label={
           count > 0
             ? `Ouvrir le panier, ${count} article${count > 1 ? 's' : ''}`
-            : 'Ouvrir le panier'
+            : t('Ouvrir le panier', 'Open the cart')
         }
       >
         <ShoppingBag size={19} strokeWidth={1.6} />
@@ -128,15 +131,16 @@ export function CartDrawer({
             >
               <header className="flex items-center justify-between border-b border-d-hairline px-5 py-5">
                 <div>
-                  <p className="sf-eyebrow">Votre sélection</p>
+                  <p className="sf-eyebrow">{t('Votre sélection', 'Your selection')}</p>
                   <h2 id="cart-title" className="sf-serif mt-1 text-3xl">
-                    Le panier <span className="tnum text-xl text-d-ink-soft">({count})</span>
+                    {t('Le panier', 'The cart')}{' '}
+                    <span className="tnum text-xl text-d-ink-soft">({count})</span>
                   </h2>
                 </div>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  aria-label="Fermer le panier"
+                  aria-label={t('Fermer le panier', 'Close the cart')}
                   className="sf-icon-btn"
                 >
                   <X size={19} />
@@ -149,16 +153,21 @@ export function CartDrawer({
                     className="text-[var(--sf-accent-text)]"
                     aria-hidden="true"
                   />
-                  <p className="sf-serif mt-5 text-2xl">Votre panier est tout neuf</p>
+                  <p className="sf-serif mt-5 text-2xl">
+                    {t('Votre panier est tout neuf', 'Your cart is brand new')}
+                  </p>
                   <p className="mt-2 max-w-64 text-d-ink-soft">
-                    Ajoutez une trouvaille de la sélection pour la garder sous la main.
+                    {t(
+                      'Ajoutez une trouvaille de la sélection pour la garder sous la main.',
+                      'Add a find from the selection to keep it at hand.',
+                    )}
                   </p>
                   <button
                     type="button"
                     onClick={() => setOpen(false)}
                     className="sf-btn sf-btn-primary mt-6"
                   >
-                    Continuer la visite
+                    {t('Continuer la visite', 'Keep browsing')}
                   </button>
                 </div>
               ) : step === 'checkout' ? (
@@ -183,7 +192,7 @@ export function CartDrawer({
                           {Object.keys(l.options).length > 0 && (
                             <p className="text-d-ink-soft">{formatOptions(l.options)}</p>
                           )}
-                          <p className="sf-figure text-lg">{formatMoney(l.unit_price)}</p>
+                          <p className="sf-figure text-lg">{money(l.unit_price)}</p>
                           <div className="mt-2 flex w-fit items-center border border-d-hairline">
                             <button
                               type="button"
@@ -222,13 +231,19 @@ export function CartDrawer({
                     <div className="flex items-baseline justify-between">
                       <span className="text-d-ink-soft">Sous-total</span>
                       <span className="sf-figure text-3xl">
-                        {formatMoney({ amount: subtotal, currency })}
+                        {money({ amount: subtotal, currency })}
                       </span>
                     </div>
                     <p className="mt-2 text-[0.9375rem] text-d-ink-soft">
                       {ordersOpen
-                        ? 'La livraison et le montant en sats sont calculés à l’étape suivante.'
-                        : 'Aperçu : la boutique prendra des commandes une fois publiée.'}
+                        ? t(
+                            'La livraison et le montant en sats sont calculés à l’étape suivante.',
+                            'Delivery and the amount in sats are worked out at the next step.',
+                          )
+                        : t(
+                            'Aperçu : la boutique prendra des commandes une fois publiée.',
+                            'Preview: the shop takes orders once it is published.',
+                          )}
                     </p>
                     <button
                       type="button"

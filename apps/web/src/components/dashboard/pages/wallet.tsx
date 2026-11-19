@@ -7,6 +7,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { ApiError } from '@/lib/browser-api';
+import { useT } from '../../lang';
 import { useDashboard, useResource } from '../data';
 import { fmtAgo, fmtInt, fmtWhen, fmtXof } from '../format';
 import { ArrowDownLeft, Bitcoin, Link2, TriangleAlert } from '../icons';
@@ -14,6 +15,7 @@ import type { BtcXofRate, Page, VendorOrder, Wallet } from '../types';
 import { Empty, InfoRow, Loading, Modal, PageTitle, PanelHead } from '../ui';
 
 export function WalletPage() {
+  const t = useT();
   const { mutate } = useDashboard();
   const wallet = useResource<Wallet>('/vendors/me/wallet');
   const rate = useResource<BtcXofRate>('/rates/btc-xof');
@@ -35,12 +37,17 @@ export function WalletPage() {
     <>
       <PageTitle
         eyebrow="Bitcoin · Lightning"
-        title="Portefeuille"
-        description="Les paiements des clients vont directement dans votre portefeuille. Selly ne détient pas ces fonds."
+        title={t('Portefeuille', 'Wallet')}
+        description={t(
+          'Les paiements des clients vont directement dans votre portefeuille. Selly ne détient pas ces fonds.',
+          'Customer payments go straight into your wallet. Selly never holds these funds.',
+        )}
         action={
           <button type="button" className="button primary" onClick={() => setLinking(true)}>
             <Link2 size={14} />
-            {w ? 'Remplacer le portefeuille' : 'Lier un portefeuille'}
+            {w
+              ? t('Remplacer le portefeuille', 'Replace the wallet')
+              : t('Lier un portefeuille', 'Link a wallet')}
           </button>
         }
       />
@@ -58,7 +65,9 @@ export function WalletPage() {
           <img className="stamp" src="/brand/selly-s-light.png" alt="" aria-hidden="true" />
           <div className="wallet-tag">
             <Bitcoin size={15} />{' '}
-            {w ? 'Portefeuille en réception uniquement' : 'Aucun portefeuille lié'}
+            {w
+              ? t('Portefeuille en réception uniquement', 'Receive-only wallet')
+              : t('Aucun portefeuille lié', 'No wallet linked')}
           </div>
           <div className="wallet-amount">
             {w?.balance_sat !== null && w?.balance_sat !== undefined ? fmtInt(w.balance_sat) : '—'}{' '}
@@ -66,56 +75,85 @@ export function WalletPage() {
           </div>
           <div className="wallet-sats">
             {w?.balance_sat != null && rate.data
-              ? `≈ ${fmtXof(Math.round(w.balance_sat * rate.data.xof_per_sat))} · estimation indicative`
+              ? `≈ ${fmtXof(Math.round(w.balance_sat * rate.data.xof_per_sat))} · ${t('estimation indicative', 'rough estimate')}`
               : w
-                ? 'Ce portefeuille ne partage pas son solde'
-                : 'Sans portefeuille, la boutique ne peut pas encaisser.'}
+                ? t(
+                    'Ce portefeuille ne partage pas son solde',
+                    'This wallet does not share its balance',
+                  )
+                : t(
+                    'Sans portefeuille, la boutique ne peut pas encaisser.',
+                    'Without a wallet, the shop cannot be paid.',
+                  )}
           </div>
           {w ? (
             <button type="button" className="button" onClick={() => setUnlinking(true)}>
-              Délier
+              {t('Délier', 'Unlink')}
             </button>
           ) : (
             <button type="button" className="button olive" onClick={() => setLinking(true)}>
-              Lier mon portefeuille
+              {t('Lier mon portefeuille', 'Link my wallet')}
             </button>
           )}
         </section>
         <section className="panel">
-          <PanelHead title="La liaison" sub="Ce qu’elle permet, et ne permet pas" />
+          <PanelHead
+            title={t('La liaison', 'The link')}
+            sub={t('Ce qu’elle permet, et ne permet pas', 'What it allows, and what it does not')}
+          />
           <div className="info-list">
             <InfoRow
-              label="État"
+              label={t('État', 'Status')}
               value={
                 !w
-                  ? 'Non lié'
+                  ? t('Non lié', 'Not linked')
                   : w.status === 'active'
-                    ? 'Connecté'
+                    ? t('Connecté', 'Connected')
                     : w.status === 'degraded'
-                      ? 'Ne répond plus'
-                      : 'Révoqué'
+                      ? t('Ne répond plus', 'Not answering')
+                      : t('Révoqué', 'Revoked')
               }
             />
             {w && (
               <InfoRow
                 label="Type"
-                value={w.kind === 'nwc' ? 'Nostr Wallet Connect' : 'Adresse Lightning'}
+                value={
+                  w.kind === 'nwc'
+                    ? 'Nostr Wallet Connect'
+                    : t('Adresse Lightning', 'Lightning address')
+                }
               />
             )}
-            {w?.lud16 && <InfoRow label="Adresse de secours" value={w.lud16} />}
-            <InfoRow label="Réception" value={w ? 'Activée' : '—'} />
-            <InfoRow label="Envoi depuis Selly" value="Impossible : réception seule" />
-            <InfoRow label="Fonds détenus par Selly" value="Aucun" />
-            {w && <InfoRow label="Dernière vérification" value={fmtAgo(w.checked_at)} />}
+            {w?.lud16 && (
+              <InfoRow label={t('Adresse de secours', 'Backup address')} value={w.lud16} />
+            )}
+            <InfoRow label={t('Réception', 'Receiving')} value={w ? t('Activée', 'On') : '—'} />
+            <InfoRow
+              label={t('Envoi depuis Selly', 'Sending from Selly')}
+              value={t('Impossible : réception seule', 'Impossible: receive only')}
+            />
+            <InfoRow
+              label={t('Fonds détenus par Selly', 'Funds held by Selly')}
+              value={t('Aucun', 'None')}
+            />
+            {w && (
+              <InfoRow
+                label={t('Dernière vérification', 'Last check')}
+                value={fmtAgo(w.checked_at)}
+              />
+            )}
           </div>
         </section>
         <section className="panel">
-          <PanelHead title="Paiements reçus" sub="Les dernières commandes payées" />
+          <PanelHead
+            title={t('Paiements reçus', 'Payments received')}
+            sub={t('Les dernières commandes payées', 'The latest paid orders')}
+          />
           {received.length === 0 ? (
             <Empty
               icon={ArrowDownLeft}
-              title="Aucun paiement pour l’instant"
-              text="Les commandes payées s’afficheront ici."
+              title={t('Aucun paiement pour l’instant', 'No payments yet')}
+              text={t('Les commandes payées s’afficheront ici.', 'Paid orders will show here.')}
             />
           ) : (
             <div className="info-list">
@@ -140,15 +178,19 @@ export function WalletPage() {
           )}
         </section>
         <section className="panel">
-          <PanelHead title="À propos du solde" sub="Une estimation pour vous repérer" />
+          <PanelHead
+            title={t('À propos du solde', 'About the balance')}
+            sub={t('Une estimation pour vous repérer', 'An estimate to find your way')}
+          />
           <div
             style={{ padding: '18px 22px', fontSize: 13, lineHeight: 1.65, color: 'var(--ink-70)' }}
           >
-            Le montant en FCFA est indicatif et suit le cours du bitcoin. Pour vérifier un paiement
-            ou rembourser un client, utilisez directement votre portefeuille : Selly ne déclenche ni
-            remboursement ni transfert.{' '}
+            {t(
+              'Le montant en FCFA est indicatif et suit le cours du bitcoin. Pour vérifier un paiement ou rembourser un client, utilisez directement votre portefeuille : Selly ne déclenche ni remboursement ni transfert.',
+              'The FCFA amount is a guide and follows the bitcoin price. To check a payment or refund a customer, use your wallet directly: Selly makes no refunds or transfers.',
+            )}{' '}
             <a className="text-link" href="/aide/payer-en-bitcoin" target="_blank" rel="noreferrer">
-              Obtenir et vendre des bitcoins
+              {t('Obtenir et vendre des bitcoins', 'Getting and selling bitcoin')}
             </a>
           </div>
         </section>

@@ -21,8 +21,9 @@ import { QuickAdd } from '@/components/storefront/quick-add';
 import { ShareButton } from '@/components/storefront/share-button';
 import { Visual } from '@/components/storefront/visual';
 import { getStore, searchProducts } from '@/lib/core';
-import { availabilityLabel, formatMoney } from '@/lib/format';
+import { availabilityIn, moneyIn } from '@/lib/format';
 import { heroCopy } from '@/lib/hero';
+import { type Lang, langOf, type T, translator } from '@/lib/i18n';
 import type { ProductSummary, StorePublic } from '@/lib/types';
 
 type Params = {
@@ -33,7 +34,12 @@ type Params = {
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
   const { store, products } = await getStore(slug);
-  const description = `${products.length} article${products.length > 1 ? 's' : ''}, livraison à Dakar, paiement en bitcoin.`;
+  const t = translator(langOf(store.locale));
+  const n = products.length;
+  const description = t(
+    `${n} article${n > 1 ? 's' : ''}, livraison à Dakar, paiement en bitcoin.`,
+    `${n} item${n > 1 ? 's' : ''}, delivery in Dakar, payment in bitcoin.`,
+  );
   const image = products.find((p) => p.image)?.image;
   return {
     title: store.display_name,
@@ -75,9 +81,9 @@ function InfoCell({
 }
 
 /** Low stock and sold out say it on the card; core gives availability in words, never a count. */
-function tagFor(p: ProductSummary): { text: string; quiet: boolean } | null {
-  if (p.availability === 'out_of_stock') return { text: 'Épuisé', quiet: true };
-  if (p.availability === 'low') return { text: 'Dernières pièces', quiet: false };
+function tagFor(p: ProductSummary, t: T): { text: string; quiet: boolean } | null {
+  if (p.availability === 'out_of_stock') return { text: t('Épuisé', 'Sold out'), quiet: true };
+  if (p.availability === 'low') return { text: t('Dernières pièces', 'Last few'), quiet: false };
   return null;
 }
 
@@ -95,12 +101,17 @@ function Hero({
   slug,
   featured,
   second,
+  t,
+  lang,
 }: {
   store: StorePublic;
   slug: string;
   featured: ProductSummary | undefined;
   second: ProductSummary | undefined;
+  t: T;
+  lang: Lang;
 }) {
+  const { money } = moneyIn(lang);
   const address = pickupAddress(store);
   const hero = heroCopy(store.display_name, store.branding?.hero);
   return (
@@ -128,13 +139,13 @@ function Hero({
             </a>
             {store.chat.enabled && (
               <AskButton className="sf-btn sf-btn-ghost">
-                <Sparkles size={15} /> Demander à Selly
+                <Sparkles size={15} /> {t('Demander à Selly', 'Ask Selly')}
               </AskButton>
             )}
           </div>
           {address && (
             <p className="sf-rise mt-10 text-[0.9375rem] text-d-ink-soft [--d:500ms]">
-              Retrait gratuit
+              {t('Retrait gratuit', 'Free pickup')}
             </p>
           )}
         </div>
@@ -147,10 +158,12 @@ function Hero({
             />
             <div className="absolute top-8 -left-3 z-10 hidden border border-d-hairline bg-d-paper px-5 py-4 sm:block">
               <p className="flex items-center gap-2 text-xs font-semibold tracking-[0.2em] text-d-ink-soft uppercase">
-                <span aria-hidden="true" className="size-1.5 bg-[var(--sf-accent)]" /> La pièce du
-                moment
+                <span aria-hidden="true" className="size-1.5 bg-[var(--sf-accent)]" />{' '}
+                {t('La pièce du moment', 'Piece of the moment')}
               </p>
-              <p className="sf-serif mt-1 text-xl font-semibold">Le coup de cœur de la boutique</p>
+              <p className="sf-serif mt-1 text-xl font-semibold">
+                {t('Le coup de cœur de la boutique', 'The shop’s favourite')}
+              </p>
             </div>
             <Link
               href={`/s/${slug}/p/${featured.slug}`}
@@ -173,16 +186,16 @@ function Hero({
                     {featured.title}
                   </span>
                   <span className="mt-0.5 block text-[0.9375rem] text-d-ink-soft">
-                    {availabilityLabel[featured.availability]}
+                    {availabilityIn(lang)[featured.availability]}
                   </span>
                   {/* On a phone the price goes under the name: beside it, the two collide. */}
                   <span className="sf-figure mt-1 block text-lg sm:hidden">
-                    {formatMoney(featured.price)}
+                    {money(featured.price)}
                   </span>
                 </span>
                 <span className="flex shrink-0 items-center gap-3">
                   <span className="sf-figure hidden text-2xl whitespace-nowrap sm:inline">
-                    {formatMoney(featured.price)}
+                    {money(featured.price)}
                   </span>
                   <span
                     aria-hidden="true"
@@ -210,9 +223,7 @@ function Hero({
                   <span className="sf-serif mt-2 block truncate px-1 text-lg leading-tight font-semibold">
                     {second.title}
                   </span>
-                  <span className="sf-figure block px-1 pb-1 text-base">
-                    {formatMoney(second.price)}
-                  </span>
+                  <span className="sf-figure block px-1 pb-1 text-base">{money(second.price)}</span>
                 </Link>
               </div>
             )}
@@ -223,23 +234,37 @@ function Hero({
   );
 }
 
-function InfoBand({ store }: { store: StorePublic }) {
-  const hours = hoursLabel(store);
-  const delivery = deliveryLabel(store);
+function InfoBand({ store, t, lang }: { store: StorePublic; t: T; lang: Lang }) {
+  const hours = hoursLabel(store, lang);
+  const delivery = deliveryLabel(store, lang);
   const address = pickupAddress(store);
   return (
     <section
-      aria-label="La boutique en bref"
+      aria-label={t('La boutique en bref', 'The shop at a glance')}
       className="border-y border-d-hairline bg-d-paper-deep/60"
     >
       {/* One column on a small phone: two would leave a word per line. */}
       <div className="mx-auto grid max-w-[1260px] grid-cols-1 border-x border-d-hairline min-[480px]:grid-cols-2 md:grid-cols-4">
-        <InfoCell icon={<Store size={18} />} title={store.display_name} sub="Boutique sur Selly" />
+        <InfoCell
+          icon={<Store size={18} />}
+          title={store.display_name}
+          sub={t('Boutique sur Selly', 'A shop on Selly')}
+        />
         {address && (
-          <InfoCell n={1} icon={<MapPin size={18} />} title={address} sub="Retrait gratuit" />
+          <InfoCell
+            n={1}
+            icon={<MapPin size={18} />}
+            title={address}
+            sub={t('Retrait gratuit', 'Free pickup')}
+          />
         )}
         {hours && (
-          <InfoCell n={2} icon={<Clock3 size={18} />} title={hours} sub="Horaires de la boutique" />
+          <InfoCell
+            n={2}
+            icon={<Clock3 size={18} />}
+            title={hours}
+            sub={t('Horaires de la boutique', 'Opening hours')}
+          />
         )}
         {delivery && (
           <InfoCell
@@ -261,14 +286,19 @@ function Card({
   index,
   category,
   chat,
+  t,
+  lang,
 }: {
   p: ProductSummary;
   slug: string;
   index: number;
   category?: string;
   chat: boolean;
+  t: T;
+  lang: Lang;
 }) {
-  const tag = tagFor(p);
+  const { money } = moneyIn(lang);
+  const tag = tagFor(p, t);
   const soldOut = p.availability === 'out_of_stock';
   return (
     <article className="sf-card product-card group min-w-0">
@@ -297,10 +327,10 @@ function Card({
             <AskButton
               productId={p.id}
               productTitle={p.title}
-              label={`Demander à Selly à propos de ${p.title}`}
+              label={t(`Demander à Selly à propos de ${p.title}`, `Ask Selly about ${p.title}`)}
               className="flex min-h-11 w-full items-center justify-center gap-2 bg-d-paper/95 px-2 font-medium backdrop-blur-sm"
             >
-              <MessageCircle size={16} /> Demander à Selly
+              <MessageCircle size={16} /> {t('Demander à Selly', 'Ask Selly')}
             </AskButton>
           </div>
         )}
@@ -314,13 +344,13 @@ function Card({
         <p className="mt-1 text-sm text-d-ink-soft sm:text-[0.9375rem]">
           {category ? `${category} · ` : ''}
           <span className={p.availability === 'low' ? 'font-medium text-d-alert' : ''}>
-            {availabilityLabel[p.availability]}
+            {availabilityIn(lang)[p.availability]}
           </span>
         </p>
         {/* A narrow card puts the button under the price rather than past its edge. */}
         <div className="mt-4 flex flex-wrap items-end justify-between gap-x-2 gap-y-3">
           <span className="sf-figure text-lg leading-none whitespace-nowrap sm:text-[1.375rem]">
-            {formatMoney(p.price)}
+            {money(p.price)}
           </span>
           <QuickAdd
             slug={slug}
@@ -353,6 +383,8 @@ export default async function StorePage({ params, searchParams }: Params) {
   const categoryName = new Map(categories.map((c) => [c.id, c.name]));
   const address = pickupAddress(store);
   const filtered = Boolean(q || stockOnly || filters.category);
+  const lang = langOf(store.locale);
+  const t = translator(lang);
 
   return (
     <main>
@@ -365,8 +397,8 @@ export default async function StorePage({ params, searchParams }: Params) {
           />
         </div>
       )}
-      <Hero store={store} slug={slug} featured={featured} second={second} />
-      <InfoBand store={store} />
+      <Hero store={store} slug={slug} featured={featured} second={second} t={t} lang={lang} />
+      <InfoBand store={store} t={t} lang={lang} />
 
       <section
         id="catalogue"
@@ -375,20 +407,23 @@ export default async function StorePage({ params, searchParams }: Params) {
       >
         <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
           <div>
-            <p className="sf-eyebrow mb-4">Faits pour être aimés</p>
+            <p className="sf-eyebrow mb-4">{t('Faits pour être aimés', 'Made to be loved')}</p>
             <h2
               id="catalogue-title"
               className="sf-curtain sf-serif text-[2.75rem] leading-[1] tracking-[-0.01em] sm:text-[3.5rem]"
             >
-              La sélection
+              {t('La sélection', 'The selection')}
             </h2>
             <p className="mt-3 text-d-ink-soft">
-              Des trouvailles qui ont chacune leur petite histoire.
+              {t(
+                'Des trouvailles qui ont chacune leur petite histoire.',
+                'Finds that each have their own little story.',
+              )}
             </p>
           </div>
           {store.chat.enabled && (
             <AskButton className="group sf-btn sf-btn-ghost w-fit">
-              <Sparkles size={15} /> Besoin d’un conseil ?{' '}
+              <Sparkles size={15} /> {t('Besoin d’un conseil ?', 'Need some advice?')}{' '}
               <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />
             </AskButton>
           )}
@@ -397,7 +432,7 @@ export default async function StorePage({ params, searchParams }: Params) {
         <div className="mt-10 flex flex-col gap-4 border-y border-d-hairline py-4 lg:flex-row lg:items-center lg:justify-between">
           {categories.length > 0 ? (
             <nav
-              aria-label="Catégories"
+              aria-label={t('Catégories', 'Categories')}
               className="-mx-5 flex gap-2 overflow-x-auto px-5 [scrollbar-width:none] lg:mx-0 lg:px-0"
             >
               <Link
@@ -405,7 +440,7 @@ export default async function StorePage({ params, searchParams }: Params) {
                 aria-current={!filters.category ? 'true' : undefined}
                 className="chip sf-chip"
               >
-                Tout voir
+                {t('Tout voir', 'See all')}
               </Link>
               {categories.map((c) => (
                 <Link
@@ -433,14 +468,14 @@ export default async function StorePage({ params, searchParams }: Params) {
               <input
                 name="q"
                 defaultValue={q}
-                placeholder="Un article, une envie…"
+                placeholder={t('Un article, une envie…', 'An item, an idea…')}
                 className="w-full bg-transparent py-2 outline-none placeholder:text-d-ink-soft/70"
-                aria-label="Rechercher dans la boutique"
+                aria-label={t('Rechercher dans la boutique', 'Search the shop')}
               />
               {q && (
                 <Link
                   href={href(slug, { category: filters.category, stock: filters.stock })}
-                  aria-label="Effacer la recherche"
+                  aria-label={t('Effacer la recherche', 'Clear the search')}
                   className="grid size-9 place-items-center text-d-ink-soft"
                 >
                   <X size={15} />
@@ -460,7 +495,7 @@ export default async function StorePage({ params, searchParams }: Params) {
                 aria-hidden="true"
                 className={`size-2 ${stockOnly ? 'bg-[var(--sf-accent)]' : 'bg-d-ink/30'}`}
               />{' '}
-              En stock
+              {t('En stock', 'In stock')}
             </Link>
           </div>
         </div>
@@ -468,11 +503,15 @@ export default async function StorePage({ params, searchParams }: Params) {
         <div className="mt-5 mb-6 flex items-center justify-between gap-4">
           <p className="text-d-ink-soft" aria-live="polite">
             <span className="tnum font-semibold text-[var(--sf-ink)]">{products.length}</span>{' '}
-            {products.length > 1 ? 'trouvailles' : 'trouvaille'} · Prix en FCFA
+            {products.length > 1 ? t('trouvailles', 'finds') : t('trouvaille', 'find')} ·{' '}
+            {t('Prix en FCFA', 'Prices in FCFA')}
           </p>
           {store.chat.enabled && (
             <span className="hidden text-[0.9375rem] text-d-ink-soft sm:block">
-              Touchez « Demander à Selly » pour en savoir plus
+              {t(
+                'Touchez « Demander à Selly » pour en savoir plus',
+                'Tap “Ask Selly” to find out more',
+              )}
             </span>
           )}
         </div>
@@ -487,6 +526,8 @@ export default async function StorePage({ params, searchParams }: Params) {
                 index={i}
                 category={p.category_id ? categoryName.get(p.category_id) : undefined}
                 chat={store.chat.enabled}
+                t={t}
+                lang={lang}
               />
             ))}
           </div>
@@ -495,17 +536,26 @@ export default async function StorePage({ params, searchParams }: Params) {
             <ShoppingBag size={40} className="text-[var(--sf-accent-text)]" aria-hidden="true" />
             <p className="sf-serif mt-4 text-2xl">
               {filtered
-                ? 'Rien dans les rayons pour cette recherche'
-                : 'La sélection arrive bientôt'}
+                ? t(
+                    'Rien dans les rayons pour cette recherche',
+                    'Nothing on the shelves for this search',
+                  )
+                : t('La sélection arrive bientôt', 'The selection is coming soon')}
             </p>
             <p className="mt-1.5 max-w-sm text-d-ink-soft">
               {filtered
-                ? 'Essayez un autre mot ou parcourez toute la sélection.'
-                : 'Revenez bientôt, ou écrivez à la boutique.'}
+                ? t(
+                    'Essayez un autre mot ou parcourez toute la sélection.',
+                    'Try another word or browse the whole selection.',
+                  )
+                : t(
+                    'Revenez bientôt, ou écrivez à la boutique.',
+                    'Come back soon, or write to the shop.',
+                  )}
             </p>
             {filtered && (
               <Link href={`/s/${slug}#catalogue`} className="sf-btn sf-btn-primary mt-5">
-                Tout afficher
+                {t('Tout afficher', 'Show everything')}
               </Link>
             )}
           </div>
@@ -519,24 +569,35 @@ export default async function StorePage({ params, searchParams }: Params) {
       >
         <div className="mx-auto grid max-w-[1260px] gap-10 px-5 py-16 sm:px-8 sm:py-20 md:grid-cols-[1.1fr_.9fr] md:items-center">
           <div>
-            <p className="sf-eyebrow !text-[var(--sf-accent)]">Notre coin</p>
+            <p className="sf-eyebrow !text-[var(--sf-accent)]">{t('Notre coin', 'Our corner')}</p>
             <h2
               id="boutique-title"
               className="sf-curtain sf-serif mt-5 text-[2.5rem] leading-[1.02] sm:text-[3.25rem]"
             >
-              Une boutique de quartier,
+              {t('Une boutique de quartier,', 'A neighbourhood shop,')}
               <br />
-              <span className="italic text-[var(--sf-accent)]">toujours à portée de main.</span>
+              <span className="italic text-[var(--sf-accent)]">
+                {t('toujours à portée de main.', 'always close at hand.')}
+              </span>
             </h2>
             <p className="mt-5 max-w-[30rem] leading-relaxed text-d-paper/80">
               {address
-                ? 'Passez nous voir, ou écrivez à Selly pour un conseil.'
-                : 'Commandez en ligne, ou écrivez à Selly pour un conseil.'}
+                ? t(
+                    'Passez nous voir, ou écrivez à Selly pour un conseil.',
+                    'Drop by, or write to Selly for advice.',
+                  )
+                : t(
+                    'Commandez en ligne, ou écrivez à Selly pour un conseil.',
+                    'Order online, or write to Selly for advice.',
+                  )}
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               {store.chat.enabled && (
                 <AskButton className="sf-btn sf-btn-primary !border-[var(--sf-accent)] !bg-[var(--sf-accent)] !text-d-ink">
-                  <MessageCircle size={15} /> {address ? 'Demander son chemin' : 'Écrire à Selly'}
+                  <MessageCircle size={15} />{' '}
+                  {address
+                    ? t('Demander son chemin', 'Ask the way')
+                    : t('Écrire à Selly', 'Write to Selly')}
                 </AskButton>
               )}
               {store.whatsapp_link && (
@@ -553,7 +614,7 @@ export default async function StorePage({ params, searchParams }: Params) {
                 title={store.display_name}
                 className="sf-btn sf-btn-ghost !border-d-paper/40 !text-d-paper"
               >
-                <ArrowUpRight size={15} /> Partager la boutique
+                <ArrowUpRight size={15} /> {t('Partager la boutique', 'Share the shop')}
               </ShareButton>
             </div>
           </div>
@@ -572,7 +633,7 @@ export default async function StorePage({ params, searchParams }: Params) {
                   {store.display_name}
                 </p>
                 <p className="sf-serif mt-3 text-2xl leading-snug">
-                  {address ?? 'Livraison à domicile'}
+                  {address ?? t('Livraison à domicile', 'Home delivery')}
                 </p>
               </div>
               <span
@@ -583,16 +644,20 @@ export default async function StorePage({ params, searchParams }: Params) {
               </span>
             </div>
             <dl className="relative mt-6 grid gap-x-10 gap-y-4 border-t border-d-paper/15 pt-5 sm:grid-cols-2">
-              {hoursLabel(store) && (
+              {hoursLabel(store, lang) && (
                 <div>
-                  <dt className="text-xs tracking-[0.2em] text-d-paper/70 uppercase">Horaires</dt>
-                  <dd className="mt-1">{hoursLabel(store)}</dd>
+                  <dt className="text-xs tracking-[0.2em] text-d-paper/70 uppercase">
+                    {t('Horaires', 'Hours')}
+                  </dt>
+                  <dd className="mt-1">{hoursLabel(store, lang)}</dd>
                 </div>
               )}
-              {deliveryLabel(store) && (
+              {deliveryLabel(store, lang) && (
                 <div>
-                  <dt className="text-xs tracking-[0.2em] text-d-paper/70 uppercase">Livraison</dt>
-                  <dd className="mt-1">{deliveryLabel(store)?.sub}</dd>
+                  <dt className="text-xs tracking-[0.2em] text-d-paper/70 uppercase">
+                    {t('Livraison', 'Delivery')}
+                  </dt>
+                  <dd className="mt-1">{deliveryLabel(store, lang)?.sub}</dd>
                 </div>
               )}
             </dl>
@@ -603,7 +668,7 @@ export default async function StorePage({ params, searchParams }: Params) {
                 rel="noreferrer"
                 className="relative mt-5 flex min-h-11 w-fit items-center gap-1.5 font-semibold text-[var(--sf-accent)] hover:underline"
               >
-                Voir sur la carte <ArrowUpRight size={15} />
+                {t('Voir sur la carte', 'See on the map')} <ArrowUpRight size={15} />
               </a>
             )}
           </div>

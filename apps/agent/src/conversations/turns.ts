@@ -170,7 +170,7 @@ export class TurnService {
         summary: 'Profil boutique indisponible.',
       });
     }
-    const label = assistantLabel(profile.display_name);
+    const label = assistantLabel(profile.display_name, profile.locale);
 
     if (conv.role === 'customer') {
       if (!this.d.turnLimiter.take(conv.id).allowed) {

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { addLine, readCart, writeCart } from '@/lib/cart';
 import type { ProductDetail } from '@/lib/types';
+import { useT } from '../lang';
 import { flyToCart } from '../motion/fly-to-cart';
 import { Check, Plus } from './draft-icons';
 
@@ -26,6 +27,7 @@ export function QuickAdd({
   soldOut: boolean;
 }) {
   const [state, setState] = useState<'idle' | 'busy' | 'added'>('idle');
+  const t = useT();
   const button = useRef<HTMLButtonElement>(null);
 
   if (hasOptions && !soldOut)
@@ -33,7 +35,7 @@ export function QuickAdd({
       <Link
         href={`/s/${slug}/p/${productSlug}`}
         className="sf-icon-btn shrink-0"
-        aria-label={`Choisir une option pour ${title}`}
+        aria-label={t(`Choisir une option pour ${title}`, `Choose an option for ${title}`)}
       >
         <Plus size={18} />
       </Link>
@@ -44,7 +46,11 @@ export function QuickAdd({
       ref={button}
       type="button"
       disabled={soldOut || state === 'busy'}
-      aria-label={state === 'added' ? `${title} ajouté au panier` : `Ajouter ${title} au panier`}
+      aria-label={
+        state === 'added'
+          ? t(`${title} ajouté au panier`, `${title} added to the cart`)
+          : t(`Ajouter ${title} au panier`, `Add ${title} to the cart`)
+      }
       className={`sf-icon-btn shrink-0 disabled:opacity-35 ${state === 'added' ? '!border-[var(--sf-ink)] !bg-[var(--sf-ink)] !text-d-paper' : ''}`}
       onClick={async () => {
         setState('busy');

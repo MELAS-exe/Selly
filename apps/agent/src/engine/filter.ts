@@ -128,10 +128,10 @@ export function unbackedOrderNumbers(text: string, known: Set<string>): string[]
 }
 
 export function unbackedAmounts(text: string, allowed: Set<number>): number[] {
-  const re = /(\d{1,3}(?:[   .]\d{3})+|\d+)\s*(?:fcfa|f cfa|xof|francs?|sats?)\b/gi;
+  const re = /(\d{1,3}(?:[   .,]\d{3})+|\d+)\s*(?:fcfa|f cfa|xof|francs?|sats?)\b/gi;
   const bad: number[] = [];
   for (const m of text.matchAll(re)) {
-    const n = Number((m[1] ?? '').replace(/[   .]/g, ''));
+    const n = Number((m[1] ?? '').replace(/[   .,]/g, ''));
     if (!allowed.has(n)) bad.push(n);
   }
   return bad;

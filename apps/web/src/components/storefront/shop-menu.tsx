@@ -1,18 +1,22 @@
 'use client';
 
 import { useState } from 'react';
+import { useT } from '../lang';
 import { askSelly } from './ask-button';
 import { Menu, MessageCircle, X } from './draft-icons';
 
 /** The phone menu: the same three entries as the desktop navigation. */
 export function ShopMenu() {
+  const t = useT();
   const [open, setOpen] = useState(false);
   return (
     <>
       <button
         type="button"
         className="sf-icon-btn md:hidden"
-        aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'}
+        aria-label={
+          open ? t('Fermer le menu', 'Close the menu') : t('Ouvrir le menu', 'Open the menu')
+        }
         aria-expanded={open}
         aria-controls="shop-menu"
         onClick={() => setOpen((o) => !o)}
@@ -30,14 +34,14 @@ export function ShopMenu() {
               onClick={() => setOpen(false)}
               className="min-h-12 content-center border-b border-d-hairline font-medium"
             >
-              La sélection
+              {t('La sélection', 'The selection')}
             </a>
             <a
               href="#boutique"
               onClick={() => setOpen(false)}
               className="min-h-12 content-center border-b border-d-hairline font-medium"
             >
-              La boutique
+              {t('La boutique', 'The shop')}
             </a>
             <button
               type="button"
@@ -47,7 +51,7 @@ export function ShopMenu() {
               }}
               className="flex min-h-12 items-center gap-2 text-left font-medium"
             >
-              <MessageCircle size={17} /> Parler à Selly
+              <MessageCircle size={17} /> {t('Parler à Selly', 'Talk to Selly')}
             </button>
           </nav>
         </div>

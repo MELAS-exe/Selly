@@ -8,17 +8,26 @@
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { SellyMark } from '@/components/brand/selly-mark';
+import { useLang, useT } from '../lang';
 import { errorText, newKey, uploadImages, useDashboard, useResource } from './data';
 import { fmtWhen } from './format';
 import { Camera, Send, X } from './icons';
 import type { ChatMessage, Page } from './types';
 
-const EXAMPLES = [
-  'Combien de commandes cette semaine ?',
-  'Quelles commandes dois-je expédier ?',
-  'Quels produits sont presque épuisés ?',
-  'Passe le sac Niani à 27 000',
-];
+const EXAMPLES = {
+  fr: [
+    'Combien de commandes cette semaine ?',
+    'Quelles commandes dois-je expédier ?',
+    'Quels produits sont presque épuisés ?',
+    'Passe le sac Niani à 27 000',
+  ],
+  en: [
+    'How many orders this week?',
+    'Which orders should I ship?',
+    'Which products are almost sold out?',
+    'Put the Kumba bag at 40,000',
+  ],
+};
 const MAX_PHOTOS = 6;
 
 /** Opens Selly; with `photo`, straight to the photo picker (call it from a click, so the browser allows it). */
@@ -26,6 +35,7 @@ export const openSelly = (opts: { photo?: boolean } = {}) =>
   window.dispatchEvent(new CustomEvent('selly:assistant', { detail: opts }));
 
 export function SellyAssistant() {
+  const t = useT();
   const { request, refresh, flash, demo } = useDashboard();
   const router = useRouter();
   const pathname = usePathname();
@@ -69,7 +79,13 @@ export function SellyAssistant() {
             (f) => /^image\/(jpeg|png|webp)$/.test(f.type) && f.size <= 8 * 1024 * 1024,
           );
           if (ok.length < files.length)
-            flash('Certaines photos sont refusées : JPEG, PNG ou WebP, 8 Mo au plus.', 'error');
+            flash(
+              t(
+                'Certaines photos sont refusées : JPEG, PNG ou WebP, 8 Mo au plus.',
+                'Some photos were refused: JPEG, PNG or WebP, 8 MB at most.',
+              ),
+              'error',
+            );
           setPhotos((all) =>
             [...all, ...ok.map((file) => ({ file, url: URL.createObjectURL(file) }))].slice(
               0,
@@ -83,7 +99,7 @@ export function SellyAssistant() {
           type="button"
           className="selly-fab"
           onClick={() => show()}
-          aria-label="Demander à Selly, votre assistante"
+          aria-label={t('Demander à Selly, votre assistante', 'Ask Selly, your assistant')}
         >
           <SellyMark className="selly-fab-mark" />
           <span>Selly</span>
@@ -126,6 +142,8 @@ function Panel({
   flash: Dash['flash'];
   demo: boolean;
 }) {
+  const t = useT();
+  const lang = useLang();
   const history = useResource<Page<ChatMessage>>('/assistant/messages');
   const [extra, setExtra] = useState<ChatMessage[]>([]);
   // Photos sent in this session, shown in their bubble (the history keeps only the message).
@@ -183,7 +201,7 @@ function Panel({
     } catch (err) {
       flash(
         err instanceof Error && err.message === 'upload'
-          ? 'L’envoi de la photo a échoué. Réessayez.'
+          ? t('L’envoi de la photo a échoué. Réessayez.', 'The photo did not upload. Try again.')
           : errorText(err),
         'error',
       );
@@ -209,9 +227,19 @@ function Panel({
           <SellyMark className="selly-sheet-mark" />
           <div>
             <h2 id="selly-title">Selly</h2>
-            <p>Votre assistante. Rien ne change sans votre confirmation.</p>
+            <p>
+              {t(
+                'Votre assistante. Rien ne change sans votre confirmation.',
+                'Your assistant. Nothing changes without your confirmation.',
+              )}
+            </p>
           </div>
-          <button type="button" className="icon-button" aria-label="Fermer" onClick={onClose}>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label={t('Fermer', 'Close')}
+            onClick={onClose}
+          >
             <X size={16} />
           </button>
         </header>
@@ -222,12 +250,13 @@ function Panel({
           )}
           {history.data && messages.length === 0 && (
             <div className="selly-empty">
-              <strong>Que voulez-vous faire ?</strong>
+              <strong>{t('Que voulez-vous faire ?', 'What would you like to do?')}</strong>
               <button type="button" className="button primary small" onClick={pickPhotos}>
-                <Camera size={14} /> Ajouter un produit en photo
+                <Camera size={14} />{' '}
+                {t('Ajouter un produit en photo', 'Add a product from a photo')}
               </button>
               <div className="selly-examples">
-                {EXAMPLES.map((e) => (
+                {EXAMPLES[lang].map((e) => (
                   <button key={e} type="button" className="button small" onClick={() => setText(e)}>
                     {e}
                   </button>
@@ -248,11 +277,11 @@ function Panel({
                   ))}
                 </div>
               ) : (
-                m.kind === 'image' && <div className="bubble-time">Photo</div>
+                m.kind === 'image' && <div className="bubble-time">{t('Photo', 'Photo')}</div>
               )}
               {m.text && <div>{m.text}</div>}
               <div className="bubble-time">
-                {m.author === 'vendor' ? 'Vous · ' : 'Selly · '}
+                {m.author === 'vendor' ? t('Vous · ', 'You · ') : 'Selly · '}
                 {fmtWhen(m.created_at)}
               </div>
             </div>
@@ -260,7 +289,9 @@ function Panel({
           {busy && (
             <div className="bubble bot" role="status">
               <span className="bubble-time" style={{ marginTop: 0 }}>
-                {photos.length ? 'Selly lit la photo…' : 'Selly réfléchit…'}
+                {photos.length
+                  ? t('Selly lit la photo…', 'Selly is reading the photo…')
+                  : t('Selly réfléchit…', 'Selly is thinking…')}
               </span>
             </div>
           )}
@@ -271,7 +302,7 @@ function Panel({
                   key={q.id}
                   type="button"
                   className="button small"
-                  onClick={() => send({ quick_reply_id: q.id })}
+                  onClick={() => send({ quick_reply_id: q.id, text: q.label })}
                 >
                   {q.label}
                 </button>
@@ -288,7 +319,7 @@ function Panel({
                 <img src={p.url} alt={`Photo ${i + 1}`} />
                 <button
                   type="button"
-                  aria-label={`Retirer la photo ${i + 1}`}
+                  aria-label={t(`Retirer la photo ${i + 1}`, `Remove photo ${i + 1}`)}
                   onClick={() => setPhotos(photos.filter((x) => x !== p))}
                 >
                   <X size={12} />
@@ -296,7 +327,10 @@ function Panel({
               </span>
             ))}
             <p className="form-hint">
-              Ajoutez une phrase : prix, tailles, quantités (« 5 paires du 40 au 44 à 20 000 »).
+              {t(
+                'Ajoutez une phrase : prix, tailles, quantités (« 5 paires du 40 au 44 à 20 000 »).',
+                'Add a sentence: price, sizes, quantities (“2 pairs each, sizes 40 to 44, at 20,000”).',
+              )}
             </p>
           </div>
         )}
@@ -311,7 +345,7 @@ function Panel({
           <button
             type="button"
             className="icon-button"
-            aria-label="Joindre une photo"
+            aria-label={t('Joindre une photo', 'Attach a photo')}
             onClick={pickPhotos}
             disabled={photos.length >= MAX_PHOTOS}
           >
@@ -330,9 +364,14 @@ function Panel({
               }
             }}
             placeholder={
-              photos.length ? 'Ex. 5 paires du 40 au 44 à 20 000' : 'Demandez ou commandez…'
+              photos.length
+                ? t(
+                    'Ex. 5 paires du 40 au 44 à 20 000',
+                    'E.g. 2 pairs each, sizes 40 to 44, at 20,000',
+                  )
+                : t('Demandez ou commandez…', 'Ask or give an order…')
             }
-            aria-label="Votre message à Selly"
+            aria-label={t('Votre message à Selly', 'Your message to Selly')}
           />
           <button type="submit" className="button primary small" disabled={!canSend}>
             <Send size={14} />

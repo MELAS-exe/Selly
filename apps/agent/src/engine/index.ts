@@ -389,8 +389,8 @@ export const FIXED_HANDOFF_REPLY =
   'Je transmets votre message au vendeur, il vous répond très vite.';
 
 function numbersIn(text: string): number[] {
-  return [...text.matchAll(/\d{1,3}(?:[   .]\d{3})+|\d+/g)].map((m) =>
-    Number(m[0].replace(/[   .]/g, '')),
+  return [...text.matchAll(/\d{1,3}(?:[   .,]\d{3})+|\d+/g)].map((m) =>
+    Number(m[0].replace(/[   .,]/g, '')),
   );
 }
 

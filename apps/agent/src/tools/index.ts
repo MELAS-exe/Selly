@@ -84,6 +84,9 @@ const delivery = z.strictObject({
   note: z.string().max(300).optional(),
 });
 
+/** Button labels follow the shop's language (vendor locale "en": English). */
+const inEnglish = (ctx: ToolContext) => ctx.profile.locale.toLowerCase().startsWith('en');
+
 function rememberAmounts(ctx: ToolContext, ...values: (Money | null | undefined)[]) {
   for (const v of values) if (v) ctx.out.amounts.add(v.amount);
 }
@@ -391,8 +394,8 @@ const createProductDraft = tool({
         .map((c, i) => ({ id: `${first.id}:${i}`, label: c }));
     else
       ctx.out.quickReplies = [
-        { id: 'draft_confirm', label: 'Valider' },
-        { id: 'draft_edit', label: 'Modifier' },
+        { id: 'draft_confirm', label: inEnglish(ctx) ? 'Confirm' : 'Valider' },
+        { id: 'draft_edit', label: inEnglish(ctx) ? 'Edit' : 'Modifier' },
       ];
     return { draft, extraction, check_with_vendor: lowConfidenceFields(extraction) };
   },
@@ -410,8 +413,8 @@ const answerDraftQuestion = tool({
     const answers = { ...(ctx.state.draftAnswers ?? {}), [p.question_id]: p.answer };
     ctx.state.draftAnswers = answers;
     ctx.out.quickReplies = [
-      { id: 'draft_confirm', label: 'Valider' },
-      { id: 'draft_edit', label: 'Modifier' },
+      { id: 'draft_confirm', label: inEnglish(ctx) ? 'Confirm' : 'Valider' },
+      { id: 'draft_edit', label: inEnglish(ctx) ? 'Edit' : 'Modifier' },
     ];
     return { ok: true, draft_id: p.draft_id, answers };
   },
@@ -513,7 +516,7 @@ function offerUndo(ctx: ToolContext, action: UndoAction) {
     id,
     expiresAt: new Date(Date.now() + UNDO_WINDOW_MS).toISOString(),
   };
-  ctx.out.quickReplies = [{ id: `undo:${id}`, label: 'Annuler' }];
+  ctx.out.quickReplies = [{ id: `undo:${id}`, label: inEnglish(ctx) ? 'Undo' : 'Annuler' }];
 }
 
 const updatePrice = tool({

@@ -6,6 +6,7 @@
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '@/lib/browser-api';
+import { useT } from '../../lang';
 import { errorText, newKey, uploadImages, useDashboard, useResource } from '../data';
 import { fmtAgo, fmtXof, formatOptions } from '../format';
 import { Camera, Check, CircleCheck, ImagePlus, TriangleAlert, X } from '../icons';
@@ -29,11 +30,11 @@ function rememberSeenFailures(ids: string[]) {
   } catch {}
 }
 
-const FROM: Record<string, string> = {
-  text: 'votre message',
-  image: 'la photo',
-  price_tag: 'l’étiquette',
-  inferred: 'une déduction',
+const FROM: Record<string, [string, string]> = {
+  text: ['votre message', 'your message'],
+  image: ['la photo', 'the photo'],
+  price_tag: ['l’étiquette', 'the price tag'],
+  inferred: ['une déduction', 'a guess'],
 };
 
 /**
@@ -57,33 +58,39 @@ export function PendingDrafts() {
   const dismiss = () => setSeen(readSeenFailures());
   const toCheck = review.data?.data ?? [];
   const reading = processing.data?.data.length ?? 0;
+  const t = useT();
   if (toCheck.length === 0 && reading === 0 && recentFailures.length === 0) return null;
 
   return (
     <section id="brouillons" className="pending-drafts" aria-labelledby="brouillons-title">
       <h2 id="brouillons-title" className="panel-title">
-        Brouillons photo à vérifier
+        {t('Brouillons photo à vérifier', 'Photo drafts to check')}
       </h2>
       <p className="form-hint">
-        Rien n’est publié avant votre confirmation. Pour en créer un, envoyez une photo à Selly.
+        {t(
+          'Rien n’est publié avant votre confirmation. Pour en créer un, envoyez une photo à Selly.',
+          'Nothing is published before you confirm. To make one, send Selly a photo.',
+        )}
       </p>
       {reading > 0 && (
         <div className="draft-note" role="status">
-          <b>Lecture en cours…</b> {reading} photo{reading > 1 ? 's' : ''} en cours d’analyse.
+          <b>{t('Lecture en cours…', 'Reading…')}</b> {reading} photo{reading > 1 ? 's' : ''}{' '}
+          {t('en cours d’analyse.', 'being read.')}
         </div>
       )}
       {recentFailures.length > 0 && (
         <div className="banner alert dismissable" role="status">
           <span style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <TriangleAlert size={16} />
-            {recentFailures.length} photo{recentFailures.length > 1 ? 's' : ''} n’
-            {recentFailures.length > 1 ? 'ont' : 'a'} pas pu être lue
-            {recentFailures.length > 1 ? 's' : ''}. Reprenez la photo avec plus de lumière.
+            {t(
+              `${recentFailures.length} photo${recentFailures.length > 1 ? 's' : ''} n’${recentFailures.length > 1 ? 'ont' : 'a'} pas pu être lue${recentFailures.length > 1 ? 's' : ''}. Reprenez la photo avec plus de lumière.`,
+              `${recentFailures.length} photo${recentFailures.length > 1 ? 's' : ''} could not be read. Take the photo again with more light.`,
+            )}
           </span>
           <button
             type="button"
             className="banner-close"
-            aria-label="Fermer ce message"
+            aria-label={t('Fermer ce message', 'Close this message')}
             onClick={dismiss}
           >
             <X size={15} />
@@ -108,6 +115,7 @@ function confidenceTone(c: number | undefined) {
 
 function DraftCard({ draft: d }: { draft: Draft }) {
   const { mutate } = useDashboard();
+  const t = useT();
   const x = d.extracted ?? {};
   const [title, setTitle] = useState(x.title?.value ?? '');
   const [price, setPrice] = useState(x.price?.value.amount ? String(x.price.value.amount) : '');
@@ -137,7 +145,9 @@ function DraftCard({ draft: d }: { draft: Draft }) {
             target_product_id: target || null,
           },
         },
-        target ? 'Stock ajouté au produit existant.' : `${title} ajouté au catalogue.`,
+        target
+          ? t('Stock ajouté au produit existant.', 'Stock added to the existing product.')
+          : t(`${title} ajouté au catalogue.`, `${title} added to the catalogue.`),
       );
     } catch {
       setBusy(false);
@@ -148,15 +158,17 @@ function DraftCard({ draft: d }: { draft: Draft }) {
     <article className="product-card">
       <div className="product-art draft-art">
         <ImagePlus size={28} strokeWidth={1.3} />
-        <span className="art-label">{d.source === 'assistant' ? 'Via l’assistant' : 'Photo'}</span>
-        <Badge tone="pending">À vérifier</Badge>
+        <span className="art-label">
+          {d.source === 'assistant' ? t('Via l’assistant', 'Via the assistant') : 'Photo'}
+        </span>
+        <Badge tone="pending">{t('À vérifier', 'To check')}</Badge>
       </div>
       <div className="product-info">
         <div className="table-secondary" style={{ marginTop: 0 }}>
           {fmtAgo(d.created_at)}
-          {d.input_text ? ` · « ${d.input_text} »` : ''}
+          {d.input_text ? t(` · « ${d.input_text} »`, ` · “${d.input_text}”`) : ''}
         </div>
-        <Field label="Nom" from={x.title?.from} confidence={x.title?.confidence}>
+        <Field label={t('Nom', 'Name')} from={x.title?.from} confidence={x.title?.confidence}>
           <input
             className="form-control"
             value={title}
@@ -164,7 +176,11 @@ function DraftCard({ draft: d }: { draft: Draft }) {
           />
         </Field>
         <>
-          <Field label="Prix (FCFA)" from={x.price?.from} confidence={x.price?.confidence}>
+          <Field
+            label={t('Prix (FCFA)', 'Price (FCFA)')}
+            from={x.price?.from}
+            confidence={x.price?.confidence}
+          >
             <input
               className="form-control"
               type="number"
@@ -174,7 +190,11 @@ function DraftCard({ draft: d }: { draft: Draft }) {
               onChange={(e) => setPrice(e.target.value)}
             />
           </Field>
-          <Field label="Catégorie" from={x.category?.from} confidence={x.category?.confidence}>
+          <Field
+            label={t('Catégorie', 'Category')}
+            from={x.category?.from}
+            confidence={x.category?.confidence}
+          >
             <input
               className="form-control"
               value={category}
@@ -184,7 +204,8 @@ function DraftCard({ draft: d }: { draft: Draft }) {
         </>
         {variants.length > 0 && (
           <p style={{ marginTop: 12 }}>
-            Variantes : {variants.map((v) => formatOptions(v.options) || 'unique').join(' · ')}
+            {t('Variantes : ', 'Variants: ')}
+            {variants.map((v) => formatOptions(v.options) || t('unique', 'single')).join(' · ')}
           </p>
         )}
         {d.questions.map((q) => (
@@ -210,7 +231,7 @@ function DraftCard({ draft: d }: { draft: Draft }) {
         {d.matches.length > 0 && (
           <div style={{ marginTop: 14 }}>
             <label className="form-label" style={{ margin: '0 0 2px' }} htmlFor={`target-${d.id}`}>
-              Déjà au catalogue ?
+              {t('Déjà au catalogue ?', 'Already in the catalogue?')}
             </label>
             <select
               id={`target-${d.id}`}
@@ -218,27 +239,37 @@ function DraftCard({ draft: d }: { draft: Draft }) {
               value={target}
               onChange={(e) => setTarget(e.target.value)}
             >
-              <option value="">Non, c’est un nouveau produit</option>
+              <option value="">
+                {t('Non, c’est un nouveau produit', 'No, it is a new product')}
+              </option>
               {d.matches.map((m) => (
                 <option key={m.product_id} value={m.product_id}>
-                  Ajouter le stock à « {m.title} » ({Math.round(m.similarity * 100)} % ressemblant)
+                  {t(
+                    `Ajouter le stock à « ${m.title} » (${Math.round(m.similarity * 100)} % ressemblant)`,
+                    `Add the stock to “${m.title}” (${Math.round(m.similarity * 100)}% alike)`,
+                  )}
                 </option>
               ))}
             </select>
           </div>
         )}
         <div className="product-meta">
-          <span>{price ? fmtXof(Number(price)) : 'Prix à indiquer'}</span>
+          <span>{price ? fmtXof(Number(price)) : t('Prix à indiquer', 'Price to set')}</span>
         </div>
         <div className="draft-actions">
           <button
             type="button"
             className="button primary small"
             disabled={busy || open.length > 0 || title.trim().length < 2 || (!target && !price)}
-            title={open.length ? 'Répondez d’abord aux questions' : undefined}
+            title={
+              open.length
+                ? t('Répondez d’abord aux questions', 'Answer the questions first')
+                : undefined
+            }
             onClick={confirm}
           >
-            <Check size={13} /> {target ? 'Ajouter le stock' : 'Publier'}
+            <Check size={13} />{' '}
+            {target ? t('Ajouter le stock', 'Add the stock') : t('Publier', 'Publish')}
           </button>
           <button
             type="button"
@@ -248,11 +279,11 @@ function DraftCard({ draft: d }: { draft: Draft }) {
               mutate(
                 `/inventory/drafts/${d.id}/discard`,
                 { method: 'POST', body: {} },
-                'Brouillon supprimé.',
+                t('Brouillon supprimé.', 'Draft deleted.'),
               ).catch(() => {})
             }
           >
-            Supprimer
+            {t('Supprimer', 'Delete')}
           </button>
         </div>
       </div>
@@ -271,13 +302,15 @@ function Field({
   confidence?: number;
   children: React.ReactNode;
 }) {
+  const t = useT();
   return (
     <div style={{ marginTop: 12 }}>
       <div className="form-label field-head" style={{ margin: 0 }}>
         <span>{label}</span>
         {confidence !== undefined && (
           <Badge tone={confidenceTone(confidence)}>
-            {Math.round(confidence * 100)} %{from ? ` · ${FROM[from] ?? from}` : ''}
+            {Math.round(confidence * 100)} %
+            {from ? ` · ${FROM[from] ? t(...FROM[from]) : from}` : ''}
           </Badge>
         )}
       </div>

@@ -6,6 +6,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import { useT } from '../../lang';
 import { useDashboard, useResource } from '../data';
 import {
   fmtInt,
@@ -23,19 +24,20 @@ import { ArrowLeft, MessageCircle, Search, ShoppingBag, TriangleAlert, Truck, X 
 import type { OrderStatus, Page, VendorOrder } from '../types';
 import { Badge, Empty, Failed, InfoRow, Loading, Modal, PageTitle, PanelHead } from '../ui';
 
-const FILTERS: { value: '' | OrderStatus; label: string }[] = [
-  { value: '', label: 'Tous les statuts' },
-  { value: 'paid', label: 'À expédier' },
-  { value: 'pending_payment', label: 'En attente de paiement' },
-  { value: 'fulfilled', label: 'Expédiées' },
-  { value: 'expired', label: 'Expirées' },
-  { value: 'cancelled', label: 'Annulées' },
+const FILTERS: { value: '' | OrderStatus; label: [fr: string, en: string] }[] = [
+  { value: '', label: ['Tous les statuts', 'All statuses'] },
+  { value: 'paid', label: ['À expédier', 'To ship'] },
+  { value: 'pending_payment', label: ['En attente de paiement', 'Awaiting payment'] },
+  { value: 'fulfilled', label: ['Expédiées', 'Shipped'] },
+  { value: 'expired', label: ['Expirées', 'Expired'] },
+  { value: 'cancelled', label: ['Annulées', 'Cancelled'] },
 ];
 
 const money = (o: VendorOrder) =>
   o.total.currency === 'SAT' ? fmtSats(o.total.amount) : fmtXof(o.total.amount);
 
 export function Orders() {
+  const t = useT();
   const router = useRouter();
   const { mutate } = useDashboard();
   const [status, setStatus] = useState<'' | OrderStatus>('');
@@ -57,30 +59,33 @@ export function Orders() {
   return (
     <>
       <PageTitle
-        eyebrow="Ventes · votre boutique"
-        title="Commandes"
-        description="Chaque paiement client va directement dans votre portefeuille Lightning. Expédiez les commandes payées."
+        eyebrow={t('Ventes · votre boutique', 'Sales · your shop')}
+        title={t('Commandes', 'Orders')}
+        description={t(
+          'Chaque paiement client va directement dans votre portefeuille Lightning. Expédiez les commandes payées.',
+          'Every customer payment goes straight into your Lightning wallet. Ship the paid orders.',
+        )}
       />
       <div className="toolbar">
         <label className="search-wrap">
           <Search size={15} />
           <input
-            aria-label="Rechercher une commande"
+            aria-label={t('Rechercher une commande', 'Search orders')}
             className="search"
-            placeholder="Numéro, client, téléphone, article…"
+            placeholder={t('Numéro, client, téléphone, article…', 'Number, customer, phone, item…')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </label>
         <select
           className="select"
-          aria-label="Filtrer les commandes"
+          aria-label={t('Filtrer les commandes', 'Filter orders')}
           value={status}
           onChange={(e) => setStatus(e.target.value as '' | OrderStatus)}
         >
           {FILTERS.map((f) => (
             <option key={f.value} value={f.value}>
-              {f.label}
+              {t(...f.label)}
             </option>
           ))}
         </select>
@@ -95,11 +100,11 @@ export function Orders() {
             <table className="data-table orders-table">
               <thead>
                 <tr>
-                  <th>Commande</th>
-                  <th>Client</th>
-                  <th>Articles</th>
-                  <th>État</th>
-                  <th>Livraison</th>
+                  <th>{t('Commande', 'Order')}</th>
+                  <th>{t('Client', 'Customer')}</th>
+                  <th>{t('Articles', 'Items')}</th>
+                  <th>{t('État', 'Status')}</th>
+                  <th>{t('Livraison', 'Delivery')}</th>
                   <th style={{ textAlign: 'right' }}>Total</th>
                   <th />
                 </tr>
@@ -132,8 +137,8 @@ export function Orders() {
                       </td>
                       <td>
                         {o.delivery.method === 'pickup'
-                          ? 'Retrait'
-                          : (o.delivery.address_text ?? 'Livraison')}
+                          ? t('Retrait', 'Pickup')
+                          : (o.delivery.address_text ?? t('Livraison', 'Delivery'))}
                       </td>
                       <td style={{ textAlign: 'right' }}>
                         <div className="table-primary">{money(o)}</div>
@@ -149,19 +154,25 @@ export function Orders() {
                                 mutate(
                                   `/orders/${o.id}/fulfill`,
                                   { method: 'PATCH', body: {} },
-                                  `Commande ${o.number} marquée expédiée.`,
+                                  t(
+                                    `Commande ${o.number} marquée expédiée.`,
+                                    `Order ${o.number} marked shipped.`,
+                                  ),
                                 ).catch(() => {})
                               }
                             >
-                              <Truck size={13} /> Expédiée
+                              <Truck size={13} /> {t('Expédiée', 'Shipped')}
                             </button>
                           )}
                           {(o.status === 'pending_payment' || o.status === 'paid') && (
                             <button
                               type="button"
                               className="button small ghost"
-                              aria-label={`Annuler la commande ${o.number}`}
-                              title="Annuler"
+                              aria-label={t(
+                                `Annuler la commande ${o.number}`,
+                                `Cancel order ${o.number}`,
+                              )}
+                              title={t('Annuler', 'Cancel')}
                               onClick={() => setCancelling(o)}
                             >
                               <X size={14} />
@@ -178,12 +189,17 @@ export function Orders() {
               <Empty
                 icon={ShoppingBag}
                 title={
-                  orders.data.data.length ? 'Aucune commande trouvée' : 'Pas encore de commande'
+                  orders.data.data.length
+                    ? t('Aucune commande trouvée', 'No order found')
+                    : t('Pas encore de commande', 'No orders yet')
                 }
                 text={
                   orders.data.data.length
-                    ? 'Essayez un autre mot-clé ou statut.'
-                    : 'Les commandes prises par l’assistant ou sur votre boutique arrivent ici.'
+                    ? t('Essayez un autre mot-clé ou statut.', 'Try another word or status.')
+                    : t(
+                        'Les commandes prises par l’assistant ou sur votre boutique arrivent ici.',
+                        'Orders taken by the assistant or in your shop arrive here.',
+                      )
                 }
               />
             )}
@@ -199,8 +215,9 @@ function CancelModal({ order, onClose }: { order: VendorOrder; onClose: () => vo
   const { mutate } = useDashboard();
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const t = useT();
   return (
-    <Modal title={`Annuler ${order.number}`} onClose={onClose}>
+    <Modal title={t(`Annuler ${order.number}`, `Cancel ${order.number}`)} onClose={onClose}>
       <form
         onSubmit={async (e) => {
           e.preventDefault();
@@ -219,11 +236,17 @@ function CancelModal({ order, onClose }: { order: VendorOrder; onClose: () => vo
       >
         <p className="modal-copy">
           {order.status === 'paid'
-            ? 'Cette commande est payée. Selly ne peut pas rembourser : renvoyez les sats au client depuis votre portefeuille. Le stock n’est pas remis automatiquement.'
-            : 'La commande et sa facture sont annulées, et le stock réservé est libéré.'}
+            ? t(
+                'Cette commande est payée. Selly ne peut pas rembourser : renvoyez les sats au client depuis votre portefeuille. Le stock n’est pas remis automatiquement.',
+                'This order is paid. Selly cannot refund: send the sats back to the customer from your wallet. The stock is not put back automatically.',
+              )
+            : t(
+                'La commande et sa facture sont annulées, et le stock réservé est libéré.',
+                'The order and its invoice are cancelled, and the reserved stock is released.',
+              )}
         </p>
         <label className="form-label" htmlFor="cancel-reason">
-          Raison, visible par le client
+          {t('Raison, visible par le client', 'Reason, shown to the customer')}
         </label>
         <input
           id="cancel-reason"
@@ -233,18 +256,18 @@ function CancelModal({ order, onClose }: { order: VendorOrder; onClose: () => vo
           maxLength={300}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          placeholder="Ex. Article en rupture"
+          placeholder={t('Ex. Article en rupture', 'E.g. Out of stock')}
         />
         <div className="modal-actions">
           <button type="button" className="button" onClick={onClose}>
-            Retour
+            {t('Retour', 'Back')}
           </button>
           <button
             type="submit"
             className="button danger"
             disabled={busy || reason.trim().length < 2}
           >
-            Annuler la commande
+            {t('Annuler la commande', 'Cancel the order')}
           </button>
         </div>
       </form>
@@ -253,6 +276,7 @@ function CancelModal({ order, onClose }: { order: VendorOrder; onClose: () => vo
 }
 
 export function OrderDetail({ id }: { id: string }) {
+  const t = useT();
   const { mutate } = useDashboard();
   const order = useResource<VendorOrder>(`/orders/${id}`);
   const [cancelling, setCancelling] = useState(false);
@@ -263,10 +287,12 @@ export function OrderDetail({ id }: { id: string }) {
   if (!o) return <Loading rows={5} />;
   const b = orderBadge(o);
   const steps: [string, string | null][] = [
-    ['Commande créée', o.created_at],
-    ['Payée', o.paid_at],
-    ['Expédiée', o.fulfilled_at],
-    ...(o.cancelled_at ? ([['Annulée', o.cancelled_at]] as [string, string][]) : []),
+    [t('Commande créée', 'Order placed'), o.created_at],
+    [t('Payée', 'Paid'), o.paid_at],
+    [t('Expédiée', 'Shipped'), o.fulfilled_at],
+    ...(o.cancelled_at
+      ? ([[t('Annulée', 'Cancelled'), o.cancelled_at]] as [string, string][])
+      : []),
   ];
 
   return (
@@ -275,7 +301,7 @@ export function OrderDetail({ id }: { id: string }) {
         <ArrowLeft size={13} /> Toutes les commandes
       </Link>
       <PageTitle
-        eyebrow={`Commande · ${fmtWhen(o.created_at)}`}
+        eyebrow={`${t('Commande', 'Order')} · ${fmtWhen(o.created_at)}`}
         title={
           <>
             {o.number} <em>{o.customer.display_name}</em>
@@ -286,7 +312,7 @@ export function OrderDetail({ id }: { id: string }) {
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             {(o.status === 'pending_payment' || o.status === 'paid') && (
               <button type="button" className="button" onClick={() => setCancelling(true)}>
-                Annuler
+                {t('Annuler', 'Cancel')}
               </button>
             )}
           </div>
@@ -297,16 +323,25 @@ export function OrderDetail({ id }: { id: string }) {
           <span style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <TriangleAlert size={16} />
             {o.attention === 'paid_twice'
-              ? 'Cette commande a été payée deux fois. Renvoyez le second paiement au client depuis votre portefeuille.'
-              : 'Payée alors que le stock était parti. Remboursez le client depuis votre portefeuille, ou réapprovisionnez.'}
+              ? t(
+                  'Cette commande a été payée deux fois. Renvoyez le second paiement au client depuis votre portefeuille.',
+                  'This order was paid twice. Send the second payment back to the customer from your wallet.',
+                )
+              : t(
+                  'Payée alors que le stock était parti. Remboursez le client depuis votre portefeuille, ou réapprovisionnez.',
+                  'Paid after the stock was gone. Refund the customer from your wallet, or restock.',
+                )}
           </span>
         </div>
       )}
       {o.status === 'paid' && (
         <section className="panel" style={{ marginBottom: 24 }}>
           <PanelHead
-            title="À expédier"
-            sub="Le client est prévenu dès que vous marquez la commande expédiée."
+            title={t('À expédier', 'To ship')}
+            sub={t(
+              'Le client est prévenu dès que vous marquez la commande expédiée.',
+              'The customer is told as soon as you mark the order shipped.',
+            )}
           />
           <form
             className="chat-compose"
@@ -316,19 +351,22 @@ export function OrderDetail({ id }: { id: string }) {
               mutate(
                 `/orders/${o.id}/fulfill`,
                 { method: 'PATCH', body: note.trim() ? { note: note.trim() } : {} },
-                `Commande ${o.number} marquée expédiée.`,
+                t(`Commande ${o.number} marquée expédiée.`, `Order ${o.number} marked shipped.`),
               ).catch(() => {});
             }}
           >
             <input
-              aria-label="Note pour le client (facultatif)"
-              placeholder="Note pour le client, facultatif : « Livreur en route, arrivée vers 16 h »"
+              aria-label={t('Note pour le client (facultatif)', 'Note for the customer (optional)')}
+              placeholder={t(
+                'Note pour le client, facultatif : « Livreur en route, arrivée vers 16 h »',
+                'Note for the customer, optional: “Courier on the way, there around 4 pm”',
+              )}
               maxLength={300}
               value={note}
               onChange={(e) => setNote(e.target.value)}
             />
             <button type="submit" className="button olive">
-              <Truck size={14} /> Marquer expédiée
+              <Truck size={14} /> {t('Marquer expédiée', 'Mark shipped')}
             </button>
           </form>
         </section>
@@ -336,7 +374,7 @@ export function OrderDetail({ id }: { id: string }) {
       <div className="wallet-page-grid">
         <section className="panel">
           <PanelHead
-            title="Articles"
+            title={t('Articles', 'Items')}
             sub={`${o.items.reduce((n, i) => n + i.quantity, 0)} article(s)`}
           />
           <div className="info-list">
@@ -352,13 +390,13 @@ export function OrderDetail({ id }: { id: string }) {
                 value={fmtXof(i.unit_price.amount * i.quantity)}
               />
             ))}
-            <InfoRow label="Sous-total" value={fmtXof(o.subtotal.amount)} />
+            <InfoRow label={t('Sous-total', 'Subtotal')} value={fmtXof(o.subtotal.amount)} />
             <InfoRow
-              label="Livraison"
-              value={o.delivery_fee.amount ? fmtXof(o.delivery_fee.amount) : 'Offerte'}
+              label={t('Livraison', 'Delivery')}
+              value={o.delivery_fee.amount ? fmtXof(o.delivery_fee.amount) : t('Offerte', 'Free')}
             />
             {o.discount.amount > 0 && (
-              <InfoRow label="Remise" value={`− ${fmtXof(o.discount.amount)}`} />
+              <InfoRow label={t('Remise', 'Discount')} value={`− ${fmtXof(o.discount.amount)}`} />
             )}
             <InfoRow
               label="Total"
@@ -373,13 +411,17 @@ export function OrderDetail({ id }: { id: string }) {
         </section>
         <section className="panel">
           <PanelHead
-            title="Client"
-            sub={o.channel === 'web' ? 'Commande passée sur votre boutique' : `Via ${o.channel}`}
+            title={t('Client', 'Customer')}
+            sub={
+              o.channel === 'web'
+                ? t('Commande passée sur votre boutique', 'Ordered in your shop')
+                : `Via ${o.channel}`
+            }
           />
           <div className="info-list">
-            <InfoRow label="Nom" value={o.customer.display_name} />
+            <InfoRow label={t('Nom', 'Name')} value={o.customer.display_name} />
             <InfoRow
-              label="Téléphone"
+              label={t('Téléphone', 'Phone')}
               value={
                 o.customer.phone_e164 ? (
                   <a href={`tel:${o.customer.phone_e164}`}>{o.customer.phone_e164}</a>
@@ -389,17 +431,23 @@ export function OrderDetail({ id }: { id: string }) {
               }
             />
             <InfoRow
-              label="Mode"
-              value={o.delivery.method === 'pickup' ? 'Retrait en boutique' : 'Livraison'}
+              label={t('Mode', 'Method')}
+              value={
+                o.delivery.method === 'pickup'
+                  ? t('Retrait en boutique', 'Pickup at the shop')
+                  : t('Livraison', 'Delivery')
+              }
             />
-            {o.delivery.address_text && <InfoRow label="Adresse" value={o.delivery.address_text} />}
-            {o.delivery.note && <InfoRow label="Note" value={o.delivery.note} />}
+            {o.delivery.address_text && (
+              <InfoRow label={t('Adresse', 'Address')} value={o.delivery.address_text} />
+            )}
+            {o.delivery.note && <InfoRow label={t('Note', 'Note')} value={o.delivery.note} />}
             {o.conversation_id && (
               <InfoRow
-                label="Discussion"
+                label={t('Discussion', 'Chat')}
                 value={
                   <Link className="text-link" href={`/app/discussions/${o.conversation_id}`}>
-                    <MessageCircle size={12} /> Ouvrir
+                    <MessageCircle size={12} /> {t('Ouvrir', 'Open')}
                   </Link>
                 }
               />
@@ -407,7 +455,7 @@ export function OrderDetail({ id }: { id: string }) {
           </div>
         </section>
         <section className="panel">
-          <PanelHead title="Suivi" sub={ORDER_STATUS[o.status].label} />
+          <PanelHead title={t('Suivi', 'Progress')} sub={ORDER_STATUS[o.status].label} />
           <div className="info-list">
             {steps.map(([label, at]) => (
               <InfoRow
@@ -416,25 +464,40 @@ export function OrderDetail({ id }: { id: string }) {
                 value={
                   at
                     ? `${fmtLongDate(at)}, ${fmtTime(at)}`
-                    : o.status === 'pending_payment' && label === 'Payée'
+                    : o.status === 'pending_payment' && label === t('Payée', 'Paid')
                       ? `Avant ${fmtTime(o.expires_at)}`
                       : '—'
                 }
               />
             ))}
-            {o.cancel_reason && <InfoRow label="Raison" value={o.cancel_reason} />}
+            {o.cancel_reason && <InfoRow label={t('Raison', 'Reason')} value={o.cancel_reason} />}
           </div>
         </section>
         <section className="panel">
-          <PanelHead title="Paiement" sub="Lightning, directement dans votre portefeuille" />
+          <PanelHead
+            title={t('Paiement', 'Payment')}
+            sub={t(
+              'Lightning, directement dans votre portefeuille',
+              'Lightning, straight into your wallet',
+            )}
+          />
           <div
             style={{ padding: '18px 22px', fontSize: 13, lineHeight: 1.65, color: 'var(--ink-70)' }}
           >
             {o.paid_at
-              ? `${fmtInt(o.total_sat)} sats reçus le ${fmtLongDate(o.paid_at)}. Pour vérifier ou rembourser, utilisez votre portefeuille : Selly ne déclenche ni remboursement ni transfert.`
+              ? t(
+                  `${fmtInt(o.total_sat)} sats reçus le ${fmtLongDate(o.paid_at)}. Pour vérifier ou rembourser, utilisez votre portefeuille : Selly ne déclenche ni remboursement ni transfert.`,
+                  `${fmtInt(o.total_sat)} sats received on ${fmtLongDate(o.paid_at)}. To check or refund, use your wallet: Selly makes no refunds or transfers.`,
+                )
               : o.status === 'pending_payment'
-                ? 'Le client n’a pas encore payé. La facture expire après 20 minutes et le stock réservé est alors libéré.'
-                : 'Aucun paiement reçu pour cette commande.'}
+                ? t(
+                    'Le client n’a pas encore payé. La facture expire après 20 minutes et le stock réservé est alors libéré.',
+                    'The customer has not paid yet. The invoice expires after 20 minutes, and the held stock is then released.',
+                  )
+                : t(
+                    'Aucun paiement reçu pour cette commande.',
+                    'No payment received for this order.',
+                  )}
           </div>
         </section>
       </div>

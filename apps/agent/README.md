@@ -12,11 +12,11 @@ pnpm --filter @selly/agent test
 
 Three switches choose the dependencies:
 
-| Variable          | Values                                                      | Default                      |
-| ----------------- | ----------------------------------------------------------- | ---------------------------- |
-| `AGENT_CORE_MODE` | `fake`: an in-memory core with a demo shop `awa-style`      | real core at `CORE_URL`      |
-| `AGENT_STORE`     | `memory`: no database                                       | PostgreSQL at `DATABASE_URL` |
-| `LLM_PRIMARY`     | `scripted` (tests), `demo` (rule-based, no key), `claude-…` | `scripted`                   |
+| Variable          | Values                                                                                                         | Default                      |
+| ----------------- | -------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| `AGENT_CORE_MODE` | `fake`: an in-memory core with a demo shop `awa-style`                                                         | real core at `CORE_URL`      |
+| `AGENT_STORE`     | `memory`: no database                                                                                          | PostgreSQL at `DATABASE_URL` |
+| `LLM_PRIMARY`     | `scripted` (tests), `demo` (rule-based, no key), `video` (the demo video's lines, video/README.md), `claude-…` | `scripted`                   |
 
 `.env.example` and the compose use the real core and PostgreSQL (`pnpm dev` or `docker compose up`: core migrates, the agent schema included, and loads the demo shop) with the `demo` model: open a chat on `awa-style` and ask « robe noire en 42 ? ». For the real agent, set `LLM_PRIMARY=claude-opus-5-5` and `ANTHROPIC_API_KEY` (or sign in with `ant auth login`). `LLM_FALLBACK` names a second provider, used once when the first one fails.
 
