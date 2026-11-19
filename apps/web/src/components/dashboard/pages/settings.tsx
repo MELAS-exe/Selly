@@ -879,7 +879,7 @@ function EmailSection({ vendor, save }: { vendor: Vendor; save: Save }) {
           <label className="form-label" htmlFor="em-code">
             Code reçu
           </label>
-          <div className="zone-add" style={{ gridTemplateColumns: 'minmax(0, 1fr) auto auto' }}>
+          <div className="code-row">
             <input
               id="em-code"
               className="form-control"

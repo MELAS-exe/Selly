@@ -1,8 +1,8 @@
 'use client';
 
 // Discussions (the agent's inbox, proxied by next.config.ts). Conversation modes follow architecture.md 4.4 and 6.6:
-// the vendor writing in a thread takes over (human, 30 minutes without a message hands it back to the bot), and
-// the vendor can pause the bot for one chat or give it back.
+// the vendor writing in a thread takes over (human, 30 minutes without a message hands it back to the bot), and the
+// thread's head takes over or gives back in one tap.
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -15,7 +15,7 @@ import {
   Headset,
   MessageCircle,
   Package,
-  Pause,
+  Plus,
   Search,
   Send,
   ShoppingBag,
@@ -138,6 +138,55 @@ export function Discussions({ id }: { id?: string }) {
   );
 }
 
+/**
+ * On a phone, the selling tools fold into a « + » menu beside the reply box (the row of two buttons above it is hidden
+ * there): it opens upwards, and closes on a choice, a tap elsewhere or Escape.
+ */
+function ComposeTools({ onPick }: { onPick: (tool: 'products' | 'order') => void }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => {
+      if (!box.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('pointerdown', away);
+    window.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('pointerdown', away);
+      window.removeEventListener('keydown', esc);
+    };
+  }, [open]);
+  const pick = (tool: 'products' | 'order') => {
+    setOpen(false);
+    onPick(tool);
+  };
+  return (
+    <div className="compose-tools" ref={box}>
+      <button
+        type="button"
+        className="icon-button"
+        aria-label="Outils de vente"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <Plus size={16} />
+      </button>
+      {open && (
+        <div className="compose-tools-menu" role="menu">
+          <button type="button" role="menuitem" onClick={() => pick('products')}>
+            <Package size={15} /> Montrer des produits
+          </button>
+          <button type="button" role="menuitem" onClick={() => pick('order')}>
+            <ShoppingBag size={15} /> Proposer un panier
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Thread({ chat }: { chat: ConversationSummary }) {
   const { mutate, demo, refresh } = useDashboard();
   // The thread's own stream (agent, GET /conversations/{id}/events) brings messages at once; polling stays as a
@@ -197,37 +246,30 @@ function Thread({ chat }: { chat: ConversationSummary }) {
             </div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          {chat.mode === 'bot' ? (
-            <>
-              <button
-                type="button"
-                className="button small"
-                onClick={() =>
-                  setMode('human', 'Vous avez la main. L’assistant se tait dans cette discussion.')
-                }
-              >
-                <Headset size={13} /> Reprendre la main
-              </button>
-              <button
-                type="button"
-                className="button small ghost"
-                title="Mettre l’assistant en pause dans cette discussion"
-                onClick={() => setMode('paused', 'Assistant en pause dans cette discussion.')}
-              >
-                <Pause size={13} /> Pause
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              className="button small olive"
-              onClick={() => setMode('bot', 'L’assistant reprend cette discussion.')}
-            >
-              <Sparkles size={13} /> Rendre à l’assistant
-            </button>
-          )}
-        </div>
+        {/* One action: take over, or give back. On a phone it is its icon alone (chat-head-action in the CSS). */}
+        {chat.mode === 'bot' ? (
+          <button
+            type="button"
+            className="button small chat-head-action"
+            aria-label="Reprendre la main"
+            title="Reprendre la main"
+            onClick={() =>
+              setMode('human', 'Vous avez la main. L’assistant se tait dans cette discussion.')
+            }
+          >
+            <Headset size={13} /> <span className="button-label">Reprendre la main</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="button small olive chat-head-action"
+            aria-label="Rendre à l’assistant"
+            title="Rendre à l’assistant"
+            onClick={() => setMode('bot', 'L’assistant reprend cette discussion.')}
+          >
+            <Sparkles size={13} /> <span className="button-label">Rendre à l’assistant</span>
+          </button>
+        )}
       </div>
       <div className="chat-thread" aria-live="polite">
         {messages.error && !messages.data ? (
@@ -306,6 +348,7 @@ function Thread({ chat }: { chat: ConversationSummary }) {
           }
         }}
       >
+        <ComposeTools onPick={setSelling} />
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}

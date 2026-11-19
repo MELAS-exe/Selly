@@ -46,8 +46,8 @@ export function Security() {
                 <InfoRow
                   key={k.pubkey}
                   label={
-                    <span style={{ display: 'block' }}>
-                      <b style={{ display: 'block', color: 'var(--ink)' }}>
+                    <span style={{ display: 'block', minWidth: 0 }}>
+                      <b style={{ display: 'block', color: 'var(--ink)', textAlign: 'left' }}>
                         {k.label ?? 'Clé sans nom'}
                       </b>
                       <code style={{ fontSize: 11 }}>

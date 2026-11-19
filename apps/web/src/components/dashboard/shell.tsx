@@ -5,7 +5,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { type ReactNode, Suspense, useEffect, useState } from 'react';
+import { type ReactNode, Suspense, useEffect, useRef, useState } from 'react';
 import { DashboardProvider, useDashboard, useResource } from './data';
 import { fmtAgo, initials } from './format';
 import {
@@ -110,6 +110,22 @@ function Frame({ children }: { children: ReactNode }) {
     setBellOpen(false);
   }, [pathname]);
 
+  // The notifications close on a tap or click anywhere else, and on Escape.
+  const bell = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!bellOpen) return;
+    const away = (e: PointerEvent) => {
+      if (!bell.current?.contains(e.target as Node)) setBellOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setBellOpen(false);
+    document.addEventListener('pointerdown', away);
+    window.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('pointerdown', away);
+      window.removeEventListener('keydown', esc);
+    };
+  }, [bellOpen]);
+
   async function signOut() {
     try {
       await request('/auth/logout', { method: 'POST' });
@@ -132,7 +148,8 @@ function Frame({ children }: { children: ReactNode }) {
         aria-current={active ? 'page' : undefined}
       >
         <Icon size={kind === 'mobile' ? 18 : 16} />
-        <span>{item.label}</span>
+        {/* The bottom bar shows icons only on a phone; the label stays for screen readers. */}
+        <span className={kind === 'mobile' ? 'mobile-nav-label' : undefined}>{item.label}</span>
         {kind !== 'mobile' && item.count ? <span className="nav-count">{item.count}</span> : null}
         {kind === 'mobile' && item.count ? (
           <i className="dot" aria-label={`${item.count} en attente`} />
@@ -214,7 +231,7 @@ function Frame({ children }: { children: ReactNode }) {
           </div>
           <div className="top-actions">
             {demo && <span className="demo-chip">Mode démo</span>}
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative' }} ref={bell}>
               <button
                 type="button"
                 className="icon-button"
@@ -232,11 +249,21 @@ function Frame({ children }: { children: ReactNode }) {
                 <div className="popover" role="dialog" aria-label="Notifications">
                   <div className="popover-head">
                     <span>Notifications</span>
-                    {notes.length > 0 && (
-                      <button type="button" className="text-link" onClick={clearNotes}>
-                        Effacer
+                    <span className="popover-head-actions">
+                      {notes.length > 0 && (
+                        <button type="button" className="text-link" onClick={clearNotes}>
+                          Effacer
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="popover-close"
+                        aria-label="Fermer les notifications"
+                        onClick={() => setBellOpen(false)}
+                      >
+                        <X size={15} />
                       </button>
-                    )}
+                    </span>
                   </div>
                   {notes.length === 0 ? (
                     <p className="popover-empty">
@@ -293,7 +320,7 @@ function Frame({ children }: { children: ReactNode }) {
           onClick={() => setMenuOpen((o) => !o)}
         >
           {menuOpen ? <X size={18} /> : <Menu size={18} />}
-          <span>Plus</span>
+          <span className="mobile-nav-label">Plus</span>
           {drafts.data?.data.length ? <i className="dot" /> : null}
         </button>
       </nav>

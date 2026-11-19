@@ -2810,3 +2810,209 @@ a.popover-item:hover {
     min-height: 40px;
   }
 }
+
+/* ------------------------------------------------------------------------------ phone fixes, part 2 */
+
+/* Closable alerts and the bell's close button. */
+.banner.dismissable {
+  align-items: flex-start;
+}
+.banner-close,
+.popover-close {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  margin: -6px -6px -6px auto;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.popover-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* The email code: the field, then its two buttons. */
+.code-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: end;
+  gap: 10px;
+}
+
+/* The selling tools' « + » menu beside the reply box: phones only (the row of buttons above serves wider screens). */
+.compose-tools {
+  position: relative;
+  display: none;
+  flex-shrink: 0;
+}
+.compose-tools-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 20;
+  min-width: 230px;
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  animation: dash-pop var(--dur-ui, 260ms) var(--ease-out-expo, ease-out) both;
+}
+.compose-tools-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 16px;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+  cursor: pointer;
+}
+.compose-tools-menu button:last-child {
+  border-bottom: 0;
+}
+
+/* Visually hidden, still read out. */
+.mobile-nav-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  /* Bottom bar: icons only, a little larger. */
+  .mobile-nav-item {
+    align-content: center;
+    gap: 0;
+    min-height: 52px;
+  }
+  .mobile-nav-item svg {
+    width: 22px;
+    height: 22px;
+  }
+  .mobile-nav-item .dot {
+    top: 9px;
+    right: calc(50% - 17px);
+  }
+
+  /* The bell's panel spans the screen under the top bar instead of running off its left edge. */
+  .popover {
+    position: fixed;
+    top: 66px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-height: calc(100dvh - 66px - 96px);
+  }
+
+  /* Dialogs: tighter, and their buttons stacked full width (in a row they spilled off the left edge). */
+  .modal {
+    padding: 18px;
+  }
+  .modal-head h2 {
+    font-size: 28px;
+  }
+  .modal-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+  .modal-actions .button {
+    width: 100%;
+  }
+
+  /* Selly's button: its mark alone, and room under the pages so it covers no button. */
+  .selly-fab {
+    width: 52px;
+    padding: 0;
+    justify-content: center;
+  }
+  .selly-fab > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .content {
+    padding-bottom: 96px;
+  }
+
+  /* A thread: its one action as an icon, the selling tools in the « + » menu. */
+  .chat-head {
+    flex-wrap: nowrap;
+    gap: 10px;
+  }
+  .chat-head-action {
+    flex-shrink: 0;
+    width: 44px;
+    padding: 0;
+  }
+  .chat-head-action .button-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .sell-actions {
+    display: none;
+  }
+  .compose-tools {
+    display: block;
+  }
+
+  /* The email code: the field across, the two buttons under it. */
+  .code-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .code-row > input {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ------------------------------------------------------------------------------ phone fixes, part 3 */
+
+/* Info rows: the label keeps its words on one line where it can, a long value (an address) breaks anywhere. */
+.info-row > span {
+  flex-shrink: 0;
+  max-width: 48%;
+}
+.info-row b {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A zone's « en double » tag goes under its name rather than squeezing it to a letter. */
+.zone-row > span {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+@media (max-width: 700px) {
+  /* Hours: the days across, opening and closing under them. */
+  .hours-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .hours-grid > :first-child {
+    grid-column: 1 / -1;
+  }
+  /* A new zone: its name across, then the fee and the add button. */
+  .zone-add {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .zone-add > div:first-child {
+    grid-column: 1 / -1;
+  }
+}
