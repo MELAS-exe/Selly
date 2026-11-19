@@ -6,7 +6,7 @@
 //
 // The music and the voice-over are mixed later, over this track.
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -60,21 +60,36 @@ const mixIn = (into, x, at = 0, g = 1) => {
 
 const SOUNDS = {
   /** A bubble popping in: a quick upward blip. */
-  pop: () => sweep(0.12, (t) => 520 + 2600 * t, (t) => env(t, 0.003, 0.03) * 0.6),
+  pop: () =>
+    sweep(
+      0.12,
+      (t) => 520 + 2600 * t,
+      (t) => env(t, 0.003, 0.03) * 0.6,
+    ),
   /** A softer, lower pop for small items. */
-  tick: () => sweep(0.06, () => 1800, (t) => env(t, 0.001, 0.01) * 0.25),
+  tick: () =>
+    sweep(
+      0.06,
+      () => 1800,
+      (t) => env(t, 0.001, 0.01) * 0.25,
+    ),
   /** A finger tap on glass. */
   tap: () => {
     const n = noise(7);
     return lowpass(
       buf(0.07).map((_, i) => n() * env(i / SR, 0.001, 0.008)),
       3500,
-    ).map((v, i) => v * 0.9 + Math.sin((2 * Math.PI * 180 * i) / SR) * env(i / SR, 0.001, 0.02) * 0.4);
+    ).map(
+      (v, i) => v * 0.9 + Math.sin((2 * Math.PI * 180 * i) / SR) * env(i / SR, 0.001, 0.02) * 0.4,
+    );
   },
   /** A key on a phone keyboard. */
   key: () => {
     const n = noise(11);
-    return highpass(buf(0.04).map((_, i) => n() * env(i / SR, 0.0005, 0.006)), 1800).map((v) => v * 0.35);
+    return highpass(
+      buf(0.04).map((_, i) => n() * env(i / SR, 0.0005, 0.006)),
+      1800,
+    ).map((v) => v * 0.35);
   },
   /** Air moving past: noise swept through a filter. */
   whoosh: () => {
@@ -84,7 +99,9 @@ const SOUNDS = {
       const t = i / SR;
       return n() * Math.sin((Math.PI * t) / len) ** 2;
     });
-    return lowpass(highpass(x, 300), (t) => 600 + 5000 * Math.sin((Math.PI * t) / len)).map((v) => v * 0.9);
+    return lowpass(highpass(x, 300), (t) => 600 + 5000 * Math.sin((Math.PI * t) / len)).map(
+      (v) => v * 0.9,
+    );
   },
   /** A short, bright swish for quick moves. */
   swish: () => {
@@ -96,51 +113,109 @@ const SOUNDS = {
   /** Something landing heavy: a low thump. */
   thud: () => {
     const n = noise(9);
-    const body = sweep(0.35, (t) => 110 * Math.exp(-t * 6) + 45, (t) => env(t, 0.002, 0.09));
-    const hit = lowpass(buf(0.05).map((_, i) => n() * env(i / SR, 0.0005, 0.01)), 900);
-    return mixIn(body.map((v) => v * 0.9), hit, 0, 0.8);
+    const body = sweep(
+      0.35,
+      (t) => 110 * Math.exp(-t * 6) + 45,
+      (t) => env(t, 0.002, 0.09),
+    );
+    const hit = lowpass(
+      buf(0.05).map((_, i) => n() * env(i / SR, 0.0005, 0.01)),
+      900,
+    );
+    return mixIn(
+      body.map((v) => v * 0.9),
+      hit,
+      0,
+      0.8,
+    );
   },
   /** A message arriving: two soft bell notes. */
   ding: () => {
-    const bell = (f) => sweep(0.6, () => f, (t) => env(t, 0.002, 0.18) * 0.35).map(
-      (v, i) => v + Math.sin((2 * Math.PI * f * 2.76 * i) / SR) * env(i / SR, 0.001, 0.05) * 0.08,
-    );
+    const bell = (f) =>
+      sweep(
+        0.6,
+        () => f,
+        (t) => env(t, 0.002, 0.18) * 0.35,
+      ).map(
+        (v, i) => v + Math.sin((2 * Math.PI * f * 2.76 * i) / SR) * env(i / SR, 0.001, 0.05) * 0.08,
+      );
     return mixIn(mixIn(buf(0.75), bell(1318.5)), bell(1760), 0.09);
   },
   /** Success: a rising major arpeggio. */
   chime: () => {
     const out = buf(1.4);
     [523.25, 659.25, 783.99, 1046.5].forEach((f, k) =>
-      mixIn(out, sweep(1.0, () => f, (t) => env(t, 0.004, 0.32) * 0.28), k * 0.07),
+      mixIn(
+        out,
+        sweep(
+          1.0,
+          () => f,
+          (t) => env(t, 0.004, 0.32) * 0.28,
+        ),
+        k * 0.07,
+      ),
     );
     return out;
   },
   /** Money: a bright coin. */
   coin: () => {
     const out = buf(0.6);
-    mixIn(out, sweep(0.08, () => 1975.5, (t) => env(t, 0.001, 0.05) * 0.3));
-    mixIn(out, sweep(0.5, () => 2637, (t) => env(t, 0.001, 0.16) * 0.3), 0.07);
+    mixIn(
+      out,
+      sweep(
+        0.08,
+        () => 1975.5,
+        (t) => env(t, 0.001, 0.05) * 0.3,
+      ),
+    );
+    mixIn(
+      out,
+      sweep(
+        0.5,
+        () => 2637,
+        (t) => env(t, 0.001, 0.16) * 0.3,
+      ),
+      0.07,
+    );
     return out;
   },
   /** A phone vibrating on a table. */
   buzz: () =>
-    sweep(0.5, () => 150, (t) => (Math.floor(t * 18) % 3 === 2 ? 0 : 1) * env(t, 0.01, 0.4) * 0.5, (p) =>
-      Math.sign(Math.sin(p)) * 0.6 + Math.sin(p * 2) * 0.3,
+    sweep(
+      0.5,
+      () => 150,
+      (t) => (Math.floor(t * 18) % 3 === 2 ? 0 : 1) * env(t, 0.01, 0.4) * 0.5,
+      (p) => Math.sign(Math.sin(p)) * 0.6 + Math.sin(p * 2) * 0.3,
     ).map((v, i, a) => (i ? (v + a[i - 1]) / 2 : v)),
   /** Sparkles: a few random high blips. */
   sparkle: () => {
     const out = buf(0.9);
     const r = noise(21);
     for (let k = 0; k < 9; k++)
-      mixIn(out, sweep(0.12, () => 2500 + Math.abs(r()) * 3000, (t) => env(t, 0.001, 0.03) * 0.12), Math.abs(r()) * 0.7);
+      mixIn(
+        out,
+        sweep(
+          0.12,
+          () => 2500 + Math.abs(r()) * 3000,
+          (t) => env(t, 0.001, 0.03) * 0.12,
+        ),
+        Math.abs(r()) * 0.7,
+      );
     return out;
   },
   /** A stamp landing: a dull knock. */
   stamp: () => {
     const n = noise(13);
     return mixIn(
-      sweep(0.2, (t) => 220 * Math.exp(-t * 10) + 80, (t) => env(t, 0.001, 0.04) * 0.8),
-      lowpass(buf(0.04).map((_, i) => n() * env(i / SR, 0.0005, 0.006)), 2500),
+      sweep(
+        0.2,
+        (t) => 220 * Math.exp(-t * 10) + 80,
+        (t) => env(t, 0.001, 0.04) * 0.8,
+      ),
+      lowpass(
+        buf(0.04).map((_, i) => n() * env(i / SR, 0.0005, 0.006)),
+        2500,
+      ),
       0,
       0.6,
     );
@@ -152,11 +227,20 @@ const SOUNDS = {
     const x = buf(len).map((_, i) => n() * (i / SR / len) ** 2);
     return mixIn(
       lowpass(x, (t) => 400 + 7000 * (t / len)).map((v) => v * 0.5),
-      sweep(len, (t) => 200 + 600 * (t / len) ** 2, (t) => (t / len) ** 2 * 0.15),
+      sweep(
+        len,
+        (t) => 200 + 600 * (t / len) ** 2,
+        (t) => (t / len) ** 2 * 0.15,
+      ),
     );
   },
   /** A soft clock tick for the countdown. */
-  clock: () => sweep(0.05, () => 3200, (t) => env(t, 0.0005, 0.006) * 0.2),
+  clock: () =>
+    sweep(
+      0.05,
+      () => 3200,
+      (t) => env(t, 0.0005, 0.006) * 0.2,
+    ),
   /** Paper sliding. */
   paper: () => {
     const n = noise(29);
@@ -214,7 +298,10 @@ export function mix(cues, sec) {
 const args = process.argv.slice(2);
 if (args[0] === '--gallery') {
   const names = Object.keys(SOUNDS);
-  const [l, r] = mix(names.map((name, i) => ({ t: 0.3 + i * 1.6, name })), names.length * 1.6 + 1);
+  const [l, r] = mix(
+    names.map((name, i) => ({ t: 0.3 + i * 1.6, name })),
+    names.length * 1.6 + 1,
+  );
   mkdirSync(join(ROOT, 'out'), { recursive: true });
   writeWav(join(ROOT, 'out/sfx-gallery.wav'), l, r);
   console.log(`out/sfx-gallery.wav: ${names.join(', ')}, 1.6 s apart`);
@@ -222,14 +309,34 @@ if (args[0] === '--gallery') {
   const video = resolve(args[0]);
   const cues = JSON.parse(readFileSync(video.replace(/\.mp4$/, '.cues.json'), 'utf8'));
   const sec = Number(
-    execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', video], {
-      encoding: 'utf8',
-    }),
+    execFileSync(
+      'ffprobe',
+      ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', video],
+      {
+        encoding: 'utf8',
+      },
+    ),
   );
   const wav = video.replace(/\.mp4$/, '.sfx.wav');
   writeWav(wav, ...mix(cues, sec));
   const final = video.replace(/\.mp4$/, '.final.mp4');
-  execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', video, '-i', wav, '-c:v', 'copy', '-c:a', 'aac', '-b:a', '256k', '-shortest', final]);
+  execFileSync('ffmpeg', [
+    '-y',
+    '-loglevel',
+    'error',
+    '-i',
+    video,
+    '-i',
+    wav,
+    '-c:v',
+    'copy',
+    '-c:a',
+    'aac',
+    '-b:a',
+    '256k',
+    '-shortest',
+    final,
+  ]);
   console.log(`${cues.length} cues → ${wav}\nwith the video → ${final}`);
 } else if (!existsSync(args[0] ?? '')) {
   console.log('usage: node engine/sfx.mjs <video.mp4> | --gallery');

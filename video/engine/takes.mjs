@@ -35,7 +35,16 @@ async function signIn(context) {
   });
   const value = res.headers.get('set-cookie')?.match(/selly_session=([^;]+)/)?.[1];
   if (!value) throw new Error(`sign-in failed: HTTP ${res.status}`);
-  await context.addCookies([{ name: 'selly_session', value, domain: 'localhost', path: '/', httpOnly: true, sameSite: 'Lax' }]);
+  await context.addCookies([
+    {
+      name: 'selly_session',
+      value,
+      domain: 'localhost',
+      path: '/',
+      httpOnly: true,
+      sameSite: 'Lax',
+    },
+  ]);
 }
 
 const wait = (page, ms) => page.waitForTimeout(ms);
@@ -136,7 +145,10 @@ export const takes = {
       mark('typing');
       await type(page, 'White sneakers, 20,000. Sizes 40 to 44, two pairs each.');
       await wait(page, 400);
-      await point(page, page.locator('.selly-panel button[type="submit"], form button[type="submit"]').last());
+      await point(
+        page,
+        page.locator('.selly-panel button[type="submit"], form button[type="submit"]').last(),
+      );
       mark('sent');
       await page.getByText('Shall I publish it?').waitFor({ timeout: 30_000 });
       mark('draft');

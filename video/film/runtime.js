@@ -67,7 +67,8 @@ const film = {
         const [ft, ct] = map[i];
         if (t >= ft) local = ct;
         const next = map[i + 1];
-        if (next && t >= ft && t < next[0]) local = ct + ((t - ft) / (next[0] - ft)) * (next[1] - ct);
+        if (next && t >= ft && t < next[0])
+          local = ct + ((t - ft) / (next[0] - ft)) * (next[1] - ct);
       }
       const target = Math.max(0, Math.min(local, (v.duration || 0) - 0.001));
       if (Math.abs(v.currentTime - target) < 0.004) continue;
@@ -84,13 +85,17 @@ window.film = film;
 film.start = async () => {
   await document.fonts.ready;
   await Promise.all(
-    [...document.images].map((i) => (i.complete ? null : new Promise((r) => i.addEventListener('load', r, { once: true })))),
+    [...document.images].map((i) =>
+      i.complete ? null : new Promise((r) => i.addEventListener('load', r, { once: true })),
+    ),
   );
   await Promise.all(
     [...document.querySelectorAll('video')].map((v) => {
       v.muted = true;
       v.preload = 'auto';
-      return v.readyState >= 2 ? null : new Promise((r) => v.addEventListener('loadeddata', r, { once: true }));
+      return v.readyState >= 2
+        ? null
+        : new Promise((r) => v.addEventListener('loadeddata', r, { once: true }));
     }),
   );
   await film.seek(0);

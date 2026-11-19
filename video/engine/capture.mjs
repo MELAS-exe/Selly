@@ -31,10 +31,11 @@ const POINTER = () => {
     @keyframes vid-ring{to{transform:scale(3.2);opacity:0}}`;
   const dot = document.createElement('div');
   dot.className = 'vid-pointer';
-  const mount = () => document.body && !dot.isConnected && (document.head.append(style), document.body.append(dot));
+  const mount = () =>
+    document.body && !dot.isConnected && (document.head.append(style), document.body.append(dot));
   document.addEventListener('DOMContentLoaded', mount);
   mount();
-  const move = (x, y) => (dot.style.left = `${x}px`, dot.style.top = `${y}px`);
+  const move = (x, y) => ((dot.style.left = `${x}px`), (dot.style.top = `${y}px`));
   const press = (x, y) => {
     move(x, y);
     dot.classList.add('down');
@@ -88,7 +89,11 @@ async function record(name, take, browser) {
       while (recording) {
         const before = Date.now();
         try {
-          const { data } = await cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 92, optimizeForSpeed: true });
+          const { data } = await cdp.send('Page.captureScreenshot', {
+            format: 'jpeg',
+            quality: 92,
+            optimizeForSpeed: true,
+          });
           frames.push({ t: (before + Date.now()) / 2000, data });
         } catch {
           await new Promise((r) => setTimeout(r, 20)); // between two documents
@@ -119,7 +124,8 @@ async function record(name, take, browser) {
   /** Named moments of the take, in seconds from its start: the film times its overlays on them. */
   const mark = (label) => {
     marks[label] = +(Date.now() / 1000 - t0).toFixed(2);
-    if (process.env.DEBUG) console.log(`    ${label} at ${marks[label]} s, ${frames.length} frames`);
+    if (process.env.DEBUG)
+      console.log(`    ${label} at ${marks[label]} s, ${frames.length} frames`);
   };
   await take.run(page, { mark, note, context });
   await page.waitForTimeout(take.tail ?? 800);
@@ -134,9 +140,28 @@ async function record(name, take, browser) {
   const ff = spawn(
     'ffmpeg',
     [
-      '-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-i', '-',
-      '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2',
-      '-c:v', 'libx264', '-preset', 'medium', '-crf', '14', '-g', '1', '-pix_fmt', 'yuv420p', out,
+      '-y',
+      '-loglevel',
+      'error',
+      '-f',
+      'image2pipe',
+      '-framerate',
+      String(FPS),
+      '-i',
+      '-',
+      '-vf',
+      'scale=trunc(iw/2)*2:trunc(ih/2)*2',
+      '-c:v',
+      'libx264',
+      '-preset',
+      'medium',
+      '-crf',
+      '14',
+      '-g',
+      '1',
+      '-pix_fmt',
+      'yuv420p',
+      out,
     ],
     { stdio: ['pipe', 'inherit', 'inherit'] },
   );
@@ -146,14 +171,19 @@ async function record(name, take, browser) {
   for (let f = 0; f < count; f++) {
     const t = start + f / FPS;
     while (k + 1 < frames.length && frames[k + 1].t <= t) k++;
-    if (!ff.stdin.write(Buffer.from(frames[k].data, 'base64'))) await new Promise((r) => ff.stdin.once('drain', r));
+    if (!ff.stdin.write(Buffer.from(frames[k].data, 'base64')))
+      await new Promise((r) => ff.stdin.once('drain', r));
   }
   ff.stdin.end();
   await new Promise((r) => ff.on('close', r));
   // Marks relative to the first frame, the clip's 0.
   const shift = start - t0;
-  const rel = Object.fromEntries(Object.entries(marks).map(([k2, v]) => [k2, +(v - shift).toFixed(2)]));
-  console.log(`  ${name}: ${(count / FPS).toFixed(1)} s, ${frames.length} painted frames, marks ${JSON.stringify(rel)}`);
+  const rel = Object.fromEntries(
+    Object.entries(marks).map(([k2, v]) => [k2, +(v - shift).toFixed(2)]),
+  );
+  console.log(
+    `  ${name}: ${(count / FPS).toFixed(1)} s, ${frames.length} painted frames, marks ${JSON.stringify(rel)}`,
+  );
   return { ...rel, ...notes };
 }
 
@@ -171,6 +201,9 @@ for (const [name, take] of Object.entries(takes)) {
   allMarks[name] = await record(name, take, browser);
   writeFileSync(marksFile, JSON.stringify(allMarks, null, 1));
   // The film reads them as a script: a page opened from a file cannot fetch another file.
-  writeFileSync(join(ROOT, 'clips', 'marks.js'), `window.MARKS = ${JSON.stringify(allMarks, null, 1)};\n`);
+  writeFileSync(
+    join(ROOT, 'clips', 'marks.js'),
+    `window.MARKS = ${JSON.stringify(allMarks, null, 1)};\n`,
+  );
 }
 await browser.close();

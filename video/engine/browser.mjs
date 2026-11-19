@@ -5,7 +5,8 @@ import { chromium } from 'playwright-core';
 
 const candidates = [
   process.env.CHROME,
-  process.env.LOCALAPPDATA && join(process.env.LOCALAPPDATA, 'ms-playwright/chromium-1243/chrome-win64/chrome.exe'),
+  process.env.LOCALAPPDATA &&
+    join(process.env.LOCALAPPDATA, 'ms-playwright/chromium-1243/chrome-win64/chrome.exe'),
 ].filter(Boolean);
 
 export async function launch(opts = {}) {

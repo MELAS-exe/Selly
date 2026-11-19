@@ -24,10 +24,15 @@ const half = args.includes('--half');
 const scene = opt('scene');
 
 const browser = await launch();
-const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: half ? 0.5 : 1 });
+const page = await browser.newPage({
+  viewport: { width: 1920, height: 1080 },
+  deviceScaleFactor: half ? 0.5 : 1,
+});
 page.on('console', (m) => m.type() === 'error' && console.error('[page]', m.text()));
 page.on('pageerror', (e) => console.error('[page]', e.message));
-await page.goto(`${pathToFileURL(join(ROOT, 'film/index.html'))}?render${args.includes('--subs') ? '&subs' : ''}`);
+await page.goto(
+  `${pathToFileURL(join(ROOT, 'film/index.html'))}?render${args.includes('--subs') ? '&subs' : ''}`,
+);
 await page.waitForFunction(() => window.film?.ready === true, null, { timeout: 60_000 });
 
 // --stills 3,40.5,119: single frames to out/still-<t>.jpg, to check a moment without rendering.
@@ -53,10 +58,26 @@ console.log(`rendering ${frames} frames (${from}s to ${to}s) to ${out}`);
 const ff = spawn(
   'ffmpeg',
   [
-    '-y', '-loglevel', 'error',
-    '-f', 'image2pipe', '-framerate', String(FPS), '-i', '-',
-    '-c:v', 'libx264', '-preset', half ? 'veryfast' : 'slow', '-crf', half ? '23' : '15',
-    '-pix_fmt', 'yuv420p', '-movflags', '+faststart', out,
+    '-y',
+    '-loglevel',
+    'error',
+    '-f',
+    'image2pipe',
+    '-framerate',
+    String(FPS),
+    '-i',
+    '-',
+    '-c:v',
+    'libx264',
+    '-preset',
+    half ? 'veryfast' : 'slow',
+    '-crf',
+    half ? '23' : '15',
+    '-pix_fmt',
+    'yuv420p',
+    '-movflags',
+    '+faststart',
+    out,
   ],
   { stdio: ['pipe', 'inherit', 'inherit'] },
 );
@@ -64,11 +85,18 @@ const cdp = await page.context().newCDPSession(page);
 const started = Date.now();
 for (let f = 0; f < frames; f++) {
   await page.evaluate((t) => window.film.seek(t), from + f / FPS);
-  const { data } = await cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 95, optimizeForSpeed: true });
-  if (!ff.stdin.write(Buffer.from(data, 'base64'))) await new Promise((r) => ff.stdin.once('drain', r));
+  const { data } = await cdp.send('Page.captureScreenshot', {
+    format: 'jpeg',
+    quality: 95,
+    optimizeForSpeed: true,
+  });
+  if (!ff.stdin.write(Buffer.from(data, 'base64')))
+    await new Promise((r) => ff.stdin.once('drain', r));
   if (f % 150 === 0) {
     const rate = (f + 1) / ((Date.now() - started) / 1000);
-    process.stdout.write(`\r  ${f}/${frames} · ${rate.toFixed(1)} fps · ${Math.round((frames - f) / rate)} s left   `);
+    process.stdout.write(
+      `\r  ${f}/${frames} · ${rate.toFixed(1)} fps · ${Math.round((frames - f) / rate)} s left   `,
+    );
   }
 }
 ff.stdin.end();

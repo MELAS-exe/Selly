@@ -12,7 +12,19 @@ const PRODUCT = 'White sneakers';
 export function sql(query) {
   return execFileSync(
     'docker',
-    ['exec', '-i', DB_CONTAINER, 'psql', '-U', 'selly', '-d', 'selly', '-qAt', '-v', 'ON_ERROR_STOP=1'],
+    [
+      'exec',
+      '-i',
+      DB_CONTAINER,
+      'psql',
+      '-U',
+      'selly',
+      '-d',
+      'selly',
+      '-qAt',
+      '-v',
+      'ON_ERROR_STOP=1',
+    ],
     { input: query, encoding: 'utf8' },
   ).trim();
 }
@@ -45,4 +57,5 @@ select (select count(*) from gone_orders) || ' orders, ' || (select count(*) fro
 commit;`);
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) console.log(reset());
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)
+  console.log(reset());

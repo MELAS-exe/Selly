@@ -1,40 +1,40 @@
 window.MARKS = {
- "photo": {
-  "home": 3.4,
-  "photo": 4.43,
-  "typing": 6.23,
-  "sent": 13.16,
-  "draft": 13.53,
-  "confirm": 16.62,
-  "done": 17.98
- },
- "landing": {
-  "loaded": -0.07,
-  "hover": 2.93,
-  "scroll": 10.29
- },
- "customer": {
-  "shop": 4.56,
-  "product": 8.54,
-  "chat": 10.94,
-  "ask1": 17.37,
-  "reply1": 19.19,
-  "ask2": 26.5,
-  "reply2": 28.85,
-  "checkout": 32.78,
-  "approve": 37.2,
-  "pay": 39.11,
-  "paid": 39.92,
-  "sats": 55197
- },
- "dashboard": {
-  "home": 4.11,
-  "orders": 5.29,
-  "order": 8.23,
-  "wallet": 12.24
- },
- "pricing": {
-  "pricing": 2.7,
-  "guide": 7.2
- }
+  photo: {
+    home: 3.4,
+    photo: 4.43,
+    typing: 6.23,
+    sent: 13.16,
+    draft: 13.53,
+    confirm: 16.62,
+    done: 17.98,
+  },
+  landing: {
+    loaded: -0.07,
+    hover: 2.93,
+    scroll: 10.29,
+  },
+  customer: {
+    shop: 4.56,
+    product: 8.54,
+    chat: 10.94,
+    ask1: 17.37,
+    reply1: 19.19,
+    ask2: 26.5,
+    reply2: 28.85,
+    checkout: 32.78,
+    approve: 37.2,
+    pay: 39.11,
+    paid: 39.92,
+    sats: 55197,
+  },
+  dashboard: {
+    home: 4.11,
+    orders: 5.29,
+    order: 8.23,
+    wallet: 12.24,
+  },
+  pricing: {
+    pricing: 2.7,
+    guide: 7.2,
+  },
 };

@@ -5,13 +5,33 @@
 const kit = {
   /** Pops an element in: from small and low, with a little overshoot. */
   popIn(tl, el, t, { from = 0.4, y = 30, dur = 0.55, ease = 'back.out(2.2)' } = {}) {
-    tl.fromTo(el, { autoAlpha: 0, scale: from, y }, { autoAlpha: 1, scale: 1, y: 0, duration: dur, ease }, t);
+    tl.fromTo(
+      el,
+      { autoAlpha: 0, scale: from, y },
+      { autoAlpha: 1, scale: 1, y: 0, duration: dur, ease },
+      t,
+    );
   },
 
   /** Drops a panel from above; it lands with a squash and shakes the stage. */
   drop(tl, el, t, { rot = -4, shake = null } = {}) {
-    tl.fromTo(el, { y: -1100, rotation: rot * 3, autoAlpha: 1 }, { y: 0, rotation: rot, duration: 0.62, ease: 'power3.in' }, t);
-    tl.to(el, { scaleY: 0.94, scaleX: 1.03, transformOrigin: '50% 100%', duration: 0.08, ease: 'power1.out' }, t + 0.62);
+    tl.fromTo(
+      el,
+      { y: -1100, rotation: rot * 3, autoAlpha: 1 },
+      { y: 0, rotation: rot, duration: 0.62, ease: 'power3.in' },
+      t,
+    );
+    tl.to(
+      el,
+      {
+        scaleY: 0.94,
+        scaleX: 1.03,
+        transformOrigin: '50% 100%',
+        duration: 0.08,
+        ease: 'power1.out',
+      },
+      t + 0.62,
+    );
     tl.to(el, { scaleY: 1, scaleX: 1, duration: 0.5, ease: 'elastic.out(1, 0.4)' }, t + 0.7);
     if (shake) kit.shake(tl, shake, t + 0.62);
   },
@@ -30,7 +50,11 @@ const kit = {
     tl.fromTo(el, { x: x0 }, { x: x1, duration: dur, ease: 'power1.inOut' }, t);
     const steps = Math.floor(dur / step);
     for (let i = 0; i < steps; i++) {
-      tl.to(el, { y: -18, rotation: i % 2 ? 4 : -4, duration: step / 2, ease: 'sine.out' }, t + i * step);
+      tl.to(
+        el,
+        { y: -18, rotation: i % 2 ? 4 : -4, duration: step / 2, ease: 'sine.out' },
+        t + i * step,
+      );
       tl.to(el, { y: 0, duration: step / 2, ease: 'sine.in' }, t + i * step + step / 2);
     }
     tl.to(el, { rotation: 0, duration: 0.2 }, t + dur);
@@ -47,7 +71,11 @@ const kit = {
   /** Waves: the whole bag rocks on its feet. */
   wave(tl, el, t, { times = 4, angle = 9 } = {}) {
     for (let i = 0; i < times; i++)
-      tl.to(el, { rotation: i % 2 ? -angle : angle, duration: 0.24, ease: 'sine.inOut' }, t + i * 0.24);
+      tl.to(
+        el,
+        { rotation: i % 2 ? -angle : angle, duration: 0.24, ease: 'sine.inOut' },
+        t + i * 0.24,
+      );
     tl.to(el, { rotation: 0, duration: 0.3, ease: 'sine.out' }, t + times * 0.24);
   },
 
@@ -60,13 +88,28 @@ const kit = {
   /** Key clicks while someone types, `n` of them over `dur` seconds, a little uneven. */
   typing(ctx, local, dur, gain = 0.5) {
     const n = Math.round(dur / 0.11);
-    for (let i = 0; i < n; i++) ctx.cue('key', local + (i * dur) / n + ((i * 37) % 7) * 0.008, gain * (0.7 + ((i * 13) % 5) * 0.08));
+    for (let i = 0; i < n; i++)
+      ctx.cue(
+        'key',
+        local + (i * dur) / n + ((i * 37) % 7) * 0.008,
+        gain * (0.7 + ((i * 13) % 5) * 0.08),
+      );
   },
 
   /** Confetti from a point, as plain divs (seeded, so every render is the same). */
-  confetti(tl, box, t, { x = 960, y = 520, n = 90, colors = ['#8aae4a', '#a3c651', '#e3342f', '#173b32', '#f0c27a'] } = {}) {
+  confetti(
+    tl,
+    box,
+    t,
+    {
+      x = 960,
+      y = 520,
+      n = 90,
+      colors = ['#8aae4a', '#a3c651', '#e3342f', '#173b32', '#f0c27a'],
+    } = {},
+  ) {
     let s = 7;
-    const r = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+    const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
     for (let i = 0; i < n; i++) {
       const p = document.createElement('i');
       p.style.background = colors[i % colors.length];
@@ -105,7 +148,12 @@ const kit = {
 
   /** A clip-path circle wipe that reveals `el` from a point. */
   irisIn(tl, el, t, { x = '50%', y = '50%', dur = 1.0 } = {}) {
-    tl.fromTo(el, { clipPath: `circle(0% at ${x} ${y})` }, { clipPath: `circle(150% at ${x} ${y})`, duration: dur, ease: 'power3.inOut' }, t);
+    tl.fromTo(
+      el,
+      { clipPath: `circle(0% at ${x} ${y})` },
+      { clipPath: `circle(150% at ${x} ${y})`, duration: dur, ease: 'power3.inOut' },
+      t,
+    );
   },
 };
 window.kit = kit;
