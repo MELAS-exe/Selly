@@ -21,7 +21,9 @@ export function ShopMark({
           {name.trim().charAt(0).toUpperCase()}
         </span>
       )}
-      <span className="sf-serif truncate text-[1.625rem] leading-none font-semibold">{name}</span>
+      <span className="sf-serif truncate text-[1.375rem] leading-none font-semibold min-[400px]:text-[1.625rem]">
+        {name}
+      </span>
     </span>
   );
 }

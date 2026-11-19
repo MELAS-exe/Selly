@@ -206,7 +206,7 @@ export function CheckoutLive({ view }: { view: CheckoutView }) {
                   <div
                     role="img"
                     aria-label="QR code de la facture Lightning"
-                    className="checkout-qr size-64 border border-d-hairline bg-white p-3 sm:size-72"
+                    className="checkout-qr aspect-square w-full max-w-64 border border-d-hairline bg-white p-3 sm:max-w-72"
                     // Inline SVG made by core from the invoice (qrcode library), never user input.
                     dangerouslySetInnerHTML={{ __html: invoice.qr_svg ?? '' }}
                   />
