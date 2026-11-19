@@ -6,6 +6,21 @@ Maison Sokhna: a demo shop with its own logo and colours, 20 products, six weeks
 customer conversations. You can also create your own shop.
 
 
+THE SHORT WAY: ONE COMMAND, WITH DOCKER ONLY
+--------------------------------------------
+With Docker Desktop running, from the Selly folder:
+
+    docker compose up --build
+
+The first start takes about ten minutes (it builds the apps and makes the demo shop). Then:
+
+    http://localhost:3000/s/maison-sokhna       the shop, as a customer
+    docker compose exec demo pnpm testwallet pay   in a second terminal: pays the newest invoice
+
+Then go to step 6 below to sign in as the shop. "docker compose down -v" wipes everything and
+starts over. Steps 1 to 5 are the same thing without Docker for the apps, for working on the code.
+
+
 WHAT YOU NEED
 -------------
 - Node.js 24 and pnpm 10        https://nodejs.org   then:  npm install -g pnpm@10
@@ -26,8 +41,8 @@ Copy the example settings:
 
     cp .env.example .env            (Windows PowerShell: copy .env.example .env)
 
-Open .env in a text editor and set these lines (they turn on photo storage and the fake Lightning
-wallets used for the demo; nothing here touches real money):
+Open .env in a text editor and change these lines (add the ones that are missing). They turn on photo
+storage and the fake Lightning wallets used for the demo; nothing here touches real money:
 
     MEDIA_STORE=s3
     INVOICE_PROVIDER=nwc
@@ -122,8 +137,11 @@ LLM_PRIMARY=claude-opus-5-5 and ANTHROPIC_API_KEY=<the key>.)
 
 IF SOMETHING GOES WRONG
 -----------------------
-- "The shop maison-sokhna exists already": it is already created, go to step 5.
+- "The shop maison-sokhna exists already": it is already created, go to step 5. If step 4 stopped
+  halfway, the shop is incomplete: start over from an empty database instead (below).
 - "The fake wallets are not running": start terminal 2 (pnpm dev:testwallet), then step 4 again.
 - Shop photos missing: check MEDIA_STORE=s3 in .env, then restart terminal 1.
-- Port already in use: stop other apps on ports 3000, 4000, 4100, 5432, 7777, 9000.
+- Port already in use: stop other apps on ports 3000, 4000, 4100, 5432, 7777, 7788, 9000.
+- To start over from an empty database: stop terminal 1 (Ctrl+C), run docker compose down -v, then
+  step 3 (terminal 1) and step 4 again.
 - Everything else: README.md and CONTRIBUTING.md.
