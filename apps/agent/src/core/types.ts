@@ -26,7 +26,23 @@ export interface OrderCard {
   checkout_url: string;
   expires_at: string | null;
 }
-export type Card = ProductCard | OrderCard;
+/**
+ * A cart the vendor proposes in the chat: the items they agreed on. The customer opens it in the shop's cart and
+ * chooses the quantities, the delivery and their details there, then pays.
+ */
+export interface CartCard {
+  type: 'cart';
+  lines: {
+    product_id: string;
+    product_slug: string;
+    variant_id: string;
+    title: string;
+    options: Options;
+    unit_price: Money;
+    image_url: string | null;
+  }[];
+}
+export type Card = ProductCard | OrderCard | CartCard;
 export interface QuickReply {
   id: string;
   label: string;

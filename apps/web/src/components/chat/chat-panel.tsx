@@ -4,9 +4,11 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChatBubbleIn } from '@/components/motion/chat-bubble-in';
 import { TypingDots } from '@/components/motion/typing-dots';
+import { addLine, readCart, writeCart } from '@/lib/cart';
 import { ensureSession, newClientMessageId, sendMessage, subscribe } from '@/lib/chat';
-import type { ChatMessage, ChatSession } from '@/lib/chat-types';
-import { formatMoney } from '@/lib/format';
+import type { CartCard, ChatMessage, ChatSession } from '@/lib/chat-types';
+import { formatMoney, formatOptions } from '@/lib/format';
+import { openCart } from '../storefront/cart-drawer';
 
 type Status = 'loading' | 'ready' | 'failed';
 
@@ -118,6 +120,23 @@ export function ChatPanel({
     }
   }
 
+  // A cart the vendor proposed goes into the shop's cart, where the customer picks quantities and delivery.
+  function openProposal(card: CartCard) {
+    let lines = readCart(slug);
+    for (const l of card.lines)
+      lines = addLine(lines, {
+        variant_id: l.variant_id,
+        product_slug: l.product_slug,
+        title: l.title,
+        options: l.options,
+        unit_price: l.unit_price,
+        quantity: 1,
+      });
+    writeCart(slug, lines);
+    onClose();
+    openCart();
+  }
+
   // Rendered at the shop root: a parent with a transform or a backdrop-filter (the product page, the header) would
   // trap a fixed overlay inside it, leaving the page readable through the "backdrop".
   return createPortal(
@@ -191,7 +210,12 @@ export function ChatPanel({
               <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-4">
                 <p className="pb-1 text-center text-xs text-muted">{session.disclosure}</p>
                 {messages.map((m) => (
-                  <MessageBubble key={m.id} message={m} onQuickReply={submit} />
+                  <MessageBubble
+                    key={m.id}
+                    message={m}
+                    onQuickReply={submit}
+                    onOpenCart={openProposal}
+                  />
                 ))}
                 {typing && (
                   <div className="mr-auto">
@@ -249,12 +273,44 @@ export function ChatPanel({
   );
 }
 
+/** The vendor's proposed cart: its items, and « Commander » to finish it in the shop's cart. */
+function CartProposal({ card, onOpen }: { card: CartCard; onOpen: (card: CartCard) => void }) {
+  return (
+    <div className="mt-2 rounded-[var(--radius-tile)] border border-line p-3">
+      <p className="font-semibold">Votre panier</p>
+      <ul className="mt-2 space-y-2">
+        {card.lines.map((l) => (
+          <li key={l.variant_id} className="flex items-center gap-3">
+            {l.image_url && (
+              <img src={l.image_url} alt="" className="size-10 shrink-0 object-cover" />
+            )}
+            <span className="min-w-0 flex-1">
+              <span className="block truncate">{l.title}</span>
+              <span className="block text-sm text-muted">{formatOptions(l.options)}</span>
+            </span>
+            <span className="tnum shrink-0">{formatMoney(l.unit_price)}</span>
+          </li>
+        ))}
+      </ul>
+      <button
+        type="button"
+        onClick={() => onOpen(card)}
+        className="press mt-3 min-h-11 w-full bg-ink px-4 font-semibold text-paper"
+      >
+        Commander
+      </button>
+    </div>
+  );
+}
+
 function MessageBubble({
   message,
   onQuickReply,
+  onOpenCart,
 }: {
   message: ChatMessage;
   onQuickReply: (text: string, quickReplyId: string) => void;
+  onOpenCart: (card: CartCard) => void;
 }) {
   if (message.author === 'system') {
     return (
@@ -271,7 +327,9 @@ function MessageBubble({
       )}
       {message.text && <ChatBubbleIn from={from}>{message.text}</ChatBubbleIn>}
       {message.cards.map((card) =>
-        card.type === 'product' ? (
+        card.type === 'cart' ? (
+          <CartProposal key="cart" card={card} onOpen={onOpenCart} />
+        ) : card.type === 'product' ? (
           <a
             key={card.product_id}
             href={card.url}

@@ -4,7 +4,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { AgentServices } from '../app';
 import { toChatMessage, vendorLabel } from '../conversations';
-import type { Card } from '../core/types';
+import type { Card, CartCard } from '../core/types';
 import { AppError } from '../errors';
 import { streamEvents } from './hub';
 import { parseBody, parseQuery } from './validate';
@@ -24,9 +24,15 @@ const VendorMessage = z
     text: z.string().trim().min(1).max(1000).optional(),
     // Products the vendor shows the customer, as cards in the chat (the same cards the agent sends).
     product_ids: z.array(z.uuid()).min(1).max(3).optional(),
+    // A cart the customer completes (quantities, delivery, name, phone) and pays from the shop's cart.
+    cart: z
+      .array(z.strictObject({ product_id: z.uuid(), variant_id: z.uuid() }))
+      .min(1)
+      .max(10)
+      .optional(),
   })
-  .refine((b) => Boolean(b.text || b.product_ids?.length), {
-    message: 'text or product_ids is required',
+  .refine((b) => Boolean(b.text || b.product_ids?.length || b.cart?.length), {
+    message: 'text, product_ids or cart is required',
   });
 const cartItems = z
   .array(z.strictObject({ variant_id: z.uuid(), quantity: z.number().int().min(1).max(50) }))
@@ -148,6 +154,27 @@ export function registerInboxRoutes(app: FastifyInstance, s: AgentServices) {
         url: d.url,
       });
     }
+    if (body.cart) {
+      const lines: CartCard['lines'] = [];
+      for (const item of body.cart) {
+        const d = await s.core.getProduct(conv.vendorId, item.product_id);
+        const v = d.variants.find((x) => x.id === item.variant_id);
+        if (!v)
+          throw new AppError('VALIDATION_FAILED', 'This variant is not one of the product.', [
+            { field: 'cart', variant_id: item.variant_id },
+          ]);
+        lines.push({
+          product_id: d.id,
+          product_slug: d.slug,
+          variant_id: v.id,
+          title: d.title,
+          options: v.options,
+          unit_price: v.price,
+          image_url: d.images[0]?.url ?? null,
+        });
+      }
+      cards.push({ type: 'cart', lines });
+    }
     const pending = await s.store.pendingInbound(conv.id);
     const { message } = await s.conversations.insertAndPublish({
       conversationId: conv.id,
@@ -155,7 +182,11 @@ export function registerInboxRoutes(app: FastifyInstance, s: AgentServices) {
       author: 'vendor',
       authorLabel: label,
       kind: 'text',
-      text: body.text ?? null,
+      text:
+        body.text ??
+        (body.cart
+          ? 'Voici votre panier. Touchez « Commander » pour choisir les quantités et la livraison, puis payer.'
+          : null),
       cards,
       clientMessageId: body.client_message_id,
       status: 'processed',

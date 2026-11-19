@@ -7,7 +7,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { MakeOrder, ShowProducts, ThreadCards } from '../chat-selling';
+import { ProposeCart, ShowProducts, ThreadCards } from '../chat-selling';
 import { newKey, useDashboard, useResource } from '../data';
 import { fmtAgo, fmtTime, fmtWhen, initials, MODE_LABEL } from '../format';
 import {
@@ -282,11 +282,11 @@ function Thread({ chat }: { chat: ConversationSummary }) {
           <Package size={13} /> Montrer des produits
         </button>
         <button type="button" className="button small" onClick={() => setSelling('order')}>
-          <ShoppingBag size={13} /> Créer une commande
+          <ShoppingBag size={13} /> Proposer un panier
         </button>
       </div>
       {selling === 'products' && <ShowProducts chat={chat} onClose={() => setSelling(null)} />}
-      {selling === 'order' && <MakeOrder chat={chat} onClose={() => setSelling(null)} />}
+      {selling === 'order' && <ProposeCart chat={chat} onClose={() => setSelling(null)} />}
       <form
         className="chat-compose"
         onSubmit={async (e) => {

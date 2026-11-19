@@ -1,5 +1,5 @@
 // Response shapes from docs/api.json (tag "Chat"), limited to what the widget reads.
-import type { Money, OrderStatus } from './types';
+import type { Money, Options, OrderStatus } from './types';
 
 export type ChatAuthor = 'customer' | 'agent' | 'vendor' | 'system';
 export type ChatMessageKind = 'text' | 'audio' | 'image' | 'order_link' | 'system';
@@ -23,7 +23,21 @@ export interface OrderCard {
   expires_at: string | null;
 }
 
-export type ChatCard = ProductCard | OrderCard;
+/** A cart the vendor proposes: the customer completes it (quantities, delivery, details) in the shop's cart. */
+export interface CartCard {
+  type: 'cart';
+  lines: {
+    product_id: string;
+    product_slug: string;
+    variant_id: string;
+    title: string;
+    options: Options;
+    unit_price: Money;
+    image_url: string | null;
+  }[];
+}
+
+export type ChatCard = ProductCard | OrderCard | CartCard;
 
 export interface QuickReply {
   id: string;

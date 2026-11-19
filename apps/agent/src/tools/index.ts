@@ -89,10 +89,10 @@ function rememberAmounts(ctx: ToolContext, ...values: (Money | null | undefined)
 }
 
 function addCard(ctx: ToolContext, card: Card) {
-  const key = card.type === 'product' ? card.product_id : card.number;
-  ctx.out.cards = ctx.out.cards.filter(
-    (c) => (c.type === 'product' ? c.product_id : c.number) !== key,
-  );
+  const keyOf = (c: Card) =>
+    c.type === 'product' ? c.product_id : c.type === 'order' ? c.number : 'cart';
+  const key = keyOf(card);
+  ctx.out.cards = ctx.out.cards.filter((c) => keyOf(c) !== key);
   ctx.out.cards.push(card);
   if (ctx.out.cards.length > 3) ctx.out.cards.shift();
 }

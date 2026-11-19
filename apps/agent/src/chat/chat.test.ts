@@ -425,8 +425,40 @@ describe('handoff and the vendor inbox', () => {
       cards: [{ type: 'product', product_id: robe?.id, title: 'Robe wax noire' }],
     });
 
+    // A proposed cart: the customer completes it (quantities, delivery, details) in the shop's cart.
+    const variant42 = variantOf(core, 'robe-wax-noire', '42');
+    const proposed = await app.inject({
+      method: 'POST',
+      url: url('messages'),
+      headers: vendorHeaders,
+      payload: {
+        client_message_id: 'vendor-cart-01',
+        cart: [{ product_id: robe?.id, variant_id: variant42 }],
+      },
+    });
+    expect(proposed.statusCode).toBe(201);
+    expect((await history(token)).at(-1)).toMatchObject({
+      text: expect.stringContaining('Commander'),
+      cards: [
+        {
+          type: 'cart',
+          lines: [{ variant_id: variant42, product_slug: 'robe-wax-noire', options: { size: '42' } }],
+        },
+      ],
+    });
+    const foreign = await app.inject({
+      method: 'POST',
+      url: url('messages'),
+      headers: vendorHeaders,
+      payload: {
+        client_message_id: 'vendor-cart-02',
+        cart: [{ product_id: robe?.id, variant_id: uuidv7() }],
+      },
+    });
+    expect(foreign.statusCode).toBe(422);
+
     // The exact total, then the order with that total.
-    const items = [{ variant_id: variantOf(core, 'robe-wax-noire', '42'), quantity: 1 }];
+    const items = [{ variant_id: variant42, quantity: 1 }];
     const delivery = { method: 'pickup' as const };
     const quote = await app.inject({
       method: 'POST',

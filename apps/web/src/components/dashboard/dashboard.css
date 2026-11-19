@@ -2768,3 +2768,45 @@ a.popover-item:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* The product picker of the discussion tools: search, category and stock chips, a scrolling list. */
+.picker {
+  display: grid;
+  gap: 10px;
+}
+.picker-filters,
+.variant-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.variant-chips {
+  grid-column: 2 / -1;
+  padding-bottom: 4px;
+}
+.chip {
+  min-height: 32px;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  cursor: pointer;
+}
+.chip.on {
+  color: var(--on-dark);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+.chip:disabled {
+  opacity: 0.35;
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+@media (pointer: coarse), (max-width: 700px) {
+  .chip {
+    min-height: 40px;
+  }
+}
