@@ -60,7 +60,7 @@ function InfoCell({
 }) {
   return (
     <div
-      className="sf-cell flex items-center gap-3 border-b border-d-hairline px-4 py-4 odd:border-r md:gap-4 md:border-r md:border-b-0 md:px-5 md:py-5 md:last:border-r-0"
+      className="sf-cell flex items-center gap-3 border-b border-d-hairline px-4 py-4 min-[480px]:odd:border-r md:gap-4 md:border-r md:border-b-0 md:px-5 md:py-5 md:last:border-r-0"
       style={{ '--n': n } as CSSProperties}
     >
       <span className="grid size-11 shrink-0 place-items-center border border-d-hairline">
@@ -111,7 +111,7 @@ function Hero({
       <div className="grid items-center gap-10 lg:grid-cols-[1.02fr_.98fr] lg:gap-16">
         <div>
           <p className="sf-eyebrow sf-rise mb-7">{hero.eyebrow}</p>
-          <h1 className="sf-serif text-[3.25rem] leading-[0.95] font-normal tracking-[-0.02em] [overflow-wrap:anywhere] sm:text-[4.5rem] lg:text-[5.5rem]">
+          <h1 className="sf-serif text-[clamp(2.375rem,12vw,3.25rem)] leading-[0.95] font-normal tracking-[-0.02em] [overflow-wrap:anywhere] sm:text-[4.5rem] lg:text-[5.5rem]">
             <span className="sf-line [--i:0]">{hero.title[0]}</span>
             {hero.title[1] && (
               <span className="sf-line italic text-[var(--sf-accent-text)] [--i:1]">
@@ -167,17 +167,21 @@ function Hero({
                 aria-hidden="true"
                 className="absolute inset-0 bg-gradient-to-t from-d-ink/25 via-transparent to-transparent"
               />
-              <span className="absolute right-4 bottom-4 left-4 flex items-center justify-between gap-4 border border-d-hairline bg-d-paper/95 p-4 backdrop-blur-md sm:p-5">
+              <span className="absolute right-3 bottom-3 left-3 flex items-center justify-between gap-3 border border-d-hairline bg-d-paper/95 p-3 backdrop-blur-md sm:right-4 sm:bottom-4 sm:left-4 sm:gap-4 sm:p-5">
                 <span className="min-w-0">
-                  <span className="sf-serif block text-xl leading-tight font-semibold sm:text-2xl">
+                  <span className="sf-serif block text-lg leading-tight font-semibold sm:text-2xl">
                     {featured.title}
                   </span>
                   <span className="mt-0.5 block text-[0.9375rem] text-d-ink-soft">
                     {availabilityLabel[featured.availability]}
                   </span>
+                  {/* On a phone the price goes under the name: beside it, the two collide. */}
+                  <span className="sf-figure mt-1 block text-lg sm:hidden">
+                    {formatMoney(featured.price)}
+                  </span>
                 </span>
-                <span className="flex items-center gap-3">
-                  <span className="sf-figure text-xl whitespace-nowrap sm:text-2xl">
+                <span className="flex shrink-0 items-center gap-3">
+                  <span className="sf-figure hidden text-2xl whitespace-nowrap sm:inline">
                     {formatMoney(featured.price)}
                   </span>
                   <span
@@ -228,7 +232,8 @@ function InfoBand({ store }: { store: StorePublic }) {
       aria-label="La boutique en bref"
       className="border-y border-d-hairline bg-d-paper-deep/60"
     >
-      <div className="mx-auto grid max-w-[1260px] grid-cols-2 border-x border-d-hairline md:grid-cols-4">
+      {/* One column on a small phone: two would leave a word per line. */}
+      <div className="mx-auto grid max-w-[1260px] grid-cols-1 border-x border-d-hairline min-[480px]:grid-cols-2 md:grid-cols-4">
         <InfoCell icon={<Store size={18} />} title={store.display_name} sub="Boutique sur Selly" />
         {address && (
           <InfoCell n={1} icon={<MapPin size={18} />} title={address} sub="Retrait gratuit" />
@@ -302,18 +307,21 @@ function Card({
       </div>
       <div className="card-text pt-4">
         <Link href={`/s/${slug}/p/${p.slug}`} className="hover:underline hover:underline-offset-4">
-          <h3 className="sf-serif text-xl leading-tight font-semibold sm:text-[1.375rem]">
+          <h3 className="sf-serif text-lg leading-tight font-semibold sm:text-[1.375rem]">
             {p.title}
           </h3>
         </Link>
-        <p className="mt-1 text-[0.9375rem] text-d-ink-soft">
+        <p className="mt-1 text-sm text-d-ink-soft sm:text-[0.9375rem]">
           {category ? `${category} · ` : ''}
           <span className={p.availability === 'low' ? 'font-medium text-d-alert' : ''}>
             {availabilityLabel[p.availability]}
           </span>
         </p>
-        <div className="mt-4 flex items-end justify-between gap-2">
-          <span className="sf-figure text-[1.375rem] leading-none">{formatMoney(p.price)}</span>
+        {/* A narrow card puts the button under the price rather than past its edge. */}
+        <div className="mt-4 flex flex-wrap items-end justify-between gap-x-2 gap-y-3">
+          <span className="sf-figure text-lg leading-none whitespace-nowrap sm:text-[1.375rem]">
+            {formatMoney(p.price)}
+          </span>
           <QuickAdd
             slug={slug}
             productSlug={p.slug}
