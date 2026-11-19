@@ -20,6 +20,7 @@ export function Catalogue() {
   const [category, setCategory] = useState('');
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<VendorProduct | null>(null);
+  const [managing, setManaging] = useState(false);
   const products = useResource<Page<VendorProduct>>(
     search.trim() ? `/inventory?q=${encodeURIComponent(search.trim())}` : '/inventory',
   );
@@ -79,6 +80,9 @@ export function Catalogue() {
             ))}
           </select>
         )}
+        <button type="button" className="button small" onClick={() => setManaging(true)}>
+          <Plus size={12} /> Catégories
+        </button>
         <span className="demo-chip">
           {shown.length} produit{shown.length > 1 ? 's' : ''}
         </span>
@@ -191,6 +195,13 @@ export function Catalogue() {
             </article>
           ))}
         </div>
+      )}
+      {managing && (
+        <Categories
+          list={cats}
+          onClose={() => setManaging(false)}
+          onRemoved={(id) => id === category && setCategory('')}
+        />
       )}
       {adding && <ProductForm categories={cats} onClose={() => setAdding(false)} />}
       {editing && (
@@ -494,6 +505,104 @@ function ProductForm({
           </button>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+/** The shop's departments, next to the products they sort. Removing one leaves its products uncategorised. */
+function Categories({
+  list,
+  onClose,
+  onRemoved,
+}: {
+  list: Category[];
+  onClose: () => void;
+  onRemoved: (id: string) => void;
+}) {
+  const { mutate } = useDashboard();
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const taken = list.some((c) => c.name.trim().toLowerCase() === name.trim().toLowerCase());
+  async function add() {
+    setBusy(true);
+    try {
+      await mutate(
+        '/vendors/me/categories',
+        { method: 'POST', body: { name: name.trim() } },
+        `Catégorie ${name.trim()} ajoutée.`,
+      );
+      setName('');
+    } catch {
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Modal title="Catégories" onClose={onClose}>
+      <p className="modal-copy">
+        Les rayons de votre boutique, dans ses filtres. Supprimer une catégorie ne supprime aucun
+        produit.
+      </p>
+      <div className="zone-list">
+        {list.map((c) => (
+          <div
+            className="zone-row"
+            key={c.id}
+            style={{ gridTemplateColumns: 'minmax(0, 1fr) auto' }}
+          >
+            <span>{c.name}</span>
+            <button
+              type="button"
+              className="button small ghost"
+              aria-label={`Supprimer ${c.name}`}
+              onClick={() =>
+                mutate(
+                  `/vendors/me/categories/${c.id}`,
+                  { method: 'DELETE' },
+                  `Catégorie ${c.name} supprimée.`,
+                ).then(
+                  () => onRemoved(c.id),
+                  () => {},
+                )
+              }
+            >
+              <X size={12} />
+            </button>
+          </div>
+        ))}
+      </div>
+      {list.length === 0 && <p className="form-hint">Aucune catégorie pour l’instant.</p>}
+      <form
+        className="zone-add"
+        style={{ gridTemplateColumns: 'minmax(0, 1fr) auto' }}
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (name.trim().length >= 2 && !taken) add();
+        }}
+      >
+        <div>
+          <label className="form-label" htmlFor="c-name">
+            Nouvelle catégorie
+          </label>
+          <input
+            id="c-name"
+            className="form-control"
+            maxLength={40}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Ex. Robes"
+            aria-invalid={taken}
+          />
+        </div>
+        <button
+          type="submit"
+          className="button small"
+          disabled={busy || name.trim().length < 2 || taken}
+        >
+          <Plus size={12} /> Ajouter
+        </button>
+      </form>
+      {taken && <p className="form-error">Cette catégorie existe déjà.</p>}
     </Modal>
   );
 }

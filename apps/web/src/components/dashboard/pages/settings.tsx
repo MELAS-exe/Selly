@@ -89,7 +89,6 @@ export function Settings() {
         <ShopSection vendor={vendor} save={mutate} />
         <DeliverySection vendor={vendor} save={mutate} />
         <AgentSection vendor={vendor} save={mutate} />
-        <CategoriesSection />
         <AlertsSection vendor={vendor} save={mutate} />
         <EmailSection vendor={vendor} save={mutate} />
       </div>
@@ -784,75 +783,6 @@ function ShopPreview({
         </a>
       </p>
     </aside>
-  );
-}
-
-function CategoriesSection() {
-  const { mutate } = useDashboard();
-  const cats = useResource<{ data: Category[] }>('/vendors/me/categories');
-  const [name, setName] = useState('');
-  const [list, setList] = useState<Category[]>([]);
-  useEffect(() => setList(cats.data?.data ?? []), [cats.data]);
-  return (
-    <Section
-      title="Catégories"
-      sub="Les rayons de votre boutique. Supprimer une catégorie ne supprime aucun produit."
-    >
-      <div className="info-list" style={{ padding: 0 }}>
-        {list.map((c) => (
-          <div className="info-row" key={c.id}>
-            <span>{c.name}</span>
-            <button
-              type="button"
-              className="button small ghost"
-              aria-label={`Supprimer ${c.name}`}
-              onClick={() =>
-                mutate(
-                  `/vendors/me/categories/${c.id}`,
-                  { method: 'DELETE' },
-                  `Catégorie ${c.name} supprimée.`,
-                ).catch(() => {})
-              }
-            >
-              <X size={12} />
-            </button>
-          </div>
-        ))}
-        {list.length === 0 && <p className="form-hint">Aucune catégorie pour l’instant.</p>}
-      </div>
-      <div style={{ display: 'flex', gap: 10, alignItems: 'end' }}>
-        <div style={{ flex: 1 }}>
-          <label className="form-label" htmlFor="c-name">
-            Nouvelle catégorie
-          </label>
-          <input
-            id="c-name"
-            className="form-control"
-            maxLength={60}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Robes"
-          />
-        </div>
-        <button
-          type="button"
-          className="button small"
-          disabled={name.trim().length < 2}
-          onClick={() =>
-            mutate(
-              '/vendors/me/categories',
-              { method: 'POST', body: { name: name.trim() } },
-              `Catégorie ${name.trim()} ajoutée.`,
-            ).then(
-              () => setName(''),
-              () => {},
-            )
-          }
-        >
-          <Plus size={12} /> Ajouter
-        </button>
-      </div>
-    </Section>
   );
 }
 
