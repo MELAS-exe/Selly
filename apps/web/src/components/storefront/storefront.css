@@ -507,3 +507,18 @@
     animation: none;
   }
 }
+
+/*
+ * Small phones (320 to 380 px wide, "Mobile S"): the shop's whole scale, text and spacing, steps down an eighth, since
+ * every size is in rem. Form fields keep 16 px, under which iOS zooms in on focus.
+ */
+@media (max-width: 380px) {
+  :root:has(.sf) {
+    font-size: 87.5%;
+  }
+  .sf input,
+  .sf textarea,
+  .sf select {
+    font-size: 16px;
+  }
+}
