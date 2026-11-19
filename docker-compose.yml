@@ -1,4 +1,4 @@
-# Runs the whole project:  docker compose up --build
+# Runs the whole project, with the Maison Sokhna demo shop and fake Lightning wallets:  docker compose up --build
 # Infrastructure only (to run the apps with `pnpm dev`):  pnpm infra:up
 name: selly
 
@@ -59,16 +59,38 @@ services:
     entrypoint: ["/bin/sh", "/init/storage.sh"]
     restart: "no"
 
-  # Local Nostr relay for the fake NWC wallet service (packages/nwc testkit, to be built).
+  # Local Nostr relay: NWC between core and the fake wallets of the demo service.
   relay:
     image: scsibug/nostr-rs-relay
     ports:
       - "7777:8080"
 
+  # The key that encrypts wallet connections at rest (SECRETS_KEK_V1): 32 random bytes made on the first start,
+  # kept in the secrets volume. A SECRETS_KEK_V1 in .env takes its place.
+  kek-init:
+    image: node:24-alpine
+    volumes:
+      - secrets:/secrets
+    command:
+      [
+        "sh",
+        "-c",
+        "[ -s /secrets/kek ] || head -c 32 /dev/urandom | base64 > /secrets/kek; chmod 644 /secrets/kek",
+      ]
+    restart: "no"
+
   core:
     build:
       context: .
       dockerfile: apps/core/Dockerfile
+    command:
+      [
+        "sh",
+        "-c",
+        'export SECRETS_KEK_V1="$${SECRETS_KEK_V1:-$$(cat /run/selly/kek)}"; exec node dist/index.js',
+      ]
+    volumes:
+      - secrets:/run/selly:ro
     environment:
       NODE_ENV: production
       CORE_PORT: 4000
@@ -93,13 +115,15 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       SECRETS_PLATFORM_NOSTR_KEY: ${SECRETS_PLATFORM_NOSTR_KEY:-}
-      # Local stack: apply migrations, load the demo shop (awa-style), simulate Lightning invoices.
+      # Local stack: apply migrations and load the small awa-style shop; the demo service adds Maison Sokhna.
       # This stack is local: it runs the production build with the dev secrets above, on purpose.
       ALLOW_DEV_SECRETS: "true"
       MIGRATE_ON_START: ${MIGRATE_ON_START:-true}
       SEED_DEMO: ${SEED_DEMO:-true}
-      # fake: simulated invoices. nwc: each vendor's own wallet; needs SECRETS_KEK_V1 and a linked wallet.
-      INVOICE_PROVIDER: ${INVOICE_PROVIDER:-fake}
+      # Invoices on each vendor's own wallet over NWC: here the fake wallets of the demo service, on the local
+      # ws:// relay. Fixed, so an INVOICE_PROVIDER=fake left in .env does not break the demo.
+      INVOICE_PROVIDER: nwc
+      NWC_ALLOW_INSECURE_RELAYS: "true"
       LIGHTNING_NETWORK: ${LIGHTNING_NETWORK:-mainnet}
     ports:
       - "4000:4000"
@@ -107,6 +131,8 @@ services:
       postgres:
         condition: service_healthy
       storage-init:
+        condition: service_completed_successfully
+      kek-init:
         condition: service_completed_successfully
     healthcheck:
       test:
@@ -135,6 +161,9 @@ services:
       LLM_PRIMARY: ${LLM_PRIMARY:-demo}
       LLM_FALLBACK: ${LLM_FALLBACK:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      AGENT_TURN_DEADLINE_MS: ${AGENT_TURN_DEADLINE_MS:-12000}
       # Real core (internal API, demo shop awa-style) and PostgreSQL: core applies every migration,
       # the agent schema included, before it reports healthy. AGENT_CORE_MODE=fake or AGENT_STORE=memory
       # switch back to the in-memory stand-ins.
@@ -158,6 +187,42 @@ services:
         ]
       <<: *node-healthcheck
 
+  # The fake Lightning wallets, and Maison Sokhna made once (infra/demo/run.mjs): its products and photos, six weeks
+  # of paid orders, discussions. DEMO_LANG=en makes it in English. Pay an invoice from a terminal:
+  #   docker compose exec demo pnpm testwallet pay
+  demo:
+    build:
+      context: .
+      dockerfile: infra/demo/Dockerfile
+    command:
+      [
+        "sh",
+        "-c",
+        'export SECRETS_KEK_V1="$${SECRETS_KEK_V1:-$$(cat /run/selly/kek)}"; exec node infra/demo/run.mjs',
+      ]
+    volumes:
+      - secrets:/run/selly:ro
+      - demostate:/state
+    environment:
+      CORE: http://core:4000
+      DEMO_DATABASE_URL: postgres://selly:selly@postgres:5432/selly
+      DEMO_LANG: ${DEMO_LANG:-fr}
+      TESTWALLET_RELAY: ws://relay:8080
+      TESTWALLET_STATE: /state/testwallet.json
+      # For core's CLI, which links the platform wallet (subscriptions).
+      DATABASE_URL: postgres://selly:selly@postgres:5432/selly
+      SECRETS_KEK_V1: ${SECRETS_KEK_V1:-}
+    depends_on:
+      core:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/selly-demo-ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      # Making the shop takes two or three minutes the first time.
+      start_period: 15m
+
   web:
     build:
       context: .
@@ -174,6 +239,9 @@ services:
         condition: service_healthy
       agent:
         condition: service_healthy
+      # The site opens once the demo shop is ready.
+      demo:
+        condition: service_healthy
     healthcheck:
       test:
         [
@@ -187,3 +255,5 @@ services:
 volumes:
   pgdata:
   storagedata:
+  secrets:
+  demostate:

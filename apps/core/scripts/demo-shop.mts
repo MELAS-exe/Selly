@@ -324,21 +324,15 @@ class Session {
 
 /** Runs SQL in the local database (dev only). */
 function sql(query: string) {
+  // DEMO_DATABASE_URL: psql straight to the database (the demo service of docker-compose.yml); otherwise through the
+  // database container.
+  const url = process.env.DEMO_DATABASE_URL;
+  const psql = ['-At', '-v', 'ON_ERROR_STOP=1'];
   return execFileSync(
-    'docker',
-    [
-      'exec',
-      '-i',
-      DB_CONTAINER,
-      'psql',
-      '-U',
-      'selly',
-      '-d',
-      'selly',
-      '-At',
-      '-v',
-      'ON_ERROR_STOP=1',
-    ],
+    url ? 'psql' : 'docker',
+    url
+      ? [url, ...psql]
+      : ['exec', '-i', DB_CONTAINER, 'psql', '-U', 'selly', '-d', 'selly', ...psql],
     {
       input: query,
       encoding: 'utf8',

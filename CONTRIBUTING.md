@@ -27,7 +27,7 @@ The web app proxies `/api/v1/chat/*`, `/api/v1/conversations*` and `/api/v1/assi
 docker compose up --build
 ```
 
-This starts PostgreSQL 18, RustFS for S3-compatible storage (the buckets are created for you), a local Nostr relay, and the three apps built from `apps/*/Dockerfile`. Then open http://localhost:3000. Core is on :4000 and agent on :4100. Secrets default to dev values; override them in a root `.env`. Stop with `docker compose down` (add `-v` to wipe the data).
+This starts PostgreSQL 18, RustFS for S3-compatible storage (the buckets are created for you), a local Nostr relay, and the three apps built from `apps/*/Dockerfile`. It also starts the `demo` service (`infra/demo`): the fake NWC wallets, and Maison Sokhna made once on an empty database (`DEMO_LANG=en` makes it in English). Then open http://localhost:3000/s/maison-sokhna; the site opens once the shop is ready. Core is on :4000 and agent on :4100. Invoices go through NWC to the fake wallets; pay the newest with `docker compose exec demo pnpm testwallet pay`. Secrets default to dev values, and the key that encrypts wallet connections is made on the first start (the `secrets` volume); override them in a root `.env`. Stop with `docker compose down` (add `-v` to wipe the data, and the demo shop is made again on the next start).
 
 For day-to-day work, `pnpm infra:up` starts only the infrastructure, and `pnpm dev` runs the apps with hot reload.
 

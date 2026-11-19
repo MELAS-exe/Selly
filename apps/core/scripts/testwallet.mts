@@ -11,7 +11,8 @@
 // Core must run with INVOICE_PROVIDER=nwc and NWC_ALLOW_INSECURE_RELAYS=true (the relay is ws://).
 // TESTWALLET_RELAY  relay URL, default ws://localhost:7777 (the relay service of docker-compose.yml)
 // TESTWALLET_PORT   control API on 127.0.0.1, default 7788
-// The wallet keys are kept in .testwallet.json at the repository root, so the links survive a restart; the
+// TESTWALLET_STATE  absolute path of the keys file, default .testwallet.json at the repository root
+// The wallet keys are kept in that file, so the links survive a restart; the
 // invoices do not (they live in memory, as in a real wallet that was reset).
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
@@ -20,7 +21,9 @@ import { createServer } from 'node:http';
 import { FakeNwcWallet } from '@selly/nwc/testkit';
 
 const ROOT = new URL('../../../', import.meta.url);
-const STATE = new URL('.testwallet.json', ROOT);
+const STATE = process.env.TESTWALLET_STATE
+  ? new URL(`file://${process.env.TESTWALLET_STATE}`)
+  : new URL('.testwallet.json', ROOT);
 const RELAY = process.env.TESTWALLET_RELAY ?? 'ws://localhost:7777';
 const PORT = Number(process.env.TESTWALLET_PORT ?? 7788);
 const API = `http://127.0.0.1:${PORT}`;
