@@ -5,9 +5,11 @@ import { useEffect, useRef } from 'react';
 
 /** Radius of the gallery's colour lens, in px; the ring is drawn at this size over the photos (landing.css). */
 const LENS = 80;
-/** The colour the lens leaves behind stays this long (ms), then fades over TRAIL_FADE. */
-const TRAIL_HOLD = 2000;
-const TRAIL_FADE = 600;
+/** The colour tail behind the lens tapers to nothing over this long (ms). */
+const TAIL_LIFE = 750;
+/** Droplets (and drips) last this long in all (ms): they hold, then shrink away over DROPLET_FADE. */
+const DROPLET_LIFE = 2000;
+const DROPLET_FADE = 600;
 
 /**
  * The landing page's cursor, for mouse and trackpad only: a dot on the pointer and a ring that trails it. The ring
@@ -85,9 +87,9 @@ export function LandingCursor() {
       py = y;
     };
 
-    // Over the gallery the ring leaves a liquid of colour behind it: drops along its path, droplets shed at its tail
-    // that drift away, and now and then a drip running down from the trail. Each grows in, holds for TRAIL_HOLD, then
-    // shrinks away. Drops are soft-edged and the canvas goes through a threshold (#gal-goo, Landing.tsx), so the ones
+    // Over the gallery the ring leaves a liquid of colour behind it: a tail along its path, droplets shed from the tail
+    // that drift away, and now and then a drip running down. The tail tapers behind the ring and is gone in TAIL_LIFE;
+    // droplets grow in, hold, and shrink away by DROPLET_LIFE. Drops are soft-edged and the canvas goes through a threshold (#gal-goo, Landing.tsx), so the ones
     // that touch melt into one shape with a clean edge. Each photo keeps its own drops, in its own pixels (the photos
     // zoom on hover and drift with the scroll), and is redrawn while it has any.
     type Drop = {
@@ -99,6 +101,8 @@ export function LandingCursor() {
       vx: number;
       vy: number;
       g: number;
+      /** Part of the tail (tapers fast), rather than a droplet or a drip. */
+      tail: boolean;
     };
     const photos = Array.from(document.querySelectorAll<HTMLCanvasElement>('.gal-paint')).map(
       (canvas) => ({
@@ -123,7 +127,7 @@ export function LandingCursor() {
 
       for (const ph of photos) {
         const { canvas: c } = ph;
-        ph.drops = ph.drops.filter((d) => now - d.t < TRAIL_HOLD + TRAIL_FADE);
+        ph.drops = ph.drops.filter((d) => now - d.t < (d.tail ? TAIL_LIFE : DROPLET_LIFE));
         // Droplets drift off and slow down, drips slide down; both sink a little.
         for (const d of ph.drops) {
           if (!d.vx && !d.vy && !d.g) continue;
@@ -155,14 +159,22 @@ export function LandingCursor() {
               y: (from.y + (y - from.y) * f - b.top) * k,
             });
             const drop = (o: Partial<Drop> & { x: number; y: number; r: number }) =>
-              ph.drops.push({ t: now, seed: Math.random() * 6.28, vx: 0, vy: 0, g: 0, ...o });
+              ph.drops.push({
+                t: now,
+                seed: Math.random() * 6.28,
+                vx: 0,
+                vy: 0,
+                g: 0,
+                tail: false,
+                ...o,
+              });
             if (still && ph.drops.length) {
-              const top = ph.drops.findLast((d) => !d.g);
-              if (top) top.t = Math.max(top.t, now - 200);
+              const top = ph.drops.findLast((d) => d.tail);
+              if (top) top.t = now;
             } else {
               for (let i = 1; i <= steps; i++) {
                 const p = at(i / steps);
-                drop({ ...p, r: lens.r * k });
+                drop({ ...p, r: lens.r * k, tail: true });
                 // A drip: a small drop that slides down from the bottom of the trail.
                 if (Math.random() < 0.025)
                   drop({
@@ -230,10 +242,19 @@ export function LandingCursor() {
         mc.clearRect(0, 0, mw, mh);
         for (const d of ph.drops) {
           const age = now - d.t;
-          const grow = Math.min(1, age / 220);
-          const fade = age < TRAIL_HOLD ? 1 : 1 - (age - TRAIL_HOLD) / TRAIL_FADE;
           const wobble = 1 + Math.sin(now / 260 + d.seed) * 0.06;
-          const r = (d.r / 4) * (0.5 + 0.5 * (1 - (1 - grow) ** 3)) * (0.55 + 0.45 * fade) * wobble;
+          let fade = 1;
+          let size: number;
+          if (d.tail) {
+            // Full under the ring, thinning fast behind it: a short tail that comes to a point.
+            size = (1 - age / TAIL_LIFE) ** 1.3;
+          } else {
+            const grow = Math.min(1, age / 220);
+            const left = DROPLET_LIFE - age;
+            fade = left > DROPLET_FADE ? 1 : left / DROPLET_FADE;
+            size = (0.5 + 0.5 * (1 - (1 - grow) ** 3)) * (0.55 + 0.45 * fade);
+          }
+          const r = (d.r / 4) * size * wobble;
           // A soft falloff: the threshold cuts it at about half, where neighbouring drops add up into a bridge.
           const g = mc.createRadialGradient(d.x / 4, d.y / 4, 0, d.x / 4, d.y / 4, r);
           g.addColorStop(0, `rgba(0,0,0,${fade})`);
