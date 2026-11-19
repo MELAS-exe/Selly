@@ -5,22 +5,24 @@
 //   pnpm dev:testwallet                                       the fake wallets must be running
 //   pnpm --filter @selly/core exec tsx scripts/demo-shop.mts  then this
 //
-// Photos come from .demo-shop/photos at the repository root (see PRODUCTS and BANNER for the file names; public-domain
-// images from Openverse, credits in photos/CREDITS.txt); a product without its photo is created without one. The
-// vendor's Nostr secret key is kept in .demo-shop/vendor.json, to sign in as the shop later. The shop is made once: delete it (or change SLUG) to run the script again.
+// Photos come from demo-shop-photos/ next to this script (public-domain images from Openverse, credits in its
+// CREDITS.txt). The shop's Nostr key is the fixed demo key below, published on purpose so anyone running the demo can
+// sign in as the shop (JUDGES.txt): it opens nothing but this local demo shop. The shop is made once: delete it (or
+// change SLUG) to run the script again.
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure';
+import { existsSync, readFileSync } from 'node:fs';
+import { nip19 } from 'nostr-tools';
+import { finalizeEvent } from 'nostr-tools/pure';
 import sharp from 'sharp';
 
 const CORE = process.env.CORE ?? 'http://localhost:4000';
 const WALLET = process.env.TESTWALLET ?? 'http://127.0.0.1:7788';
 const ORIGIN = 'http://localhost:3000';
 const DB_CONTAINER = process.env.DB_CONTAINER ?? 'selly-postgres-1';
-const ROOT = new URL('../../../', import.meta.url);
-const DIR = new URL('.demo-shop/', ROOT);
-const PHOTOS = new URL('photos/', DIR);
+const PHOTOS = new URL('demo-shop-photos/', import.meta.url);
 const SLUG = 'maison-sokhna';
+/** The demo shop's key (npub npub1mu28sl69f56vj6wxnpt0dnxwmsjt95wyreex73cdhgz67vnuwv0qhuxhlh). Public on purpose: a demo account, never a real one. */
+const DEMO_NSEC = 'nsec19sqnr30hewl5ha7c65rgf56wluf6tn770h7wc8lt49f2tjx0ey4spllaaq';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const key = (p: string) => `${p}-${crypto.randomUUID()}`.slice(0, 60);
@@ -407,22 +409,14 @@ const pick = <T,>(xs: readonly T[]) => xs[Math.floor(rand() * xs.length)] as T;
 // ------------------------------------------------------------------------------------------------- run
 
 async function main() {
-  mkdirSync(PHOTOS, { recursive: true });
   const exists = await fetch(`${CORE}/api/v1/stores/${SLUG}`);
   if (exists.status !== 404) throw new Error(`The shop ${SLUG} exists already.`);
   await fetch(`${WALLET}/uris`).catch(() => {
     throw new Error('The fake wallets are not running: pnpm dev:testwallet');
   });
 
-  // Sign in with a key kept for later.
-  const keyFile = new URL('vendor.json', DIR);
-  const sk = existsSync(keyFile)
-    ? Uint8Array.from(Buffer.from(JSON.parse(readFileSync(keyFile, 'utf8')).secret_key_hex, 'hex'))
-    : generateSecretKey();
-  writeFileSync(
-    keyFile,
-    `${JSON.stringify({ slug: SLUG, secret_key_hex: Buffer.from(sk).toString('hex'), pubkey: getPublicKey(sk) }, null, 2)}\n`,
-  );
+  // Sign in with the demo key, the one JUDGES.txt gives for signing in from the browser.
+  const sk = nip19.decode(DEMO_NSEC).data as Uint8Array;
   const v = new Session();
   const c = await v.call('POST', '/api/v1/auth/nostr/challenges', { purpose: 'sign_in' });
   await v.call('POST', '/api/v1/auth/nostr/sessions', {
@@ -807,9 +801,7 @@ ${msgs}`;
     {},
   );
   console.log(`done: ${ORIGIN}/s/${SLUG}`, tally);
-  console.log(
-    `Sign in as the shop with the key in .demo-shop/vendor.json (secret_key_hex, or as nsec).`,
-  );
+  console.log('Sign in as the shop with the demo key: see JUDGES.txt at the repository root.');
 }
 
 main().catch((err) => {

@@ -145,9 +145,9 @@ The demo shop of the screenshots, with the fake wallets running and `MEDIA_STORE
 pnpm --filter @selly/core exec tsx scripts/demo-shop.mts
 ```
 
-It reads its photos from `.demo-shop/photos` (public-domain images; the file names are in the script) and keeps the
-vendor's Nostr key in `.demo-shop/vendor.json` to sign in as the shop. More setup, Docker and test details are in
-[CONTRIBUTING.md](CONTRIBUTING.md).
+Its photos are public-domain images in `apps/core/scripts/demo-shop-photos`. The shop has a fixed, public demo key, so
+anyone can sign in as it: **[JUDGES.txt](JUDGES.txt)** walks through the whole setup, the demo shop and the sign-in
+with a Nostr extension, step by step. More setup, Docker and test details are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ```bash
 pnpm test        # unit and integration tests
