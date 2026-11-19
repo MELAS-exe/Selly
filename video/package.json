@@ -1,0 +1,16 @@
+{
+  "name": "selly-demo-video",
+  "private": true,
+  "description": "The demo video: HTML scenes animated with GSAP, rendered frame by frame (see README.md).",
+  "type": "module",
+  "scripts": {
+    "capture": "node engine/capture.mjs",
+    "render": "node engine/render.mjs",
+    "sfx": "node engine/sfx.mjs"
+  },
+  "dependencies": {
+    "gsap": "3.15.0",
+    "nostr-tools": "2.26.1",
+    "playwright-core": "1.64.1"
+  }
+}

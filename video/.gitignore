@@ -1,0 +1,3 @@
+# Renders and recorded takes: rebuilt with npm run capture / render (README.md)
+out/
+clips/*.mp4
