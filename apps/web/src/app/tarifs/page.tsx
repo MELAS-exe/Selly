@@ -87,7 +87,7 @@ function PlanCard({
         href="/app/login"
         className={`mt-10 pv-sans text-xs uppercase tracking-[0.2em] font-medium border py-4 px-6 text-center transition-colors ${
           featured
-            ? 'border-[#8AAE4A] bg-[#8AAE4A] text-[#111] hover:bg-transparent hover:text-white'
+            ? 'border-[#8AAE4A] bg-[#8AAE4A] text-[#173B32] hover:bg-transparent hover:text-[#A3C651]'
             : 'border-[#173B32] text-[#173B32] hover:bg-[#173B32] hover:text-[#F6F4F0]'
         }`}
       >
