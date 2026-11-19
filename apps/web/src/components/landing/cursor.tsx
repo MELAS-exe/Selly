@@ -6,9 +6,9 @@ import { useEffect, useRef } from 'react';
 /** Radius of the gallery's colour lens, in px; the ring is drawn at this size over the photos (landing.css). */
 const LENS = 80;
 /** The colour tail behind the lens tapers to nothing over this long (ms). */
-const TAIL_LIFE = 750;
+const TAIL_LIFE = 2000;
 /** Droplets (and drips) last this long in all (ms): they hold, then shrink away over DROPLET_FADE. */
-const DROPLET_LIFE = 2000;
+const DROPLET_LIFE = 3000;
 const DROPLET_FADE = 600;
 
 /**
