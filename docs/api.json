@@ -16080,7 +16080,8 @@
             "minItems": 1
           },
           "delivery": {
-            "$ref": "#/components/schemas/DeliveryInput"
+            "$ref": "#/components/schemas/DeliveryInput",
+            "description": "Optional: without it the quote prices the items and the discount only (delivery_fee 0, delivery_included false), so the agent can answer a bargaining customer before the delivery is chosen. create_order still needs a quote with the delivery."
           },
           "discount_pct": {
             "type": "integer",
@@ -16089,8 +16090,7 @@
           }
         },
         "required": [
-          "items",
-          "delivery"
+          "items"
         ],
         "additionalProperties": false
       },
@@ -16120,6 +16120,10 @@
           },
           "applied_discount_pct": {
             "type": "integer"
+          },
+          "delivery_included": {
+            "type": "boolean",
+            "description": "False when the request had no delivery: the total leaves the delivery fee out."
           }
         },
         "required": [
@@ -16129,7 +16133,8 @@
           "discount",
           "total",
           "max_discount_pct",
-          "applied_discount_pct"
+          "applied_discount_pct",
+          "delivery_included"
         ],
         "additionalProperties": false
       },

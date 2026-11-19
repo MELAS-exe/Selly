@@ -53,7 +53,8 @@ export interface Quote {
 export async function quoteCart(
   ctx: Context,
   vendor: Vendor,
-  input: { items: CartItemInput[]; delivery: DeliveryInput },
+  /** No delivery (the agent, while bargaining): items and discount only, no delivery fee. */
+  input: { items: CartItemInput[]; delivery?: DeliveryInput | undefined },
   opts: { discountPct?: number } = {},
 ): Promise<Quote> {
   const settings = vendorSettings(vendor);
@@ -119,16 +120,15 @@ export async function quoteCart(
     throw new AppError('OUT_OF_STOCK', 'Some items are no longer available.', { errors: short });
 
   let deliveryFee = 0;
-  if (input.delivery.method === 'delivery') {
-    const zone = settings.delivery.zones.find((z) => z.id === input.delivery.zone_id);
+  const d = input.delivery;
+  if (!d) {
+    // Priced without delivery: the caller says so to the customer and quotes again with it before ordering.
+  } else if (d.method === 'delivery') {
+    const zone = settings.delivery.zones.find((z) => z.id === d.zone_id);
     if (!zone) {
-      throw new AppError(
-        'VALIDATION_FAILED',
-        `Unknown delivery zone "${input.delivery.zone_id ?? ''}".`,
-        {
-          errors: [{ field: 'delivery.zone_id', message: 'Unknown zone' }],
-        },
-      );
+      throw new AppError('VALIDATION_FAILED', `Unknown delivery zone "${d.zone_id ?? ''}".`, {
+        errors: [{ field: 'delivery.zone_id', message: 'Unknown zone' }],
+      });
     }
     deliveryFee = zone.fee.amount;
   } else if (!settings.delivery.pickup.available) {

@@ -59,7 +59,8 @@ const orderBody = z.strictObject({
 });
 const internalQuoteBody = z.strictObject({
   items: z.array(cartItem).min(1).max(20),
-  delivery,
+  // Optional for the agent: a bargaining customer gets the price and the discount before choosing a delivery.
+  delivery: delivery.optional(),
   discount_pct: z.number().int().min(0).max(100).optional(),
 });
 const internalOrderBody = z.strictObject({
@@ -219,6 +220,7 @@ export const ordersModule: FastifyPluginAsync = async (app) => {
       total: money(q.total, q.currency),
       max_discount_pct: q.maxDiscountPct,
       applied_discount_pct: q.appliedDiscountPct,
+      delivery_included: body.delivery !== undefined,
     };
   });
 

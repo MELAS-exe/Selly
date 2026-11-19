@@ -283,8 +283,9 @@ export class FakeCore implements CoreClient {
     });
     const subtotal = lines.reduce((s, l) => s + l.line_total.amount, 0);
     let deliveryFee = 0;
-    if (body.delivery.method === 'delivery') {
-      const zone = profile.delivery.zones.find((z) => z.id === body.delivery.zone_id);
+    const d = body.delivery;
+    if (d?.method === 'delivery') {
+      const zone = profile.delivery.zones.find((z) => z.id === d.zone_id);
       if (!zone)
         throw new CoreError(422, 'VALIDATION_FAILED', {
           code: 'VALIDATION_FAILED',
@@ -303,6 +304,7 @@ export class FakeCore implements CoreClient {
       total: { amount: subtotal - discount + deliveryFee, currency: 'XOF' },
       max_discount_pct: max,
       applied_discount_pct: applied,
+      delivery_included: d !== undefined,
     };
   }
 
