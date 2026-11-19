@@ -175,32 +175,36 @@
   animation: pv-pulse 2s ease-in-out infinite;
 }
 
-/* Scroll reveal, driven by the IntersectionObserver in Landing.tsx. */
-.reveal-on-scroll {
-  transition:
-    opacity var(--dur-hero) var(--ease-out-expo) var(--d, 0ms),
-    translate var(--dur-hero) var(--ease-out-expo) var(--d, 0ms);
-}
-
 /*
- * Hero choreography, one sequence instead of scattered fades:
- * the three h1 lines unmask one after the other (0 to ~800 ms), the products slide in
- * from the sides (300 to ~1200 ms) and then float, each on its own period, and the stamp falls last.
+ * Hero: the title lines turn in letter by letter, then roll over to their light green copy under the cursor
+ * (motion.ts). Until the script has split them they stay hidden (.split-wait), but never for more than 4 s.
  */
 .hero-line {
   display: block;
-  animation: hero-line var(--dur-hero) var(--ease-out-expo) calc(var(--i) * var(--dur-tap) * 0.7)
-    both;
 }
-@keyframes hero-line {
-  from {
-    clip-path: inset(0 -0.2em 100% -0.2em);
-    transform: translateY(0.3em);
+.flip-line {
+  position: relative;
+  width: fit-content;
+  margin-inline: auto;
+}
+.flip-alt {
+  position: absolute;
+  inset: 0;
+  color: #8aae4a;
+  visibility: hidden;
+}
+.flip-line .char {
+  backface-visibility: hidden;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .split-wait {
+    visibility: hidden;
+    animation: split-safety 0s 4s forwards;
   }
+}
+@keyframes split-safety {
   to {
-    /* Negative insets leave room for italic overhangs and descenders. */
-    clip-path: inset(-0.2em -0.2em -0.2em -0.2em);
-    transform: none;
+    visibility: visible;
   }
 }
 
@@ -233,112 +237,6 @@
 /* Circular texts pause off screen (data-offscreen, set by an observer in Landing.tsx). */
 .pv-spin[data-offscreen] {
   animation-play-state: paused;
-}
-
-/*
- * Scroll-driven reveals where supported; elsewhere the IntersectionObserver in Landing.tsx
- * toggles opacity/translate and the transition above plays.
- */
-@supports (animation-timeline: view()) {
-  .reveal-on-scroll {
-    transition: none;
-    animation: pv-reveal linear both;
-    animation-timeline: view();
-    animation-range: entry 0% entry 70%;
-  }
-  /* Toolkit rows: the picture unveils from the bottom, its number slides in from the left. */
-  .kit-media {
-    animation: kit-unveil linear both;
-    animation-timeline: view();
-    animation-range: entry 10% cover 40%;
-  }
-  .kit-num {
-    animation: kit-num linear both;
-    animation-timeline: view();
-    animation-range: entry 20% cover 35%;
-  }
-  /* Big quotes and titles: a curtain lifts from the bottom as they enter. */
-  .scroll-curtain {
-    animation: curtain linear both;
-    animation-timeline: view();
-    animation-range: entry 10% cover 35%;
-  }
-  /* The mascot steps in: up, upright and full size as it enters. */
-  .mascot-in {
-    animation: mascot-in linear both;
-    animation-timeline: view();
-    animation-range: entry 0% cover 45%;
-  }
-  /* Toolkit pictures zoom out while they unveil. */
-  .kit-media img {
-    animation: kit-zoom linear both;
-    animation-timeline: view();
-    animation-range: entry 10% cover 40%;
-  }
-  /* The "Your online shop" card slides in over its photo. */
-  .gal-card {
-    animation: gal-card linear both;
-    animation-timeline: view();
-    animation-range: entry 40% cover 55%;
-  }
-  /* Gallery: the photo drifts 30 px against the scroll, scaled so no edge shows. */
-  .gal-par {
-    animation: gal-par linear both;
-    animation-timeline: view();
-  }
-}
-@keyframes pv-reveal {
-  from {
-    opacity: 0;
-    translate: 0 3rem;
-  }
-}
-@keyframes kit-unveil {
-  from {
-    clip-path: inset(100% 0 0 0);
-  }
-  to {
-    clip-path: inset(0);
-  }
-}
-@keyframes curtain {
-  from {
-    clip-path: inset(0 -0.2em 100% -0.2em);
-  }
-  to {
-    clip-path: inset(-0.2em -0.2em -0.2em -0.2em);
-  }
-}
-@keyframes mascot-in {
-  from {
-    opacity: 0;
-    transform: translateY(40px) rotate(-8deg) scale(0.82);
-  }
-}
-@keyframes kit-zoom {
-  from {
-    transform: scale(1.25);
-  }
-}
-@keyframes gal-card {
-  from {
-    opacity: 0;
-    transform: translateX(-32px);
-  }
-}
-@keyframes kit-num {
-  from {
-    opacity: 0;
-    transform: translateX(-16px);
-  }
-}
-@keyframes gal-par {
-  from {
-    transform: translateY(-15px) scale(1.08);
-  }
-  to {
-    transform: translateY(15px) scale(1.08);
-  }
 }
 
 /* ---------------------------------------------------------------------------------------------- */
@@ -389,6 +287,10 @@
 .lit-quote {
   view-timeline-name: --quote;
 }
+/* Words turn in on their X axis (motion.ts): a transform needs a box. */
+.lit {
+  display: inline-block;
+}
 
 @supports (animation-timeline: scroll()) {
   .scroll-progress {
@@ -400,13 +302,9 @@
      the circle keeps turning. Separate properties (translate, rotate) so the entrances and the
      float, which use transform, keep running. */
   .hero-line {
-    animation:
-      hero-line var(--dur-hero) var(--ease-out-expo) calc(var(--i) * var(--dur-tap) * 0.7) both,
-      hero-out linear both;
-    animation-timeline: auto, scroll(root);
-    animation-range:
-      normal,
-      0 80vh;
+    animation: hero-out linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 80vh;
   }
   .hero-prop img {
     animation: prop-out linear both;
@@ -414,13 +312,9 @@
     animation-range: 0 80vh;
   }
   .hero-circle {
-    animation:
-      pv-fade-up var(--dur-hero) var(--ease-out-expo) var(--d, 0ms) both,
-      circle-out linear both;
-    animation-timeline: auto, scroll(root);
-    animation-range:
-      normal,
-      0 80vh;
+    animation: circle-out linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 80vh;
   }
 
   .lit {
@@ -490,14 +384,12 @@
 }
 @keyframes marquee-in {
   from {
-    opacity: 0;
-    translate: 0 16px;
+    translate: -8% 0;
   }
 }
 
-/* Calm versions: a short fade, no movement. */
+/* Calm versions: no movement (motion.ts builds no entrance under reduced motion). */
 @media (prefers-reduced-motion: reduce) {
-  .hero-line,
   .hero-prop,
   .animate-pv-fade-up,
   .animate-pv-stamp {
@@ -506,27 +398,10 @@
   .animate-pv-stamp {
     transform: rotate(-12deg);
   }
-  .animate-pv-line {
-    animation: none;
-  }
-  .reveal-on-scroll {
-    transition: opacity var(--dur-ui) linear;
-    translate: none !important;
-  }
-  .reveal-on-scroll {
-    animation-name: pv-fade;
-  }
-  .kit-media,
-  .kit-media img,
-  .gal-par,
-  .scroll-curtain {
-    animation: none;
-  }
-  .mascot-in,
-  .gal-card {
-    animation-name: pv-fade;
-  }
+  .animate-pv-line,
   .scroll-progress,
+  .hero-line,
+  .hero-circle,
   .hero-prop img,
   .step-line,
   .marquee {
@@ -535,18 +410,11 @@
   .scroll-progress {
     display: none;
   }
-  .hero-line,
-  .hero-circle {
-    animation: pv-fade var(--dur-ui) linear both;
-  }
   .lit {
     animation: none;
     opacity: 1;
   }
   .foot-mark {
-    animation-name: pv-fade;
-  }
-  .kit-num {
     animation-name: pv-fade;
   }
 }
@@ -591,4 +459,122 @@
 }
 .theme-paper-vermilion [id] {
   scroll-margin-top: 5rem;
+}
+
+/* ---------------------------------------------------------------------------------------------- */
+/* The cursor (cursor.tsx): a dot and a trailing ring, mouse and trackpad only.                     */
+/* ---------------------------------------------------------------------------------------------- */
+
+.cursor-dot,
+.cursor-ring {
+  display: none;
+}
+.has-cursor .theme-paper-vermilion,
+.has-cursor .theme-paper-vermilion * {
+  cursor: none !important;
+}
+.has-cursor .cursor-dot,
+.has-cursor .cursor-ring {
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+}
+.cursor-dot[data-visible],
+.cursor-ring[data-visible] {
+  opacity: 1;
+}
+.cursor-dot {
+  width: 8px;
+  height: 8px;
+  background: #173b32;
+  transition:
+    opacity var(--dur-ui) linear,
+    width var(--dur-ui) var(--ease-out-expo),
+    height var(--dur-ui) var(--ease-out-expo),
+    background-color var(--dur-ui) linear;
+}
+.cursor-ring {
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(23, 59, 50, 0.45);
+  transition:
+    opacity var(--dur-ui) linear,
+    width 500ms var(--ease-out-expo),
+    height 500ms var(--ease-out-expo),
+    border-color var(--dur-ui) linear,
+    background-color var(--dur-ui) linear;
+}
+.cursor-dot[data-dark] {
+  background: #f6f4f0;
+}
+.cursor-ring[data-dark] {
+  border-color: rgba(246, 244, 240, 0.5);
+}
+/* Links and buttons: the ring swells and fills a little. */
+.cursor-ring[data-state="link"] {
+  width: 64px;
+  height: 64px;
+  border-color: #8aae4a;
+  background: rgba(138, 174, 74, 0.16);
+}
+.cursor-dot[data-state="link"] {
+  width: 4px;
+  height: 4px;
+}
+/* The hero titles: a big light green ring, the colour they roll over to. */
+.cursor-ring[data-state="flip"] {
+  width: 110px;
+  height: 110px;
+  border-color: #8aae4a;
+}
+.cursor-dot[data-state="flip"] {
+  background: #8aae4a;
+}
+/* The gallery: the ring is the lens (2 x LENS in cursor.tsx), the dot steps aside. */
+.cursor-ring[data-state="lens"] {
+  width: 160px;
+  height: 160px;
+  border-color: rgba(246, 244, 240, 0.85);
+  box-shadow: 0 0 0 1px rgba(23, 59, 50, 0.18);
+}
+.cursor-dot[data-state="lens"] {
+  width: 0;
+  height: 0;
+}
+
+/* Gallery: photos in grayscale where there is a cursor to paint their colour back; in colour on touch screens. */
+.gal-paint {
+  display: none;
+}
+.has-cursor .gal-img {
+  filter: grayscale(1);
+}
+.has-cursor .gal-paint {
+  display: block;
+  filter: url(#gal-goo);
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* "Meet Selly": the outlined giant words behind, the sparks around Selly. */
+.meet-ghost-track {
+  font-size: clamp(6rem, 18vw, 16rem);
+  line-height: 0.9;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(246, 244, 240, 0.09);
+}
+.meet-spark {
+  position: absolute;
+  z-index: 1;
+  color: #8aae4a;
+  line-height: 1;
+  pointer-events: none;
 }
