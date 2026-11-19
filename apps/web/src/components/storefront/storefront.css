@@ -491,3 +491,19 @@
     animation: none;
   }
 }
+
+/* The Selly chat slides in from the right, as in the vendor's dashboard. */
+.sf-chat-sheet {
+  animation: sf-chat-in 200ms ease-out;
+}
+@keyframes sf-chat-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sf-chat-sheet {
+    animation: none;
+  }
+}

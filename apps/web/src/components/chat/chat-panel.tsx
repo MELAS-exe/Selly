@@ -8,6 +8,7 @@ import { addLine, readCart, writeCart } from '@/lib/cart';
 import { ensureSession, newClientMessageId, sendMessage, subscribe } from '@/lib/chat';
 import type { CartCard, ChatMessage, ChatSession } from '@/lib/chat-types';
 import { formatMoney, formatOptions } from '@/lib/format';
+import { SellyMark } from '../brand/selly-mark';
 import { openCart } from '../storefront/cart-drawer';
 
 type Status = 'loading' | 'ready' | 'failed';
@@ -120,6 +121,13 @@ export function ChatPanel({
     }
   }
 
+  // Escape closes, as in the dashboard.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   // A cart the vendor proposed goes into the shop's cart, where the customer picks quantities and delivery.
   function openProposal(card: CartCard) {
     let lines = readCart(slug);
@@ -144,25 +152,29 @@ export function ChatPanel({
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
-      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 backdrop-blur-[2px] sm:items-center"
+      className="fixed inset-0 z-50 flex justify-end bg-ink/40"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="open-rows flex h-[85dvh] w-full max-w-sm flex-col rounded-t-[var(--radius-tile)] bg-paper sm:h-[32rem] sm:rounded-[var(--radius-tile)]">
+      {/* A sheet from the right, full screen on a phone: as Selly in the vendor's dashboard. */}
+      <div className="sf-chat-sheet flex h-full w-full max-w-[440px] flex-col border-l border-line bg-paper shadow-[-24px_0_48px_-32px_rgba(23,59,50,0.6)]">
         <div className="flex min-h-0 flex-1 flex-col">
-          <header className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
-            <div>
-              <h2 id={titleId} className="font-bold">
-                {storeName}
+          <header className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-line px-4 py-4">
+            <SellyMark className="w-7 text-[var(--sf-accent-text,#173b32)]" />
+            <div className="min-w-0">
+              <h2 id={titleId} className="sf-serif truncate text-2xl leading-none font-medium">
+                Selly
               </h2>
-              {mode === 'human' && (
-                <p className="text-sm text-leaf">{modeLabel ?? 'Le vendeur répond'}</p>
-              )}
+              <p className="mt-1 truncate text-sm text-muted">
+                {mode === 'human'
+                  ? (modeLabel ?? 'Le vendeur répond')
+                  : `Conseillère de ${storeName}`}
+              </p>
             </div>
             <button
               type="button"
               onClick={onClose}
               aria-label="Fermer"
-              className="press grid size-9 place-items-center rounded-full text-muted"
+              className="press grid size-11 place-items-center border border-line text-muted"
             >
               <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="none">
                 <path
