@@ -8,9 +8,26 @@ import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '@/lib/browser-api';
 import { errorText, newKey, uploadImages, useDashboard, useResource } from '../data';
 import { fmtAgo, fmtXof, formatOptions } from '../format';
-import { Camera, Check, CircleCheck, ImagePlus, TriangleAlert } from '../icons';
+import { Camera, Check, CircleCheck, ImagePlus, TriangleAlert, X } from '../icons';
 import type { Draft, Page } from '../types';
 import { Badge, Empty, Failed, Loading, PageTitle } from '../ui';
+
+/** Failed photo drafts the vendor has already been told about (localStorage, this device). */
+const SEEN_FAILURES = 'selly-seen-draft-failures';
+function readSeenFailures(): string[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(SEEN_FAILURES) ?? '[]');
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+function rememberSeenFailures(ids: string[]) {
+  try {
+    const all = [...new Set([...readSeenFailures(), ...ids])].slice(-50);
+    localStorage.setItem(SEEN_FAILURES, JSON.stringify(all));
+  } catch {}
+}
 
 const FROM: Record<string, string> = {
   text: 'votre message',
@@ -27,9 +44,17 @@ export function PendingDrafts() {
   const review = useResource<Page<Draft>>('/inventory/drafts?status=needs_review');
   const processing = useResource<Page<Draft>>('/inventory/drafts?status=processing', 4000);
   const failed = useResource<Page<Draft>>('/inventory/drafts?status=failed');
+  // A failed photo is told once. The failures on screen are remembered as seen on this device right away (so the
+  // alert is gone on the next visit), and the close button hides it now.
+  const [seen, setSeen] = useState(readSeenFailures);
   const recentFailures = (failed.data?.data ?? []).filter(
-    (d) => Date.now() - Date.parse(d.created_at) < 86_400_000,
+    (d) => Date.now() - Date.parse(d.created_at) < 86_400_000 && !seen.includes(d.id),
   );
+  const shownKey = recentFailures.map((d) => d.id).join(',');
+  useEffect(() => {
+    if (shownKey) rememberSeenFailures(shownKey.split(','));
+  }, [shownKey]);
+  const dismiss = () => setSeen(readSeenFailures());
   const toCheck = review.data?.data ?? [];
   const reading = processing.data?.data.length ?? 0;
   if (toCheck.length === 0 && reading === 0 && recentFailures.length === 0) return null;
@@ -48,13 +73,21 @@ export function PendingDrafts() {
         </div>
       )}
       {recentFailures.length > 0 && (
-        <div className="banner alert" role="status">
+        <div className="banner alert dismissable" role="status">
           <span style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <TriangleAlert size={16} />
             {recentFailures.length} photo{recentFailures.length > 1 ? 's' : ''} n’
             {recentFailures.length > 1 ? 'ont' : 'a'} pas pu être lue
             {recentFailures.length > 1 ? 's' : ''}. Reprenez la photo avec plus de lumière.
           </span>
+          <button
+            type="button"
+            className="banner-close"
+            aria-label="Fermer ce message"
+            onClick={dismiss}
+          >
+            <X size={15} />
+          </button>
         </div>
       )}
       {toCheck.length > 0 && (
