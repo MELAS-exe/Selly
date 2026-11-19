@@ -8,8 +8,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { CountdownRing } from '@/components/motion/countdown-ring';
 import { PaymentSuccess } from '@/components/motion/payment-success';
 import { Check, Copy, ExternalLink, RefreshCcw } from '@/components/storefront/draft-icons';
-import { formatMoney, formatSats } from '@/lib/format';
+
 import type { CheckoutView, InvoiceStatus, OrderStatus } from '@/lib/types';
+import { useLang, useMoney, useT } from '../lang';
 
 type Live = {
   status: OrderStatus;
@@ -21,6 +22,8 @@ type Live = {
 const POLL_MS = 5000;
 
 export function CheckoutLive({ view }: { view: CheckoutView }) {
+  const { money, sats } = useMoney();
+  const t = useT();
   const { order, store } = view;
   const [invoice, setInvoice] = useState(view.invoice);
   const [live, setLive] = useState<Live>({
@@ -96,7 +99,12 @@ export function CheckoutLive({ view }: { view: CheckoutView }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      setProblem('Copie impossible : sélectionnez la facture ci-dessous et copiez-la.');
+      setProblem(
+        t(
+          'Copie impossible : sélectionnez la facture ci-dessous et copiez-la.',
+          'Could not copy: select the invoice below and copy it.',
+        ),
+      );
     }
   };
 
@@ -112,10 +120,19 @@ export function CheckoutLive({ view }: { view: CheckoutView }) {
         const p = (await res.json().catch(() => null)) as { code?: string } | null;
         setProblem(
           p?.code === 'PAYMENT_UNAVAILABLE'
-            ? 'Paiement momentanément indisponible. Réessayez dans un instant.'
+            ? t(
+                'Paiement momentanément indisponible. Réessayez dans un instant.',
+                'Payment unavailable for a moment. Try again shortly.',
+              )
             : p?.code === 'OUT_OF_STOCK' || p?.code === 'INSUFFICIENT_STOCK'
-              ? 'Un article n’est plus disponible. Demandez au vendeur.'
-              : 'Impossible de créer un nouveau lien. Réessayez.',
+              ? t(
+                  'Un article n’est plus disponible. Demandez au vendeur.',
+                  'An item is no longer available. Ask the seller.',
+                )
+              : t(
+                  'Impossible de créer un nouveau lien. Réessayez.',
+                  'Could not make a new link. Try again.',
+                ),
         );
         return;
       }
@@ -134,12 +151,17 @@ export function CheckoutLive({ view }: { view: CheckoutView }) {
   if (live.status === 'cancelled')
     return (
       <Panel>
-        <p className="sf-serif text-3xl">Cette commande a été annulée.</p>
+        <p className="sf-serif text-3xl">
+          {t('Cette commande a été annulée.', 'This order was cancelled.')}
+        </p>
         <p className="mt-3 text-d-ink-soft">
-          Rien n’a été payé. Vous pouvez repasser commande depuis la boutique.
+          {t(
+            'Rien n’a été payé. Vous pouvez repasser commande depuis la boutique.',
+            'Nothing was paid. You can order again from the shop.',
+          )}
         </p>
         <a href={`/s/${store.slug}`} className="sf-btn sf-btn-primary mt-6">
-          Retour à la boutique
+          {t('Retour à la boutique', 'Back to the shop')}
         </a>
       </Panel>
     );
@@ -149,21 +171,25 @@ export function CheckoutLive({ view }: { view: CheckoutView }) {
       <h1 className="sf-serif mt-3 mb-8 text-[2.75rem] leading-[1.02] sm:text-6xl">
         {paid ? (
           <>
-            Merci, <em className="text-[var(--sf-accent-text)]">c’est réglé.</em>
+            {t('Merci,', 'Thank you,')}{' '}
+            <em className="text-[var(--sf-accent-text)]">{t('c’est réglé.', 'it’s paid.')}</em>
           </>
         ) : (
           <>
-            Plus qu’un geste, <em className="text-[var(--sf-accent-text)]">et c’est à vous.</em>
+            {t('Plus qu’un geste,', 'One more tap,')}{' '}
+            <em className="text-[var(--sf-accent-text)]">
+              {t('et c’est à vous.', 'and it’s yours.')}
+            </em>
           </>
         )}
       </h1>
       <Panel>
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
           <div>
-            <p className="sf-eyebrow">{paid ? 'Payé' : 'À payer'}</p>
-            <p className="sf-figure mt-1 text-5xl leading-none">{formatMoney(order.total)}</p>
+            <p className="sf-eyebrow">{paid ? t('Payé', 'Paid') : t('À payer', 'To pay')}</p>
+            <p className="sf-figure mt-1 text-5xl leading-none">{money(order.total)}</p>
             <p className="tnum mt-2 text-d-ink-soft">
-              soit {formatSats(order.total_sat)} en bitcoin
+              {t('soit', 'that is')} {sats(order.total_sat)} {t('en bitcoin', 'in bitcoin')}
             </p>
           </div>
           {!paid && invoice && !expired && (
@@ -178,9 +204,14 @@ export function CheckoutLive({ view }: { view: CheckoutView }) {
         <div className="mt-8 flex flex-col items-center">
           {expired && !paid ? (
             <div className="w-full border border-d-hairline p-6 text-center">
-              <p className="sf-serif text-2xl">Le lien de paiement a expiré.</p>
+              <p className="sf-serif text-2xl">
+                {t('Le lien de paiement a expiré.', 'The payment link has expired.')}
+              </p>
               <p className="mt-2 text-d-ink-soft">
-                Le taux du bitcoin bouge : un nouveau lien recalcule le montant en sats.
+                {t(
+                  'Le taux du bitcoin bouge : un nouveau lien recalcule le montant en sats.',
+                  'The bitcoin rate moves: a new link works out the amount in sats again.',
+                )}
               </p>
               <button
                 type="button"
@@ -188,7 +219,10 @@ export function CheckoutLive({ view }: { view: CheckoutView }) {
                 disabled={renewing}
                 className="sf-btn sf-btn-primary mt-5 disabled:opacity-50"
               >
-                <RefreshCcw size={16} /> {renewing ? 'Un instant…' : 'Nouveau lien de paiement'}
+                <RefreshCcw size={16} />{' '}
+                {renewing
+                  ? t('Un instant…', 'One moment…')
+                  : t('Nouveau lien de paiement', 'New payment link')}
               </button>
             </div>
           ) : (
@@ -198,14 +232,23 @@ export function CheckoutLive({ view }: { view: CheckoutView }) {
                 paid={paid}
                 message={
                   live.status === 'fulfilled'
-                    ? `Commande ${order.number} remise. Merci !`
-                    : `Paiement reçu. Commande ${order.number} confirmée.`
+                    ? t(
+                        `Commande ${order.number} remise. Merci !`,
+                        `Order ${order.number} handed over. Thank you!`,
+                      )
+                    : t(
+                        `Paiement reçu. Commande ${order.number} confirmée.`,
+                        `Payment received. Order ${order.number} confirmed.`,
+                      )
                 }
               >
                 {invoice && !paidOnArrival ? (
                   <div
                     role="img"
-                    aria-label="QR code de la facture Lightning"
+                    aria-label={t(
+                      'QR code de la facture Lightning',
+                      'QR code of the Lightning invoice',
+                    )}
                     className="checkout-qr aspect-square w-full max-w-64 border border-d-hairline bg-white p-3 sm:max-w-72"
                     // Inline SVG made by core from the invoice (qrcode library), never user input.
                     dangerouslySetInnerHTML={{ __html: invoice.qr_svg ?? '' }}
@@ -217,24 +260,30 @@ export function CheckoutLive({ view }: { view: CheckoutView }) {
               {!paid && invoice && (
                 <>
                   <p className="mt-1 max-w-80 text-center text-d-ink-soft">
-                    Scannez avec votre portefeuille bitcoin, ou ouvrez-le directement sur ce
-                    téléphone.
+                    {t(
+                      'Scannez avec votre portefeuille bitcoin, ou ouvrez-le directement sur ce téléphone.',
+                      'Scan with your bitcoin wallet, or open it right on this phone.',
+                    )}
                   </p>
                   <div className="mt-6 grid w-full gap-3">
                     <a href={invoice.lightning_uri} className="sf-btn sf-btn-primary">
-                      Ouvrir mon portefeuille <ExternalLink size={16} />
+                      {t('Ouvrir mon portefeuille', 'Open my wallet')} <ExternalLink size={16} />
                     </a>
                     <button type="button" onClick={copy} className="sf-btn sf-btn-ghost">
                       {copied ? <Check size={16} /> : <Copy size={16} />}
-                      {copied ? 'Facture copiée' : 'Copier la facture'}
+                      {copied
+                        ? t('Facture copiée', 'Invoice copied')
+                        : t('Copier la facture', 'Copy the invoice')}
                     </button>
                   </div>
                   <details className="mt-4 w-full text-d-ink-soft">
-                    <summary className="min-h-11 cursor-pointer py-2">Voir la facture</summary>
+                    <summary className="min-h-11 cursor-pointer py-2">
+                      {t('Voir la facture', 'See the invoice')}
+                    </summary>
                     <p className="font-mono text-sm break-all select-all">{invoice.bolt11}</p>
                   </details>
                   <a href={`/c/${token}`} className="mt-2 min-h-11 py-2 text-d-ink-soft underline">
-                    J’ai payé, actualiser
+                    {t('J’ai payé, actualiser', 'I’ve paid, refresh')}
                   </a>
                 </>
               )}
@@ -255,9 +304,10 @@ export function CheckoutLive({ view }: { view: CheckoutView }) {
 }
 
 function Panel({ children }: { children: React.ReactNode }) {
+  const t = useT();
   return (
     <section
-      aria-label="Paiement"
+      aria-label={t('Paiement', 'Payment')}
       className="sf-rise border border-d-hairline bg-d-paper p-6 sm:p-8"
     >
       {children}
@@ -267,9 +317,11 @@ function Panel({ children }: { children: React.ReactNode }) {
 
 /** Commande reçue → Payée → Remise: the order page that replaces WhatsApp status messages (architecture.md 3.4). */
 function Steps({ live }: { live: Live }) {
+  const t = useT();
+  const lang = useLang();
   const at = (iso: string | null) =>
     iso
-      ? new Intl.DateTimeFormat('fr-SN', {
+      ? new Intl.DateTimeFormat(lang === 'en' ? 'en-GB' : 'fr-SN', {
           day: 'numeric',
           month: 'short',
           hour: '2-digit',
@@ -277,13 +329,17 @@ function Steps({ live }: { live: Live }) {
         }).format(new Date(iso))
       : null;
   const steps = [
-    { label: 'Commande reçue', done: true, when: null },
+    { label: t('Commande reçue', 'Order received'), done: true, when: null },
     {
-      label: 'Paiement reçu',
+      label: t('Paiement reçu', 'Payment received'),
       done: live.status === 'paid' || live.status === 'fulfilled',
       when: at(live.paidAt),
     },
-    { label: 'Remise ou livrée', done: live.status === 'fulfilled', when: at(live.fulfilledAt) },
+    {
+      label: t('Remise ou livrée', 'Handed over or delivered'),
+      done: live.status === 'fulfilled',
+      when: at(live.fulfilledAt),
+    },
   ];
   return (
     <ol className="mt-8 grid grid-cols-3 border-t border-d-hairline pt-5">
@@ -299,7 +355,9 @@ function Steps({ live }: { live: Live }) {
             className={`mt-2 block leading-tight ${s.done ? 'font-semibold' : 'text-d-ink-soft'}`}
           >
             {s.label}
-            <span className="sr-only">{s.done ? ' : fait' : ' : à venir'}</span>
+            <span className="sr-only">
+              {s.done ? t(' : fait', ': done') : t(' : à venir', ': to come')}
+            </span>
           </span>
           {s.when && <span className="tnum block text-[0.9375rem] text-d-ink-soft">{s.when}</span>}
         </li>

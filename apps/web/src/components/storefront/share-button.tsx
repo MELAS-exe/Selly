@@ -1,6 +1,7 @@
 'use client';
 
 import { type ReactNode, useState } from 'react';
+import { useT } from '../lang';
 
 /** Shares the shop (Web Share API), or copies its link, and says so. */
 export function ShareButton({
@@ -14,6 +15,7 @@ export function ShareButton({
   className?: string;
   children: ReactNode;
 }) {
+  const t = useT();
   const [said, setSaid] = useState('');
   return (
     <>
@@ -26,7 +28,7 @@ export function ShareButton({
             if (navigator.share) await navigator.share({ title, url: full });
             else {
               await navigator.clipboard.writeText(full);
-              setSaid('Lien de la boutique copié');
+              setSaid(t('Lien de la boutique copié', 'Shop link copied'));
               setTimeout(() => setSaid(''), 2400);
             }
           } catch {}

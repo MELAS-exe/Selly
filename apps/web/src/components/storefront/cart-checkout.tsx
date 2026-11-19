@@ -7,8 +7,9 @@
 import { useEffect, useId, useState } from 'react';
 import { ApiError, api, problemMessage } from '@/lib/browser-api';
 import { type CartLine, writeCart } from '@/lib/cart';
-import { formatMoney, toE164 } from '@/lib/format';
+import { toE164 } from '@/lib/format';
 import type { CartQuote, OrderCreated, StorePublic } from '@/lib/types';
+import { useMoney, useT } from '../lang';
 import { ArrowRight } from './draft-icons';
 
 type Delivery = StorePublic['delivery'];
@@ -29,6 +30,8 @@ export function CartCheckout({
   delivery: Delivery;
   onBack: () => void;
 }) {
+  const { money, sats } = useMoney();
+  const t = useT();
   const ids = { name: useId(), phone: useId(), zone: useId(), address: useId(), note: useId() };
   const pickup = delivery.pickup.available;
   const zones = delivery.zones;
@@ -76,7 +79,11 @@ export function CartCheckout({
       (q) => setQuote(q),
       (err) => {
         if ((err as Error).name !== 'AbortError')
-          setError(err instanceof ApiError ? problemMessage(err.problem) : 'Erreur, réessayez.');
+          setError(
+            err instanceof ApiError
+              ? problemMessage(err.problem)
+              : t('Erreur, réessayez.', 'Something went wrong, try again.'),
+          );
       },
     );
     return () => ctrl.abort();
@@ -109,9 +116,19 @@ export function CartCheckout({
       setBusy(false);
       setKey(newKey());
       if (err instanceof ApiError && err.problem.code === 'PRICE_CHANGED') {
-        setError('Le prix a changé. Vérifiez le nouveau total avant de commander.');
+        setError(
+          t(
+            'Le prix a changé. Vérifiez le nouveau total avant de commander.',
+            'The price has changed. Check the new total before ordering.',
+          ),
+        );
         setRequote((n) => n + 1);
-      } else setError(err instanceof ApiError ? problemMessage(err.problem) : 'Erreur, réessayez.');
+      } else
+        setError(
+          err instanceof ApiError
+            ? problemMessage(err.problem)
+            : t('Erreur, réessayez.', 'Something went wrong, try again.'),
+        );
     }
   }
 
@@ -129,7 +146,7 @@ export function CartCheckout({
     >
       <div className="flex-1 overflow-y-auto px-5 pb-5">
         <label className={label} htmlFor={ids.name}>
-          Votre nom
+          {t('Votre nom', 'Your name')}
         </label>
         <input
           id={ids.name}
@@ -140,7 +157,7 @@ export function CartCheckout({
           onChange={(e) => setName(e.target.value)}
         />
         <label className={label} htmlFor={ids.phone}>
-          Téléphone
+          {t('Téléphone', 'Phone')}
         </label>
         <input
           id={ids.phone}
@@ -159,10 +176,13 @@ export function CartCheckout({
         )}
 
         <fieldset className="mt-5">
-          <legend className="sf-eyebrow mb-2">Livraison</legend>
+          <legend className="sf-eyebrow mb-2">{t('Livraison', 'Delivery')}</legend>
           {zones.length === 0 && !pickup && (
             <p className="text-d-ink-soft">
-              La boutique n’a pas encore indiqué comment elle livre. Écrivez-lui pour commander.
+              {t(
+                'La boutique n’a pas encore indiqué comment elle livre. Écrivez-lui pour commander.',
+                'The shop has not said how it delivers yet. Write to it to order.',
+              )}
             </p>
           )}
           <div className="grid gap-2">
@@ -182,7 +202,7 @@ export function CartCheckout({
                   {z.label}
                 </span>
                 <span className="tnum text-d-ink-soft">
-                  {z.fee.amount ? formatMoney(z.fee) : 'Offerte'}
+                  {z.fee.amount ? money(z.fee) : t('Offerte', 'Free')}
                 </span>
               </label>
             ))}
@@ -196,9 +216,9 @@ export function CartCheckout({
                     onChange={() => setWhere('pickup')}
                     className="accent-[var(--sf-ink)]"
                   />
-                  Retrait à la boutique
+                  {t('Retrait à la boutique', 'Pick up at the shop')}
                 </span>
-                <span className="text-d-ink-soft">Gratuit</span>
+                <span className="text-d-ink-soft">{t('Gratuit', 'Free')}</span>
               </label>
             )}
           </div>
@@ -209,7 +229,7 @@ export function CartCheckout({
         {!isPickup && where && (
           <>
             <label className={label} htmlFor={ids.address}>
-              Adresse de livraison
+              {t('Adresse de livraison', 'Delivery address')}
             </label>
             <input
               id={ids.address}
@@ -218,12 +238,12 @@ export function CartCheckout({
               maxLength={300}
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              placeholder="Rue, immeuble, repère"
+              placeholder={t('Rue, immeuble, repère', 'Street, building, landmark')}
             />
           </>
         )}
         <label className={label} htmlFor={ids.note}>
-          Note pour la boutique, facultatif
+          {t('Note pour la boutique, facultatif', 'Note for the shop, optional')}
         </label>
         <input
           id={ids.note}
@@ -239,27 +259,25 @@ export function CartCheckout({
         {quote ? (
           <dl className="grid grid-cols-[1fr_auto] gap-y-1 text-[0.9375rem]">
             <dt className="text-d-ink-soft">Sous-total</dt>
-            <dd className="tnum text-right">{formatMoney(quote.subtotal)}</dd>
-            <dt className="text-d-ink-soft">Livraison</dt>
+            <dd className="tnum text-right">{money(quote.subtotal)}</dd>
+            <dt className="text-d-ink-soft">{t('Livraison', 'Delivery')}</dt>
             <dd className="tnum text-right">
-              {quote.delivery_fee.amount ? formatMoney(quote.delivery_fee) : 'Offerte'}
+              {quote.delivery_fee.amount ? money(quote.delivery_fee) : t('Offerte', 'Free')}
             </dd>
             {quote.discount.amount > 0 && (
               <>
-                <dt className="text-d-ink-soft">Remise</dt>
-                <dd className="tnum text-right">−{formatMoney(quote.discount)}</dd>
+                <dt className="text-d-ink-soft">{t('Remise', 'Discount')}</dt>
+                <dd className="tnum text-right">−{money(quote.discount)}</dd>
               </>
             )}
             <dt className="mt-2 font-semibold">Total</dt>
-            <dd className="sf-figure mt-1 text-right text-3xl">{formatMoney(quote.total)}</dd>
-            <dd className="col-span-2 text-right text-d-ink-soft">
-              ≈ {quote.total_sat.toLocaleString('fr-FR')} sats
-            </dd>
+            <dd className="sf-figure mt-1 text-right text-3xl">{money(quote.total)}</dd>
+            <dd className="col-span-2 text-right text-d-ink-soft">≈ {sats(quote.total_sat)}</dd>
           </dl>
         ) : (
           where && (
             <p className="text-d-ink-soft" role="status">
-              Calcul du total…
+              {t('Calcul du total…', 'Working out the total…')}
             </p>
           )
         )}
@@ -273,14 +291,17 @@ export function CartCheckout({
           disabled={!ready || busy}
           className="sf-btn sf-btn-primary mt-4 w-full disabled:opacity-40"
         >
-          {busy ? 'Création de la commande…' : 'Commander et payer'} <ArrowRight size={16} />
+          {busy
+            ? t('Création de la commande…', 'Creating the order…')
+            : t('Commander et payer', 'Order and pay')}{' '}
+          <ArrowRight size={16} />
         </button>
         <button
           type="button"
           onClick={onBack}
           className="mt-2 min-h-11 w-full text-d-ink-soft underline"
         >
-          Retour au panier
+          {t('Retour au panier', 'Back to the cart')}
         </button>
       </div>
     </form>

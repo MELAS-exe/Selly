@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { SellyMark } from '@/components/brand/selly-mark';
+import { useT } from '../lang';
 import type { AskDetail } from '../storefront/ask-button';
 import { ChatPanel } from './chat-panel';
 
@@ -25,6 +26,7 @@ export function AskSelly({
   productTitle?: string;
   variant?: 'floating' | 'inline';
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   // Any "Demander à Selly" of the page (storefront/ask-button.tsx) opens this chat, about a product or not.
   const [about, setAbout] = useState<AskDetail>({ productId, productTitle });
@@ -50,7 +52,12 @@ export function AskSelly({
         data-ask-selly-trigger
         hidden={variant === 'floating' && open}
         aria-label={
-          variant === 'floating' ? 'Parler à Selly, votre conseillère de boutique' : undefined
+          variant === 'floating'
+            ? t(
+                'Parler à Selly, votre conseillère de boutique',
+                'Talk to Selly, your shop assistant',
+              )
+            : undefined
         }
         className={
           variant === 'floating'
@@ -62,14 +69,16 @@ export function AskSelly({
           <>
             <SellyMark className="w-6 text-[var(--sf-accent,#8aae4a)]" />
             <span className="hidden text-left sm:block">
-              <span className="block font-semibold">Parler à Selly</span>
-              <span className="block text-sm text-d-paper/75">Votre conseillère de boutique</span>
+              <span className="block font-semibold">{t('Parler à Selly', 'Talk to Selly')}</span>
+              <span className="block text-sm text-d-paper/75">
+                {t('Votre conseillère de boutique', 'Your shop assistant')}
+              </span>
             </span>
           </>
         ) : (
           <>
             <SellyMark className="w-4 text-[var(--sf-accent-text,#173b32)]" />
-            Poser une question à Selly
+            {t('Poser une question à Selly', 'Ask Selly a question')}
           </>
         )}
       </button>
