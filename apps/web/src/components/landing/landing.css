@@ -537,8 +537,8 @@
 }
 /* The gallery: the ring is the lens (2 x LENS in cursor.tsx), the dot steps aside. */
 .cursor-ring[data-state="lens"] {
-  width: 220px;
-  height: 220px;
+  width: 160px;
+  height: 160px;
   border-color: rgba(246, 244, 240, 0.85);
   box-shadow: 0 0 0 1px rgba(23, 59, 50, 0.18);
 }
@@ -556,6 +556,7 @@
 }
 .has-cursor .gal-paint {
   display: block;
+  filter: url(#gal-goo);
   position: absolute;
   inset: 0;
   width: 100%;

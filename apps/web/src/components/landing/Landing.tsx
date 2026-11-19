@@ -166,6 +166,17 @@ export function Landing() {
       className="theme-paper-vermilion min-h-screen w-full overflow-clip flex flex-col selection:bg-[#E3342F] selection:text-[#F6F4F0]"
     >
       <LandingCursor />
+      {/* The gallery's colour trail: alpha above about half becomes solid, below it vanishes, so soft drops melt
+          together into a liquid with a clean edge (cursor.tsx). */}
+      <svg aria-hidden="true" width="0" height="0" className="absolute">
+        <filter id="gal-goo">
+          <feColorMatrix
+            in="SourceGraphic"
+            type="matrix"
+            values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -10"
+          />
+        </filter>
+      </svg>
       <div aria-hidden="true" className="scroll-progress" />
       <SiteHeader onDark={onDark} />
       <section className="relative pt-64 pb-56 md:pt-32 md:pb-24 px-6 md:px-12 max-w-7xl mx-auto w-full min-h-[85vh] flex flex-col items-center justify-center border-x border-[#1111111f]">

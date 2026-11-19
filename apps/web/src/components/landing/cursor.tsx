@@ -4,7 +4,7 @@ import gsap from 'gsap';
 import { useEffect, useRef } from 'react';
 
 /** Radius of the gallery's colour lens, in px; the ring is drawn at this size over the photos (landing.css). */
-const LENS = 110;
+const LENS = 80;
 /** The colour the lens leaves behind stays this long (ms), then fades over TRAIL_FADE. */
 const TRAIL_HOLD = 1000;
 const TRAIL_FADE = 600;
@@ -85,10 +85,21 @@ export function LandingCursor() {
       py = y;
     };
 
-    // Over the gallery the ring leaves drops of colour behind it: each grows in, holds for TRAIL_HOLD, then shrinks
-    // away as it fades. Drops are soft-edged, so the ones that touch run together like a liquid. Each photo keeps its
-    // own drops, in its own pixels (the photos zoom on hover and drift with the scroll), and is redrawn while it has any.
-    type Drop = { x: number; y: number; r: number; t: number; seed: number };
+    // Over the gallery the ring leaves a liquid of colour behind it: drops along its path, droplets flung off when it
+    // moves fast, and now and then a drip running down from the trail. Each grows in, holds for TRAIL_HOLD, then
+    // shrinks away. Drops are soft-edged and the canvas goes through a threshold (#gal-goo, Landing.tsx), so the ones
+    // that touch melt into one shape with a clean edge. Each photo keeps its own drops, in its own pixels (the photos
+    // zoom on hover and drift with the scroll), and is redrawn while it has any.
+    type Drop = {
+      x: number;
+      y: number;
+      r: number;
+      t: number;
+      seed: number;
+      vx: number;
+      vy: number;
+      g: number;
+    };
     const photos = Array.from(document.querySelectorAll<HTMLCanvasElement>('.gal-paint')).map(
       (canvas) => ({
         canvas,
@@ -98,8 +109,11 @@ export function LandingCursor() {
       }),
     );
     let last: { x: number; y: number } | null = null;
+    let then = performance.now();
     const paint = () => {
       const now = performance.now();
+      const dt = Math.min((now - then) / 1000, 0.05);
+      then = now;
       const x = Number(gsap.getProperty(ring, 'x'));
       const y = Number(gsap.getProperty(ring, 'y'));
       const from = lens.r > 0 ? (last ?? { x, y }) : null;
@@ -110,6 +124,14 @@ export function LandingCursor() {
       for (const ph of photos) {
         const { canvas: c } = ph;
         ph.drops = ph.drops.filter((d) => now - d.t < TRAIL_HOLD + TRAIL_FADE);
+        // Droplets fly and fall; drips slide down slowly.
+        for (const d of ph.drops) {
+          if (!d.vx && !d.vy && !d.g) continue;
+          d.vy += d.g * dt;
+          d.vx *= 0.92 ** (dt * 60);
+          d.x += d.vx * dt;
+          d.y += d.vy * dt;
+        }
         const b = c.getBoundingClientRect();
         if (from && b.width) {
           const reach = lens.r + dist;
@@ -122,24 +144,55 @@ export function LandingCursor() {
             )
           ) {
             const k = c.offsetWidth / b.width;
-            // A drop every quarter radius along the way, and one where the ring rests (a still ring keeps its drop
+            // A drop every half radius along the way, and one where the ring rests (a still ring keeps its drop
             // fresh rather than piling them up).
-            const steps = Math.max(1, Math.ceil(dist / (lens.r / 4)));
+            const steps = Math.max(1, Math.ceil(dist / (lens.r / 2)));
             const still = dist < 0.5;
+            const at = (f: number) => ({
+              x: (from.x + (x - from.x) * f - b.left) * k,
+              y: (from.y + (y - from.y) * f - b.top) * k,
+            });
+            const drop = (o: Partial<Drop> & { x: number; y: number; r: number }) =>
+              ph.drops.push({ t: now, seed: Math.random() * 6.28, vx: 0, vy: 0, g: 0, ...o });
             if (still && ph.drops.length) {
-              const top = ph.drops[ph.drops.length - 1];
+              const top = ph.drops.findLast((d) => !d.g);
               if (top) top.t = Math.max(top.t, now - 200);
-            } else
+            } else {
               for (let i = 1; i <= steps; i++) {
-                const f = i / steps;
-                ph.drops.push({
-                  x: (from.x + (x - from.x) * f - b.left) * k,
-                  y: (from.y + (y - from.y) * f - b.top) * k,
-                  r: lens.r * k,
-                  t: now,
-                  seed: Math.random() * 6.28,
-                });
+                const p = at(i / steps);
+                drop({ ...p, r: lens.r * k });
+                // A drip: a small drop that slides down from the bottom of the trail.
+                if (Math.random() < 0.025)
+                  drop({
+                    x: p.x + (Math.random() - 0.5) * lens.r * k,
+                    y: p.y + lens.r * k * 0.55,
+                    r: lens.r * k * (0.18 + Math.random() * 0.12),
+                    vy: 30 + Math.random() * 40,
+                    g: 90,
+                  });
               }
+              // Droplets, flung forward and outward when the ring moves fast.
+              const speed = dist / Math.max(dt, 1 / 120);
+              if (speed > 500) {
+                const ux = (x - from.x) / dist;
+                const uy = (y - from.y) / dist;
+                const n = Math.min(3, Math.floor(speed / 900) + (Math.random() < 0.5 ? 1 : 0));
+                for (let i = 0; i < n; i++) {
+                  const p = at(1);
+                  const side = Math.random() < 0.5 ? -1 : 1;
+                  const fling = speed * (0.25 + Math.random() * 0.25) * k;
+                  const spread = (120 + Math.random() * 220) * side * k;
+                  drop({
+                    x: p.x + ux * lens.r * k * 0.6,
+                    y: p.y + uy * lens.r * k * 0.6,
+                    r: lens.r * k * (0.12 + Math.random() * 0.16),
+                    vx: ux * fling - uy * spread,
+                    vy: uy * fling + ux * spread,
+                    g: 700,
+                  });
+                }
+              }
+            }
           }
         }
         if (!ph.drops.length) {
@@ -175,9 +228,11 @@ export function LandingCursor() {
           const fade = age < TRAIL_HOLD ? 1 : 1 - (age - TRAIL_HOLD) / TRAIL_FADE;
           const wobble = 1 + Math.sin(now / 260 + d.seed) * 0.06;
           const r = (d.r / 4) * (0.5 + 0.5 * (1 - (1 - grow) ** 3)) * (0.55 + 0.45 * fade) * wobble;
+          // A soft falloff: the threshold cuts it at about half, where neighbouring drops add up into a bridge.
           const g = mc.createRadialGradient(d.x / 4, d.y / 4, 0, d.x / 4, d.y / 4, r);
           g.addColorStop(0, `rgba(0,0,0,${fade})`);
-          g.addColorStop(0.62, `rgba(0,0,0,${fade})`);
+          g.addColorStop(0.55, `rgba(0,0,0,${fade * 0.85})`);
+          g.addColorStop(0.8, `rgba(0,0,0,${fade * 0.25})`);
           g.addColorStop(1, 'rgba(0,0,0,0)');
           mc.fillStyle = g;
           mc.beginPath();
