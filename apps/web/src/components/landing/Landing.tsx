@@ -169,7 +169,7 @@ export function Landing() {
       {/* The gallery's colour trail: alpha above about half becomes solid, below it vanishes, so soft drops melt
           together into a liquid with a clean edge (cursor.tsx). */}
       <svg aria-hidden="true" width="0" height="0" className="absolute">
-        <filter id="gal-goo">
+        <filter id="gal-goo" colorInterpolationFilters="sRGB">
           <feColorMatrix
             in="SourceGraphic"
             type="matrix"
