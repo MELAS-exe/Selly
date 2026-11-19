@@ -79,8 +79,9 @@ subscription.
 
 ## Who it is for, and what changes
 
-**The primary user is a vendor in Dakar who sells on WhatsApp and Instagram**: clothes, cloth, shoes, cosmetics.
-They work alone or with one helper, on an Android phone, in French and Wolof.
+**Our primary users are vendors who run their sales through social media**: WhatsApp, Instagram, Facebook, TikTok.
+In Senegal, where we start, they sell clothes, cloth, shoes and cosmetics, work alone or with one helper, on an
+Android phone, in French and Wolof.
 
 | Today, in the chats                                                                       | With Selly                                                                                        |
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
