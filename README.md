@@ -15,6 +15,10 @@
 </p>
 
 <p align="center">
+  <a href="docs/screenshots/landing.jpg"><img src="docs/screenshots/thumbs/landing.jpg" alt="The Selly landing page" width="98%"></a>
+</p>
+
+<p align="center">
   <a href="docs/screenshots/storefront.jpg"><img src="docs/screenshots/thumbs/storefront.jpg" alt="A vendor's storefront" width="49%"></a>
   <a href="docs/screenshots/dashboard.jpg"><img src="docs/screenshots/thumbs/dashboard.jpg" alt="The vendor dashboard" width="49%"></a>
 </p>
