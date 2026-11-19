@@ -22,12 +22,17 @@ const onView = (trigger: Element, start = 'top 86%'): ScrollTrigger.Vars => ({
   once: true,
 });
 
+/** The longest the page waits for its web fonts before animating anyway. */
+const FONT_WAIT_MS = 1500;
+
 /** Builds every animation of the page under `root`; the returned function undoes them all. */
 export function landingMotion(root: HTMLElement): () => void {
   const mm = gsap.matchMedia(root);
   let alive = true;
-  // Split once the fonts are in, so lines break where they finally will.
-  document.fonts.ready.then(() => {
+  // Split once the fonts are in, so lines break where they finally will; but wait no more than FONT_WAIT_MS. A font
+  // request that hangs (a slow or filtering network) would otherwise hold every animation back for good: the hero
+  // would only appear, still, when .split-wait gives up at 4 s.
+  Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, FONT_WAIT_MS))]).then(() => {
     if (!alive) return;
     mm.add(
       {
