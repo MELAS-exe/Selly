@@ -91,6 +91,7 @@ export function Settings() {
         <AgentSection vendor={vendor} save={mutate} />
         <CategoriesSection />
         <AlertsSection vendor={vendor} save={mutate} />
+        <EmailSection vendor={vendor} save={mutate} />
       </div>
     </>
   );
@@ -880,6 +881,171 @@ function AlertsSection({ vendor, save }: { vendor: Vendor; save: Save }) {
       <div className="info-list" style={{ padding: 0, marginTop: 8 }}>
         <PushToggle />
       </div>
+    </Section>
+  );
+}
+
+/**
+ * Alerts by email: the vendor gives an address, Selly sends a 6-digit code there, and alerts go to it once the code
+ * comes back (core: POST /vendors/me/alerts/email, then /verify). Paid orders, waiting customers, renewals.
+ */
+function EmailSection({ vendor, save }: { vendor: Vendor; save: Save }) {
+  const email = vendor.settings.alerts.email;
+  const [address, setAddress] = useState(email?.pending_address ?? '');
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const confirmed = email?.address ?? null;
+  const pending = email?.pending_address ?? null;
+  const run = async (task: () => Promise<unknown>) => {
+    setBusy(true);
+    try {
+      await task();
+    } catch {
+      // mutate shows core's explanation.
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Section title="Alertes par e-mail" sub="Les mêmes alertes, dans votre boîte mail">
+      {confirmed && (
+        <div className="info-list" style={{ padding: 0 }}>
+          <div className="info-row">
+            <span>Adresse confirmée</span>
+            <b>{confirmed}</b>
+          </div>
+        </div>
+      )}
+      {confirmed && (
+        <label className="form-label" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <input
+            type="checkbox"
+            checked={email?.enabled ?? true}
+            disabled={busy}
+            onChange={(e) =>
+              run(() =>
+                save(
+                  '/vendors/me',
+                  {
+                    method: 'PATCH',
+                    body: { settings: { alerts: { email_enabled: e.target.checked } } },
+                  },
+                  e.target.checked ? 'Alertes par e-mail activées.' : 'Alertes par e-mail coupées.',
+                ),
+              )
+            }
+            style={{ accentColor: '#173b32' }}
+          />
+          Recevoir les alertes par e-mail
+        </label>
+      )}
+
+      {pending ? (
+        <>
+          <p className="form-hint">
+            Un code à 6 chiffres a été envoyé à <b>{pending}</b>. Il expire dans 15 minutes.
+          </p>
+          <label className="form-label" htmlFor="em-code">
+            Code reçu
+          </label>
+          <div className="zone-add" style={{ gridTemplateColumns: 'minmax(0, 1fr) auto auto' }}>
+            <input
+              id="em-code"
+              className="form-control"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+              placeholder="123456"
+            />
+            <button
+              type="button"
+              className="button primary small"
+              disabled={busy || code.length !== 6}
+              onClick={() =>
+                run(async () => {
+                  await save(
+                    '/vendors/me/alerts/email/verify',
+                    { method: 'POST', body: { code } },
+                    'Adresse confirmée : vos alertes arrivent aussi par e-mail.',
+                  );
+                  setCode('');
+                })
+              }
+            >
+              Confirmer
+            </button>
+            <button
+              type="button"
+              className="button small ghost"
+              disabled={busy}
+              onClick={() =>
+                run(() =>
+                  save(
+                    '/vendors/me/alerts/email',
+                    { method: 'POST', body: { address: pending } },
+                    'Nouveau code envoyé.',
+                  ),
+                )
+              }
+            >
+              Renvoyer
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <label className="form-label" htmlFor="em-address">
+            {confirmed ? 'Changer d’adresse' : 'Votre adresse e-mail'}
+          </label>
+          <div className="zone-add" style={{ gridTemplateColumns: 'minmax(0, 1fr) auto' }}>
+            <input
+              id="em-address"
+              className="form-control"
+              type="email"
+              autoComplete="email"
+              maxLength={254}
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="vous@exemple.com"
+            />
+            <button
+              type="button"
+              className="button small"
+              disabled={busy || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(address.trim())}
+              onClick={() =>
+                run(() =>
+                  save(
+                    '/vendors/me/alerts/email',
+                    { method: 'POST', body: { address: address.trim() } },
+                    'Code envoyé : regardez votre boîte mail.',
+                  ),
+                )
+              }
+            >
+              Recevoir un code
+            </button>
+          </div>
+        </>
+      )}
+      {(confirmed || pending) && (
+        <button
+          type="button"
+          className="text-link"
+          disabled={busy}
+          onClick={() =>
+            run(async () => {
+              await save('/vendors/me/alerts/email', { method: 'DELETE' }, 'Adresse retirée.');
+              setAddress('');
+              setCode('');
+            })
+          }
+        >
+          {confirmed ? 'Retirer l’adresse' : 'Annuler'}
+        </button>
+      )}
     </Section>
   );
 }

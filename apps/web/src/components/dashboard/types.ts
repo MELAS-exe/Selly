@@ -50,7 +50,11 @@ export interface Vendor extends VendorBase {
       negotiation?: { mode: 'fixed' | 'allow'; max_discount_pct: number };
       keep_logs?: boolean;
     };
-    alerts: { web_push: boolean };
+    alerts: {
+      web_push: boolean;
+      /** address: confirmed, gets alerts; pending_address: waiting for its code. Missing on an older core. */
+      email?: { enabled: boolean; address: string | null; pending_address: string | null };
+    };
     branding?: Branding;
   };
 }
